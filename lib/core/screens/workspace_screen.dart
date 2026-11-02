@@ -400,6 +400,13 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     );
   }
 
+  /// Visible session panes refresh every few seconds (#149). A passive tick on
+  /// a surface that is not showing archived rows reuses the last complete
+  /// archive scan for this long instead of re-reading every archived page.
+  /// Mounts, foreground loads, archived surfaces, explicit refreshes and local
+  /// archive/rename mutations still read fresh archive rows.
+  static const _passiveArchiveScanReuse = Duration(minutes: 5);
+
   SharedSessionScan get _archivesLoader => _archiveLoader ??= SharedSessionScan(
     (publish) => _dashboardClient.getArchivedSessions(
       gatewayProfile: widget.connection.gatewayProfile,
@@ -408,17 +415,20 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       isCancelled: () => !mounted,
       onProgress: publish,
     ),
+    reuseCompletedFor: _passiveArchiveScanReuse,
   );
 
   Future<List<Session>> _loadArchivedSessions({
     SessionScanProgress? onProgress,
     bool fresh = false,
+    bool reuseRecent = false,
   }) async {
     final revision = _sessionTitleRevision;
     final owner = _archivesLoader;
     // Passive pane loads coalesce; an explicit refresh needs new physical I/O.
     if (fresh) owner.invalidate();
     final rows = await owner.load(
+      reuseCompleted: reuseRecent && !fresh,
       onProgress: onProgress == null
           ? null
           : (rows) => onProgress(_withConfirmedTitles(rows, revision)),
@@ -1005,6 +1015,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           load: _loadWorkspaceSessionsData,
           loadProgressively: (onProgress) =>
               _loadWorkspaceSessionsData(onProgress: onProgress),
+          tickLoad: (onProgress) => _loadWorkspaceSessionsData(
+            onProgress: onProgress,
+            reuseRecentArchives: true,
+          ),
           reloadActive: (onProgress) => _loadWorkspaceSessionsData(
             onProgress: onProgress,
             freshActive: true,
@@ -1036,6 +1050,11 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           loadProgressively: (onProgress) => _loadWorkspaceSessionsData(
             kind: WorkspaceSessionKind.crons,
             onProgress: onProgress,
+          ),
+          tickLoad: (onProgress) => _loadWorkspaceSessionsData(
+            kind: WorkspaceSessionKind.crons,
+            onProgress: onProgress,
+            reuseRecentArchives: true,
           ),
           reloadActive: (onProgress) => _loadWorkspaceSessionsData(
             kind: WorkspaceSessionKind.crons,
@@ -1495,6 +1514,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     void Function(WorkspaceSessionsData data)? onProgress,
     bool freshActive = false,
     bool includeArchives = true,
+    bool reuseRecentArchives = false,
   }) async {
     final generation = ++_signalsGeneration;
     unawaited(_refreshTurnSignals(generation));
@@ -1583,6 +1603,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       if (!archiveLoading) return;
       try {
         archivedSessions = await _loadArchivedSessions(
+          reuseRecent: reuseRecentArchives,
           onProgress: (rows) {
             archivedSessions = rows;
             publish();
@@ -1739,6 +1760,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         load: _loadWorkspaceSessionsData,
         loadProgressively: (onProgress) =>
             _loadWorkspaceSessionsData(onProgress: onProgress),
+        tickLoad: (onProgress) => _loadWorkspaceSessionsData(
+          onProgress: onProgress,
+          reuseRecentArchives: true,
+        ),
         reloadActive: (onProgress) => _loadWorkspaceSessionsData(
           onProgress: onProgress,
           freshActive: true,

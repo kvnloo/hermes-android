@@ -43,6 +43,7 @@ Future<void> mount(
   required http.Client archive,
   SavedConnection? connection,
   ProjectsRepositoryFactory? repositoryFactory,
+  Duration? sessionsRefreshInterval,
 }) async {
   tester.view.physicalSize = const Size(600, 1400);
   tester.view.devicePixelRatio = 1;
@@ -67,6 +68,7 @@ Future<void> mount(
         testSessionsHttpClient: active,
         testArchivedSessionsHttpClient: archive,
         turnSignalsLoader: (_) async => HomeTurnSignals.empty,
+        sessionsRefreshInterval: sessionsRefreshInterval,
       ),
     ),
   );
@@ -76,6 +78,59 @@ Future<void> mount(
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets(
+    'passive ticks reuse a recent archive scan off archived surfaces (#149)',
+    (tester) async {
+      final activeRequests = <Uri>[];
+      final archiveScans = <Uri>[];
+      await mount(
+        tester,
+        sessionsRefreshInterval: const Duration(seconds: 10),
+        active: MockClient((request) async {
+          activeRequests.add(request.url);
+          return livePage(List.generate(3, row));
+        }),
+        archive: MockClient((request) async {
+          final offset = request.url.queryParameters['offset'] ?? '0';
+          if (offset == '0') archiveScans.add(request.url);
+          return offset == '0' ? archivePage(0, 5, 7) : archivePage(5, 2, 7);
+        }),
+      );
+      await tester.tap(find.text('Chats').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Live chat 0'), findsOneWidget);
+      final scansAfterOpen = archiveScans.length;
+      final activeAfterOpen = activeRequests.length;
+      expect(scansAfterOpen, greaterThan(0));
+
+      for (var tick = 0; tick < 3; tick++) {
+        await tester.pump(const Duration(seconds: 10));
+        await tester.pump();
+      }
+      expect(
+        activeRequests.length,
+        greaterThan(activeAfterOpen),
+        reason: 'visible-pane ticks still refresh live rows',
+      );
+      expect(
+        archiveScans.length,
+        scansAfterOpen,
+        reason: 'All Chats ticks must not re-page every archived row',
+      );
+
+      // The Archived filter displays archive rows, so its ticks stay fresh.
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Archived'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Archived chat 0'), findsOneWidget);
+      final scansOnArchived = archiveScans.length;
+      await tester.pump(const Duration(seconds: 10));
+      await tester.pump();
+      expect(archiveScans.length, greaterThan(scansOnArchived));
+    },
+  );
 
   testWidgets(
     'Unassigned and Archived show five while independent pages load',
