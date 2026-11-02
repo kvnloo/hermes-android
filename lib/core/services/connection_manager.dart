@@ -1825,7 +1825,11 @@ class GatewayChatClient {
       return const _SseFrame(error: 'Gateway sent a malformed SSE frame.');
     }
     if (parsed['error'] != null || parsed['type'] == 'error') {
-      return _SseFrame(error: _streamErrorMessage(parsed));
+      return _SseFrame(
+        error: _isStreamedForeignSessionOwnerRefusal(parsed)
+            ? _foreignSessionOwnerHint
+            : _streamErrorMessage(parsed),
+      );
     }
     // Current Hermes annotates failed/partial completions as well as emitting
     // non-stop finish reasons. Neither can be overridden by a later [DONE].
@@ -1908,6 +1912,19 @@ class GatewayChatClient {
     if (payload is! Map) return false;
     final error = payload['error'];
     return error is Map && error['code'] == 'permission_denied';
+  }
+
+  /// The same refusal on the streaming route the app uses. Stock Hermes
+  /// v0.22.5 opens the SSE response before admitting the API turn, so the
+  /// admission's `RuntimeStoreError('permission_denied')` arrives as the
+  /// finish chunk's `error` with HTTP 200, never as a 409. The error type
+  /// keeps provider/tool failures that merely mention permissions apart.
+  static bool _isStreamedForeignSessionOwnerRefusal(Object? payload) {
+    if (payload is! Map) return false;
+    final error = payload['error'];
+    return error is Map &&
+        error['type'] == 'RuntimeStoreError' &&
+        error['message'] == 'permission_denied';
   }
 
   static const _foreignSessionOwnerHint =
