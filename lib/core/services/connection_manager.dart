@@ -1901,6 +1901,20 @@ class GatewayChatClient {
     return fallback;
   }
 
+  /// A 409 with this exact API-server code means the session belongs to a
+  /// different Hermes surface (TUI, Desktop, etc.). Browsing is allowed, but
+  /// REST must not submit turns into another surface's transcript.
+  static bool _isForeignSessionOwnerRefusal(Object? payload) {
+    if (payload is! Map) return false;
+    final error = payload['error'];
+    return error is Map && error['code'] == 'permission_denied';
+  }
+
+  static const _foreignSessionOwnerHint =
+      'This chat belongs to another Hermes surface. REST can read its '
+      'history but cannot send to it. Configure an authenticated Desktop '
+      'Gateway connection in Dashboard / Proxy Settings, then retry.';
+
   /// Send a message and stream the assistant response token-by-token.
   ///
   /// [onDone] means a successfully completed assistant reply, not socket EOF.
@@ -2082,10 +2096,13 @@ class GatewayChatClient {
                   // A proxy may return HTML/plain text rather than JSON.
                 }
                 finishBody(
-                  _streamErrorMessage(
-                    payload,
-                    fallback: 'HTTP ${response.statusCode}',
-                  ),
+                  response.statusCode == 409 &&
+                          _isForeignSessionOwnerRefusal(payload)
+                      ? _foreignSessionOwnerHint
+                      : _streamErrorMessage(
+                          payload,
+                          fallback: 'HTTP ${response.statusCode}',
+                        ),
                 );
               } else {
                 finishBody(

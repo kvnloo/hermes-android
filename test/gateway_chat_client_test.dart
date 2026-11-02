@@ -858,6 +858,70 @@ void main() {
       },
     );
   });
+  group('API-server foreign-session ownership (#253)', () {
+    Future<_Probe> deniedReply({
+      required int status,
+      required String code,
+      required String message,
+    }) async {
+      final transport = _ControlledClient();
+      final response = transport.enqueue(status: status);
+      final probe = _Probe(transport);
+      final sending = probe.send();
+      await response.listening.future;
+      response.body.add(
+        utf8.encode(
+          jsonEncode({
+            'error': {
+              'message': message,
+              'type': 'invalid_request_error',
+              'param': null,
+              'code': code,
+            },
+          }),
+        ),
+      );
+      await response.body.close();
+      await sending;
+      await probe.gateway.whenStreamSettles();
+      expect(transport._next, 1, reason: 'Refused sends must not be retried.');
+      probe.api.close();
+      return probe;
+    }
+
+    test('409 permission_denied gives an actionable WebSocket route', () async {
+      final probe = await deniedReply(
+        status: 409,
+        code: 'permission_denied',
+        message: 'permission_denied',
+      );
+      expect(probe.done, 0);
+      expect(probe.tokens, isEmpty);
+      expect(probe.errors, hasLength(1));
+      expect(probe.errors.single, contains('another Hermes surface'));
+      expect(probe.errors.single, contains('Dashboard / Proxy Settings'));
+    });
+
+    test('unrelated 409 preserves the gateway error', () async {
+      final probe = await deniedReply(
+        status: 409,
+        code: 'admission_conflict',
+        message: 'Admission already belongs to an active turn',
+      );
+      expect(probe.done, 0);
+      expect(probe.errors, ['Admission already belongs to an active turn']);
+    });
+
+    test('non-409 permission_denied is not misidentified', () async {
+      final probe = await deniedReply(
+        status: 403,
+        code: 'permission_denied',
+        message: 'permission_denied',
+      );
+      expect(probe.done, 0);
+      expect(probe.errors, ['permission_denied']);
+    });
+  });
 }
 
 Future<_Probe> _run(String wire, {int fragmentBytes = 4096}) async {
