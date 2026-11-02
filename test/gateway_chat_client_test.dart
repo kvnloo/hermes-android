@@ -922,7 +922,6 @@ void main() {
       expect(probe.errors, ['permission_denied']);
     });
   });
-
 }
 
 Future<_Probe> _run(String wire, {int fragmentBytes = 4096}) async {
