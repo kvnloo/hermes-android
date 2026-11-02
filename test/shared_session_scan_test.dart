@@ -1,5 +1,8 @@
 import 'dart:async';
 
+// flutter_test supplies this deterministic microtask clock via its SDK.
+// ignore: depend_on_referenced_packages
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hermes_android/core/models/session.dart';
 import 'package:hermes_android/core/services/session_browser_loader.dart';
@@ -167,4 +170,120 @@ void main() {
       await expectLater(scan.load(), throwsStateError);
     },
   );
+
+  group('recent completed scan reuse (#149)', () {
+    test('only an opted-in load reuses a completed scan inside its window', () {
+      fakeAsync((async) {
+        var reads = 0;
+        final scan = SharedSessionScan((_) async {
+          reads++;
+          return [_row('Read $reads')];
+        }, reuseCompletedFor: const Duration(minutes: 5));
+        List<Session>? rows;
+        scan.load().then((value) => rows = value);
+        async.flushMicrotasks();
+        expect(reads, 1);
+        expect(rows!.single.title, 'Read 1');
+
+        scan.load(reuseCompleted: true).then((value) => rows = value);
+        async.flushMicrotasks();
+        expect(reads, 1, reason: 'a passive tick must not repeat the scan');
+        expect(rows!.single.title, 'Read 1');
+
+        // Mounts and foreground loads do not opt in and still read fresh rows.
+        scan.load().then((value) => rows = value);
+        async.flushMicrotasks();
+        expect(reads, 2);
+        expect(rows!.single.title, 'Read 2');
+
+        async.elapse(const Duration(minutes: 4, seconds: 59));
+        scan.load(reuseCompleted: true).then((value) => rows = value);
+        async.flushMicrotasks();
+        expect(reads, 2);
+        expect(rows!.single.title, 'Read 2');
+
+        async.elapse(const Duration(minutes: 5));
+        scan.load(reuseCompleted: true).then((value) => rows = value);
+        async.flushMicrotasks();
+        expect(reads, 3, reason: 'an expired window reads fresh rows');
+        expect(rows!.single.title, 'Read 3');
+        scan.close();
+        expect(async.pendingTimers, isEmpty);
+      });
+    });
+
+    test('invalidation, failures and an unset window never reuse rows', () {
+      fakeAsync((async) {
+        var reads = 0;
+        var fail = false;
+        final scan = SharedSessionScan((_) async {
+          reads++;
+          if (fail) throw StateError('offline');
+          return [_row('Read $reads')];
+        }, reuseCompletedFor: const Duration(minutes: 5));
+        scan.load();
+        async.flushMicrotasks();
+        expect(reads, 1);
+
+        // A local archive/rename mutation or explicit refresh invalidates.
+        scan.invalidate();
+        scan.load(reuseCompleted: true);
+        async.flushMicrotasks();
+        expect(reads, 2);
+
+        fail = true;
+        Object? error;
+        scan.load().catchError((Object e) {
+          error = e;
+          return <Session>[];
+        });
+        async.flushMicrotasks();
+        expect(reads, 3);
+        expect(error, isA<StateError>());
+        fail = false;
+        List<Session>? rows;
+        scan.load(reuseCompleted: true).then((value) => rows = value);
+        async.flushMicrotasks();
+        expect(reads, 4, reason: 'a failed read leaves nothing to reuse');
+        expect(rows!.single.title, 'Read 4');
+        scan.close();
+        expect(async.pendingTimers, isEmpty);
+
+        var plainReads = 0;
+        final plain = SharedSessionScan((_) async {
+          plainReads++;
+          return [_row('Plain')];
+        });
+        plain.load();
+        async.flushMicrotasks();
+        plain.load(reuseCompleted: true);
+        async.flushMicrotasks();
+        expect(plainReads, 2);
+        plain.close();
+      });
+    });
+
+    test('a read that finishes after invalidation is not retained', () {
+      fakeAsync((async) {
+        final completions = <Completer<List<Session>>>[];
+        final scan = SharedSessionScan((_) {
+          final completion = Completer<List<Session>>();
+          completions.add(completion);
+          return completion.future;
+        }, reuseCompletedFor: const Duration(minutes: 5));
+        scan.load();
+        scan.invalidate();
+        completions.single.complete([_row('Stale')]);
+        async.flushMicrotasks();
+        List<Session>? rows;
+        scan.load(reuseCompleted: true).then((value) => rows = value);
+        async.flushMicrotasks();
+        expect(completions, hasLength(2));
+        completions.last.complete([_row('Fresh')]);
+        async.flushMicrotasks();
+        expect(rows!.single.title, 'Fresh');
+        scan.close();
+      });
+    });
+  });
 }

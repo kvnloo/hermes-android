@@ -7,40 +7,61 @@ typedef SessionScanProgress = void Function(List<Session> sessions);
 
 /// Coalesces readers only within the same physical authority revision.
 /// Invalidating starts a new flight without replaying an older flight's rows.
+///
+/// With [reuseCompletedFor], the last successful read of the current revision
+/// is retained for that window. Only a load that opts in with
+/// `reuseCompleted: true` (a passive refresh tick) is answered from it without
+/// new I/O; ordinary loads still start a fresh read. [invalidate] (an explicit
+/// refresh or a local mutation) always ends reuse, and failures are never
+/// retained.
 class SharedSessionScan {
   final Future<List<Session>> Function(SessionScanProgress publish) read;
+  final Duration? reuseCompletedFor;
   final _flights = <_SessionScanFlight>{};
   _SessionScanFlight? _current;
   var _revision = 0;
   bool _closed = false;
   bool get isClosed => _closed;
+  ({int revision, List<Session> rows})? _completed;
+  Timer? _completedExpiry;
 
-  SharedSessionScan(this.read);
+  SharedSessionScan(this.read, {this.reuseCompletedFor});
 
   Future<List<Session>> load({
     SessionScanProgress? onProgress,
     void Function(int revision)? onRevision,
+    bool reuseCompleted = false,
   }) async {
     if (isClosed) throw StateError('Session browser is closed');
     var flight = _current;
     if (flight == null || flight.revision != _revision) {
+      if (_completed case final completed?
+          when reuseCompleted && completed.revision == _revision) {
+        onRevision?.call(completed.revision);
+        return completed.rows;
+      }
       flight = _SessionScanFlight(++_revision);
       final started = flight;
       _current = started;
       _flights.add(started);
       started.result =
           Future<List<Session>>.sync(
-            () => read((rows) {
-              if (isClosed || !_flights.contains(started)) return;
-              started.progress = List.unmodifiable(rows);
-              for (final listener in started.listeners.toList()) {
-                listener(started.progress!);
-              }
-            }),
-          ).whenComplete(() {
-            _flights.remove(started);
-            if (identical(_current, started)) _current = null;
-          });
+                () => read((rows) {
+                  if (isClosed || !_flights.contains(started)) return;
+                  started.progress = List.unmodifiable(rows);
+                  for (final listener in started.listeners.toList()) {
+                    listener(started.progress!);
+                  }
+                }),
+              )
+              .then((rows) {
+                _retain(started.revision, rows);
+                return rows;
+              })
+              .whenComplete(() {
+                _flights.remove(started);
+                if (identical(_current, started)) _current = null;
+              });
     }
     try {
       // A subscriber inherits the physical read's revision, before any replay.
@@ -58,12 +79,30 @@ class SharedSessionScan {
     }
   }
 
-  void invalidate() => _revision++;
+  void _retain(int revision, List<Session> rows) {
+    final window = reuseCompletedFor;
+    if (window == null || isClosed || revision != _revision) return;
+    _completedExpiry?.cancel();
+    _completed = (revision: revision, rows: rows);
+    _completedExpiry = Timer(window, _dropCompleted);
+  }
+
+  void _dropCompleted() {
+    _completedExpiry?.cancel();
+    _completedExpiry = null;
+    _completed = null;
+  }
+
+  void invalidate() {
+    _revision++;
+    _dropCompleted();
+  }
 
   bool isCurrent(int revision) => !isClosed && revision == _revision;
 
   void close() {
     _closed = true;
+    _dropCompleted();
     for (final flight in _flights) {
       flight.listeners.clear();
     }

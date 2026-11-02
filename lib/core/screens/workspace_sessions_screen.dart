@@ -414,6 +414,11 @@ class WorkspaceSessionsScreen extends StatefulWidget {
   final WorkspaceSessionsLoader load;
   final WorkspaceSessionsProgressiveLoader? loadProgressively;
 
+  /// Periodic [refreshInterval] ticks use this loader, when given, on surfaces
+  /// that are not showing archived rows. It may answer archives from a recent
+  /// complete scan instead of re-reading every archived page each tick (#149).
+  final WorkspaceSessionsProgressiveLoader? tickLoad;
+
   /// Refreshes active history and its metadata independently of server archives.
   final WorkspaceSessionsProgressiveLoader? reloadActive;
 
@@ -445,6 +450,7 @@ class WorkspaceSessionsScreen extends StatefulWidget {
     this.kind = WorkspaceSessionKind.chats,
     required this.load,
     this.loadProgressively,
+    this.tickLoad,
     this.reloadActive,
     this.reloadArchives,
     this.initialData,
@@ -602,7 +608,7 @@ class WorkspaceSessionsScreenState extends State<WorkspaceSessionsScreen>
     final interval = widget.refreshInterval;
     if (interval == null || !visible) return;
     _refreshTimer = Timer.periodic(interval, (_) {
-      if (_visible) unawaited(_load());
+      if (_visible) unawaited(_load(tick: true));
     });
   }
 
@@ -684,12 +690,14 @@ class WorkspaceSessionsScreenState extends State<WorkspaceSessionsScreen>
     return refresh();
   }
 
-  Future<void> _load() {
+  Future<void> _load({bool tick = false}) {
     if (!mounted) return Future<void>.value();
     // Passive ticks must not compete with a selected authority's refresh.
     final scoped = _activeReadInFlight ?? _archiveReadInFlight;
     if (scoped != null) return scoped;
-    return _loadInFlight ??= _loadOnce().whenComplete(() {
+    // An archived surface displays archive rows, so its ticks stay fresh.
+    final tickLoad = tick && !_isArchivedSurface ? widget.tickLoad : null;
+    return _loadInFlight ??= _loadOnce(tickLoad: tickLoad).whenComplete(() {
       _loadInFlight = null;
     });
   }
@@ -810,7 +818,7 @@ class WorkspaceSessionsScreenState extends State<WorkspaceSessionsScreen>
     }
   }
 
-  Future<void> _loadOnce() async {
+  Future<void> _loadOnce({WorkspaceSessionsProgressiveLoader? tickLoad}) async {
     final generation = ++_loadGeneration;
     final titleRevision = _titleRevision;
     final projectRevision = _projectRevision;
@@ -852,7 +860,7 @@ class WorkspaceSessionsScreenState extends State<WorkspaceSessionsScreen>
     }
 
     try {
-      final progressive = widget.loadProgressively;
+      final progressive = tickLoad ?? widget.loadProgressively;
       final data = await (progressive == null
           ? widget.load()
           : progressive((data) {
