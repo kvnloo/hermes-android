@@ -975,12 +975,25 @@ void main() {
     test(
       'stock v0.22.5 streamed refusal gives the same actionable route',
       () async {
-        final probe = await _run(stockStreamRefusal());
+        // Stock opens the SSE body with HTTP 200 before admitting the API
+        // turn; a permission refusal must be terminal, not success or retry.
+        final transport = _ControlledClient();
+        final response = transport.enqueue(status: 200);
+        final probe = _Probe(transport);
+        final sending = probe.send();
+        await response.listening.future;
+        response.body.add(utf8.encode(stockStreamRefusal()));
+        await response.body.close();
+        await sending;
+        await probe.gateway.whenStreamSettles();
+        expect(transport._next, 1, reason: 'A rejected turn must not retry.');
+        expect(probe.gateway.isStreaming, isFalse);
         expect(probe.done, 0);
         expect(probe.tokens, isEmpty);
         expect(probe.errors, hasLength(1));
         expect(probe.errors.single, contains('another Hermes surface'));
         expect(probe.errors.single, contains('Dashboard / Proxy Settings'));
+        probe.api.close();
       },
     );
 
