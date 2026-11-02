@@ -2,12 +2,154 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hermes_android/core/models/session.dart';
+import 'package:hermes_android/core/screens/chat_screen.dart';
+import 'package:hermes_android/core/services/gateway_turn_application_controller.dart';
+import 'package:hermes_android/l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'support/fake_voice_composer_adapter.dart';
 import 'package:hermes_android/core/models/connection.dart';
 import 'package:hermes_android/core/services/desktop_gateway_client.dart';
 import 'package:hermes_android/core/services/ws_client.dart';
 
 void main() {
+  test('stock ready: reopened stored chat submits against resumed runtime id', () async {
+    final gateway = await _Gateway.start(stockReady: true);
+    final first = gateway.client();
+    final reopened = gateway.client();
+    addTearDown(() async {
+      first.close();
+      reopened.close();
+      await gateway.close();
+    });
+
+    first.bindStoredSession('mobile', 'stored-253');
+    await first.ensureSession('mobile');
+    expect(first.storedSessionKeyFor('mobile'), 'stored-253');
+    first.close();
+
+    // Reopening is a new socket. Its session.resume returns a different
+    // runtime binding, not the durable key and not the previous socket's id.
+    reopened.bindStoredSession('mobile', 'stored-253');
+    await reopened.ensureSession('mobile');
+    final resumes = gateway.calls('session.resume').toList();
+    expect(resumes, hasLength(2));
+    expect(
+      resumes.map((rpc) => rpc.params['session_id']),
+      ['stored-253', 'stored-253'],
+    );
+    expect(reopened.storedSessionKeyFor('mobile'), 'stored-253');
+
+    var sends = 0;
+    var completions = 0;
+    final submitted = reopened.submitPrompt(
+      sessionId: 'mobile',
+      text: 'Stock contract probe',
+      onSent: () => sends++,
+      onEvent: (event) {
+        if (event.isComplete) completions++;
+      },
+    );
+    final request = await gateway.take('prompt.submit');
+    expect(request.params, {
+      'session_id': 'runtime-stored-253-2',
+      'text': 'Stock contract probe',
+    });
+    expect(
+      request.params['session_id'],
+      isNot('stored-253'),
+      reason: 'Stock prompt.submit must use the resumed runtime binding.',
+    );
+    expect(gateway.calls('session.create'), isEmpty);
+    expect(gateway.calls('session.open'), isEmpty);
+    expect(gateway.calls('turn.reconcile'), isEmpty);
+    expect(gateway.calls('prompt.submit'), hasLength(1));
+    // The stock fixture deliberately advertises no turn_recovery. In
+    // particular, the server would reject version and client_turn_id.
+    expect(request.params, isNot(containsPair('version', 2)));
+    expect(request.params.containsKey('client_turn_id'), isFalse);
+
+    gateway.event(
+      'message.complete',
+      {'text': 'Done', 'status': 'complete'},
+      sessionId: 'runtime-stored-253-2',
+    );
+    await submitted.timeout(_deadline);
+    expect(sends, 1);
+    expect(completions, 1);
+  });
+
+  testWidgets(
+    'saved ChatScreen with Desktop gateway submits over WS, not REST',
+    (tester) async {
+      final previousOverrides = HttpOverrides.current;
+      HttpOverrides.global = null;
+      addTearDown(() => HttpOverrides.global = previousOverrides);
+      SharedPreferences.setMockInitialValues({});
+      final gateway = await _Gateway.start(stockReady: true);
+      final controller = GatewayTurnApplicationController();
+      addTearDown(() async {
+        await controller.close();
+        await gateway.close();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: ChatScreen(
+            connection: gateway.connection(),
+            session: const Session(
+              id: 'stored-widget',
+              title: 'Reopened stored chat',
+              model: 'fixture',
+              source: 'test',
+              messageCount: 0,
+              isActive: true,
+              preview: '',
+              startedAt: 1,
+            ),
+            turnApplicationController: controller,
+            testVoiceComposerAdapter: FakeVoiceComposerAdapter(),
+          ),
+        ),
+      );
+      // The real DesktopGatewayClient must bind the existing stored chat.
+      // No testRemotePromptSubmit injection is used to mask routing errors.
+      final resume = await tester.runAsync(
+        () => gateway.take('session.resume'),
+      );
+      expect(resume, isNotNull);
+      expect(resume!.params['session_id'], 'stored-widget');
+      await tester.pump();
+      await tester.enterText(find.byType(TextField), 'Send via Desktop');
+      await tester.tap(find.byTooltip('Send'));
+      await tester.pump();
+
+      final submit = await tester.runAsync(
+        () => gateway.take('prompt.submit'),
+      );
+      expect(submit, isNotNull);
+      expect(submit!.params, {
+        'session_id': 'runtime-stored-widget-1',
+        'text': 'Send via Desktop',
+      });
+      expect(gateway.restChatWrites, isEmpty);
+      expect(gateway.calls('session.open'), isEmpty);
+      expect(gateway.calls('turn.reconcile'), isEmpty);
+      gateway.event(
+        'message.complete',
+        {'text': 'Received', 'status': 'complete'},
+        sessionId: 'runtime-stored-widget-1',
+      );
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   for (final warmSocket in [false, true]) {
     for (final create in [false, true]) {
       test(
@@ -614,9 +756,11 @@ class _Events {
 /// Real loopback HTTP ticket mint + WebSocket JSON-RPC. Only reply release is
 /// controlled: no replacement transport, private-state access or timing sleeps.
 class _Gateway {
-  _Gateway(this.server);
+  _Gateway(this.server, {this.stockReady = false});
 
   final HttpServer server;
+  final bool stockReady;
+  final restChatWrites = <String>[];
   final sockets = <WebSocket>[];
   final requests = <_Rpc>[];
   final missing = <String>{};
@@ -625,16 +769,16 @@ class _Gateway {
   final _taken = <String, int>{};
   var creates = 0;
 
-  static Future<_Gateway> start() async {
+  static Future<_Gateway> start({bool stockReady = false}) async {
     final gateway = _Gateway(
       await HttpServer.bind(InternetAddress.loopbackIPv4, 0),
+      stockReady: stockReady,
     );
     gateway.server.listen(gateway._http);
     return gateway;
   }
 
-  DesktopGatewayClient client() => DesktopGatewayClient.fromConnection(
-    SavedConnection(
+  SavedConnection connection() => SavedConnection(
       id: 'lifecycle-fixture',
       label: 'Fixture',
       host: '127.0.0.1',
@@ -643,8 +787,10 @@ class _Gateway {
       dashboardPortOverride: server.port,
       dashboardProxied: true,
       desktopGatewayUrl: 'http://127.0.0.1:${server.port}',
-    ),
-  );
+    );
+
+  DesktopGatewayClient client() =>
+      DesktopGatewayClient.fromConnection(connection());
 
   Iterable<_Rpc> calls(String method, {WebSocket? socket}) => requests.where(
     (rpc) =>
@@ -663,6 +809,10 @@ class _Gateway {
   }
 
   Future<void> _http(HttpRequest request) async {
+    if (request.method == 'POST' &&
+        request.uri.path != '/api/auth/ws-ticket') {
+      restChatWrites.add(request.uri.path);
+    }
     if (request.uri.path == '/api/auth/ws-ticket') {
       request.response
         ..headers.contentType = ContentType.json
@@ -671,6 +821,26 @@ class _Gateway {
     } else if (WebSocketTransformer.isUpgradeRequest(request)) {
       final socket = await WebSocketTransformer.upgrade(request);
       sockets.add(socket);
+      if (stockReady) {
+        // The stock v0.22.5 ready shape has no recovery-v2 advertisement.
+        socket.add(
+          jsonEncode({
+            'jsonrpc': '2.0',
+            'method': 'event',
+            'params': {
+              'type': 'gateway.ready',
+              'payload': {
+                'capabilities': {
+                  'change_events': {},
+                  'heartbeat': {},
+                  'replay_epoch': {},
+                  'skin': {},
+                },
+              },
+            },
+          }),
+        );
+      }
       socket.listen((raw) {
         final frame = Map<String, dynamic>.from(
           jsonDecode(raw as String) as Map,
@@ -681,6 +851,14 @@ class _Gateway {
         _received.add(rpc);
         if (!held.contains(rpc.method)) rpc.replyDefault();
       });
+    } else if (stockReady && request.method == 'GET') {
+      request.response
+        ..headers.contentType = ContentType.json
+        ..write(jsonEncode({
+          'data': <Object>[],
+          'session': {'id': 'stored-widget', 'archived': false},
+        }));
+      await request.response.close();
     } else {
       request.response.statusCode = 404;
       await request.response.close();
@@ -698,14 +876,18 @@ class _Gateway {
     );
   }
 
-  void event(String type, Map<String, dynamic> payload) {
+  void event(
+    String type,
+    Map<String, dynamic> payload, {
+    String sessionId = 'runtime-local',
+  }) {
     sockets.last.add(
       jsonEncode({
         'jsonrpc': '2.0',
         'method': 'event',
         'params': {
           'type': type,
-          'session_id': 'runtime-local',
+          'session_id': sessionId,
           'payload': payload,
         },
       }),
@@ -753,7 +935,9 @@ class _Rpc {
           );
         } else {
           reply({
-            'session_id': 'runtime-$stored',
+            'session_id': gateway.stockReady
+                ? 'runtime-$stored-${gateway.sockets.indexOf(socket) + 1}'
+                : 'runtime-$stored',
             'running': false,
             'status': 'idle',
           });
