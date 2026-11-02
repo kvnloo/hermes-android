@@ -759,24 +759,24 @@ Check that the Android connection's API key matches `API_SERVER_KEY` from the He
 
 ### Existing chats reject sends with `permission_denied`
 
-The API server can list and read a session owned by the Desktop Gateway, TUI,
-CLI or another surface, but cannot send a new turn into that session through
-`POST /v1/chat/completions`. Stock Hermes refuses the write before executing
-its prompt. A non-streaming request receives HTTP 409 with `error.code` set to
-`permission_denied`. The app's streaming request instead receives HTTP 200
-`text/event-stream`, followed by an error finish chunk containing
+The API server can read sessions owned by the Desktop Gateway, TUI, CLI or
+another surface, while its session authority can refuse REST writes to those
+sessions. On stock Hermes v0.22.5, a non-streaming refusal can be HTTP 409 with
+`error.code: permission_denied`. Streaming requests may return HTTP 200
+`text/event-stream` with a terminal
 `error: {"message": "permission_denied", "type": "RuntimeStoreError"}`.
-**HTTP 200 does not mean the prompt was admitted.** Repeating the same REST
-request will not fix it. This is not necessarily an invalid API key.
+**HTTP 200 with an error finish chunk is not a successful reply.** The bare
+error alone does not establish who owns the session or whether the turn ran;
+do not blindly resend an uncertain prompt.
 
-For an existing Desktop/Gateway chat, configure the saved connection under
-**Dashboard / Proxy Settings** with the correct dashboard host/port and
-credentials (or an explicit **Desktop Gateway URL**, plus credentials when
-required). Chat can then use the authenticated Desktop Gateway WebSocket
-(`/api/ws`), which resumes the stored session before sending. An API key for
-port `8642` alone does not select that transport. If it still fails, collect
-redacted request paths, HTTP status and WebSocket method/error names; do not
-share API keys, login cookies or WebSocket tickets.
+For password-protected Dashboard chats, enter **both Dashboard username and
+password** under **Dashboard / Proxy Settings** for the saved connection.
+With that configuration, the app selects the authenticated Desktop Gateway
+WebSocket (`/api/ws`) for chat; an API key for port `8642` alone does not.
+An explicit **Desktop Gateway URL** or supported proxy setup is a separate
+configuration path. If it still fails, collect redacted request paths, HTTP
+status and WebSocket method/error names; do not share API keys, cookies or
+WebSocket tickets.
 
 See [Hermes API-server session ownership](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/api-server.md#runs-api-streaming-friendly-alternative)
 for the server-side rule.

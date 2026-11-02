@@ -889,7 +889,7 @@ void main() {
       return probe;
     }
 
-    test('409 permission_denied gives an actionable WebSocket route', () async {
+    test('409 permission_denied gives a conditional Dashboard route', () async {
       final probe = await deniedReply(
         status: 409,
         code: 'permission_denied',
@@ -898,8 +898,11 @@ void main() {
       expect(probe.done, 0);
       expect(probe.tokens, isEmpty);
       expect(probe.errors, hasLength(1));
-      expect(probe.errors.single, contains('another Hermes surface'));
+      expect(probe.errors.single, contains('permission_denied'));
+      expect(probe.errors.single, contains('does not prove'));
+      expect(probe.errors.single, contains('both Dashboard username'));
       expect(probe.errors.single, contains('Dashboard / Proxy Settings'));
+      expect(probe.errors.single, isNot(contains('belongs to another')));
     });
 
     test('unrelated 409 preserves the gateway error', () async {
@@ -973,7 +976,7 @@ void main() {
     }
 
     test(
-      'stock v0.22.5 streamed refusal gives the same actionable route',
+      'stock v0.22.5 streamed refusal gives a conditional Dashboard route',
       () async {
         // Stock opens the SSE body with HTTP 200 before admitting the API
         // turn; a permission refusal must be terminal, not success or retry.
@@ -991,9 +994,23 @@ void main() {
         expect(probe.done, 0);
         expect(probe.tokens, isEmpty);
         expect(probe.errors, hasLength(1));
-        expect(probe.errors.single, contains('another Hermes surface'));
+        expect(probe.errors.single, contains('permission_denied'));
+        expect(probe.errors.single, contains('does not prove'));
+        expect(probe.errors.single, contains('both Dashboard username'));
         expect(probe.errors.single, contains('Dashboard / Proxy Settings'));
+        expect(probe.errors.single, isNot(contains('belongs to another')));
         probe.api.close();
+      },
+    );
+
+    test(
+      'other RuntimeStoreError permission text stays verbatim',
+      () async {
+        const otherReason = 'permission_denied: tool scope restricted';
+        final probe = await _run(stockStreamRefusal(message: otherReason));
+        expect(probe.done, 0);
+        expect(probe.tokens, isEmpty);
+        expect(probe.errors, [otherReason]);
       },
     );
 

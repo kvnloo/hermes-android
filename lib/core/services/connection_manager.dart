@@ -1826,8 +1826,8 @@ class GatewayChatClient {
     }
     if (parsed['error'] != null || parsed['type'] == 'error') {
       return _SseFrame(
-        error: _isStreamedForeignSessionOwnerRefusal(parsed)
-            ? _foreignSessionOwnerHint
+        error: _isStreamedRuntimePermissionDenied(parsed)
+            ? _permissionDeniedHint
             : _streamErrorMessage(parsed),
       );
     }
@@ -1905,21 +1905,19 @@ class GatewayChatClient {
     return fallback;
   }
 
-  /// A 409 with this exact API-server code means the session belongs to a
-  /// different Hermes surface (TUI, Desktop, etc.). Browsing is allowed, but
-  /// REST must not submit turns into another surface's transcript.
-  static bool _isForeignSessionOwnerRefusal(Object? payload) {
+  /// A structured non-streaming permission refusal can signal a session
+  /// authority mismatch. The code alone cannot establish ownership or
+  /// whether the turn executed.
+  static bool _isStructuredPermissionDenied(Object? payload) {
     if (payload is! Map) return false;
     final error = payload['error'];
     return error is Map && error['code'] == 'permission_denied';
   }
 
-  /// The same refusal on the streaming route the app uses. Stock Hermes
-  /// v0.22.5 opens the SSE response before admitting the API turn, so the
-  /// admission's `RuntimeStoreError('permission_denied')` arrives as the
-  /// finish chunk's `error` with HTTP 200, never as a 409. The error type
-  /// keeps provider/tool failures that merely mention permissions apart.
-  static bool _isStreamedForeignSessionOwnerRefusal(Object? payload) {
+  /// Stock Hermes v0.22.5 can return this error in an HTTP 200 SSE finish
+  /// chunk. Its signature merits a routing hint, but alone cannot establish
+  /// the chat owner or whether a turn executed.
+  static bool _isStreamedRuntimePermissionDenied(Object? payload) {
     if (payload is! Map) return false;
     final error = payload['error'];
     return error is Map &&
@@ -1927,10 +1925,12 @@ class GatewayChatClient {
         error['message'] == 'permission_denied';
   }
 
-  static const _foreignSessionOwnerHint =
-      'This chat belongs to another Hermes surface. REST can read its '
-      'history but cannot send to it. Configure an authenticated Desktop '
-      'Gateway connection in Dashboard / Proxy Settings, then retry.';
+  static const _permissionDeniedHint =
+      'Hermes returned permission_denied. This error alone does not prove '
+      'who owns the chat or whether the turn executed. For a '
+      'password-protected Dashboard chat, enter both Dashboard username '
+      'and password in Dashboard / Proxy Settings to use Desktop Gateway '
+      'WebSocket. Do not automatically resend an uncertain turn.';
 
   /// Send a message and stream the assistant response token-by-token.
   ///
@@ -2114,8 +2114,8 @@ class GatewayChatClient {
                 }
                 finishBody(
                   response.statusCode == 409 &&
-                          _isForeignSessionOwnerRefusal(payload)
-                      ? _foreignSessionOwnerHint
+                          _isStructuredPermissionDenied(payload)
+                      ? _permissionDeniedHint
                       : _streamErrorMessage(
                           payload,
                           fallback: 'HTTP ${response.statusCode}',
