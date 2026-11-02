@@ -774,7 +774,7 @@ port `8642` alone does not select that transport. If it still fails, collect
 redacted request paths, HTTP status and WebSocket method/error names; do not
 share API keys, login cookies or WebSocket tickets.
 
-See [Hermes API-server session ownership](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/api-server.md#runs-and-sessions)
+See [Hermes API-server session ownership](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/api-server.md#runs-api-streaming-friendly-alternative)
 for the server-side rule.
 
 ### The app cannot find the host
