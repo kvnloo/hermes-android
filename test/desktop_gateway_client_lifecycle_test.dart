@@ -4,16 +4,16 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hermes_android/core/models/connection.dart';
 import 'package:hermes_android/core/models/session.dart';
 import 'package:hermes_android/core/screens/chat_screen.dart';
+import 'package:hermes_android/core/services/desktop_gateway_client.dart';
 import 'package:hermes_android/core/services/gateway_turn_application_controller.dart';
+import 'package:hermes_android/core/services/ws_client.dart';
 import 'package:hermes_android/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/fake_voice_composer_adapter.dart';
-import 'package:hermes_android/core/models/connection.dart';
-import 'package:hermes_android/core/services/desktop_gateway_client.dart';
-import 'package:hermes_android/core/services/ws_client.dart';
 
 void main() {
   test('stock ready: reopened stored chat submits against resumed runtime id', () async {
