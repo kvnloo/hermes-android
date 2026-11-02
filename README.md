@@ -757,6 +757,26 @@ Chat/session features use port `8642`. Memory, Cron Jobs, Skills, and Settings u
 
 Check that the Android connection's API key matches `API_SERVER_KEY` from the Hermes machine (`~/.hermes/.env`).
 
+### Existing chats reject sends with `permission_denied`
+
+The API server can list and read a session owned by the Desktop Gateway, TUI,
+CLI or another surface, but cannot send a new turn into that session through
+`POST /v1/chat/completions`. Stock Hermes rejects the request with HTTP 409
+(`permission_denied`) **before executing the prompt**; repeating the same REST
+request will not fix it. This is not necessarily an invalid API key.
+
+For an existing Desktop/Gateway chat, configure the saved connection under
+**Dashboard / Proxy Settings** with the correct dashboard host/port and
+credentials (or an explicit **Desktop Gateway URL**, plus credentials when
+required). Chat can then use the authenticated Desktop Gateway WebSocket
+(`/api/ws`), which resumes the stored session before sending. An API key for
+port `8642` alone does not select that transport. If it still fails, collect
+redacted request paths, HTTP status and WebSocket method/error names; do not
+share API keys, login cookies or WebSocket tickets.
+
+See [Hermes API-server session ownership](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/api-server.md#runs-and-sessions)
+for the server-side rule.
+
 ### The app cannot find the host
 
 - Verify phone and host are on the same Wi-Fi or same Tailscale tailnet.
