@@ -41,6 +41,10 @@ typedef ActivityClock = DateTime Function();
 class ActivityPane extends StatefulWidget {
   final ActivityFeedLoader loadFeed;
 
+  /// Optional cheaper feed read for the periodic timer only. Mounts, lifecycle
+  /// resumes, pull-to-refresh and explicit refresh() always use [loadFeed].
+  final ActivityFeedLoader? tickLoadFeed;
+
   /// When true, this pane becomes the action Inbox: only blocked and failed
   /// work is shown. Running and completed work remain available in Activity.
   final bool actionableOnly;
@@ -57,6 +61,7 @@ class ActivityPane extends StatefulWidget {
 
   const ActivityPane({
     required this.loadFeed,
+    this.tickLoadFeed,
     this.actionableOnly = false,
     this.onOpenItem,
     this.clock,
@@ -125,7 +130,9 @@ class ActivityPaneState extends State<ActivityPane>
     final interval = widget.refreshInterval;
     if (interval != null && interval > Duration.zero) {
       _timer = Timer.periodic(interval, (_) {
-        if (_visible && !_loading) unawaited(_load());
+        if (_visible && !_loading) {
+          unawaited(_load(loader: widget.tickLoadFeed));
+        }
       });
     }
   }
