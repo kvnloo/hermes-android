@@ -145,7 +145,8 @@ void main() {
         'session_id': 'runtime-stored-widget-1',
         'text': 'Send via Desktop',
       });
-      expect(gateway.restChatWrites, isEmpty);
+      expect(gateway.ticketMintPosts, ['/api/auth/ws-ticket']);
+      expect(gateway.postPaths, ['/api/auth/ws-ticket']);
       expect(gateway.calls('session.open'), isEmpty);
       expect(gateway.calls('turn.reconcile'), isEmpty);
       gateway.event(
@@ -154,10 +155,75 @@ void main() {
         sessionId: 'runtime-stored-widget-1',
       );
       await tester.pump();
-      expect(gateway.restChatWrites, isEmpty);
+      expect(gateway.ticketMintPosts, ['/api/auth/ws-ticket']);
+      expect(gateway.postPaths, ['/api/auth/ws-ticket']);
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+
+  test('POST recorder catches a non-ticket /v1/runs write', () async {
+    final gateway = await _Gateway.start(stockReady: true);
+    final client = gateway.client();
+    final http = HttpClient();
+    addTearDown(() async {
+      client.close();
+      http.close(force: true);
+      await gateway.close();
+    });
+
+    await client.ensureSession('negative-control');
+    final request = await http.postUrl(
+      Uri.parse('http://127.0.0.1:${gateway.server.port}/v1/runs'),
+    );
+    final response = await request.close();
+    expect(response.statusCode, HttpStatus.notFound);
+    await response.drain<void>();
+
+    expect(gateway.ticketMintPosts, ['/api/auth/ws-ticket']);
+    expect(gateway.postPaths, ['/api/auth/ws-ticket', '/v1/runs']);
+    expect(
+      gateway.postPaths,
+      isNot(equals(gateway.ticketMintPosts)),
+      reason: 'An unexpected REST POST must fail the no-REST-write invariant.',
+    );
+  });
+
+  test('password gateway requires login cookie for ticket mint', () async {
+    final gateway = await _Gateway.start(
+      stockReady: true,
+      password: 'fixture-secret',
+    );
+    final client = gateway.client();
+    final http = HttpClient();
+    addTearDown(() async {
+      client.close();
+      http.close(force: true);
+      await gateway.close();
+    });
+
+    final unauthenticated = await http.postUrl(
+      Uri.parse('http://127.0.0.1:${gateway.server.port}/api/auth/ws-ticket'),
+    );
+    final denied = await unauthenticated.close();
+    expect(denied.statusCode, HttpStatus.unauthorized);
+    await denied.drain<void>();
+
+    client.bindStoredSession('protected', 'stored-protected');
+    await client.ensureSession('protected');
+    expect(
+      gateway.calls('session.resume').single.params['session_id'],
+      'stored-protected',
+    );
+    expect(gateway.ticketMintPosts, [
+      '/api/auth/ws-ticket',
+      '/api/auth/ws-ticket',
+    ]);
+    expect(gateway.postPaths, [
+      '/api/auth/ws-ticket', // rejected: no login cookie
+      '/auth/password-login', // the client obtains hermes_session_at
+      '/api/auth/ws-ticket', // accepted: authenticated cookie
+    ]);
+  });
 
   for (final warmSocket in [false, true]) {
     for (final create in [false, true]) {
@@ -765,11 +831,13 @@ class _Events {
 /// Real loopback HTTP ticket mint + WebSocket JSON-RPC. Only reply release is
 /// controlled: no replacement transport, private-state access or timing sleeps.
 class _Gateway {
-  _Gateway(this.server, {this.stockReady = false});
+  _Gateway(this.server, {this.stockReady = false, this.password});
 
   final HttpServer server;
   final bool stockReady;
-  final restChatWrites = <String>[];
+  final String? password;
+  final postPaths = <String>[];
+  final ticketMintPosts = <String>[];
   final sockets = <WebSocket>[];
   final requests = <_Rpc>[];
   final missing = <String>{};
@@ -778,10 +846,14 @@ class _Gateway {
   final _taken = <String, int>{};
   var creates = 0;
 
-  static Future<_Gateway> start({bool stockReady = false}) async {
+  static Future<_Gateway> start({
+    bool stockReady = false,
+    String? password,
+  }) async {
     final gateway = _Gateway(
       await HttpServer.bind(InternetAddress.loopbackIPv4, 0),
       stockReady: stockReady,
+      password: password,
     );
     gateway.server.listen(gateway._http);
     return gateway;
@@ -794,7 +866,9 @@ class _Gateway {
       port: server.port,
       apiKey: 'fixture',
       dashboardPortOverride: server.port,
-      dashboardProxied: true,
+      dashboardProxied: password == null,
+      dashboardUsername: password == null ? null : 'fixture-user',
+      dashboardPassword: password,
       desktopGatewayUrl: 'http://127.0.0.1:${server.port}',
     );
 
@@ -818,14 +892,45 @@ class _Gateway {
   }
 
   Future<void> _http(HttpRequest request) async {
-    if (request.method == 'POST' &&
-        request.uri.path.contains('/chat')) {
-      restChatWrites.add(request.uri.path);
+    if (request.method == 'POST') {
+      postPaths.add(request.uri.path);
+      if (request.uri.path == '/api/auth/ws-ticket') {
+        ticketMintPosts.add(request.uri.path);
+      }
     }
-    if (request.uri.path == '/api/auth/ws-ticket') {
-      request.response
-        ..headers.contentType = ContentType.json
-        ..write(jsonEncode({'ticket': 'fixture-ticket'}));
+    if (request.method == 'POST' &&
+        request.uri.path == '/auth/password-login' &&
+        password != null) {
+      final credentials = jsonDecode(
+        await utf8.decoder.bind(request).join(),
+      ) as Map<String, dynamic>;
+      if (credentials['provider'] != 'basic' ||
+          credentials['username'] != 'fixture-user' ||
+          credentials['password'] != password) {
+        request.response.statusCode = HttpStatus.unauthorized;
+      } else {
+        request.response.cookies.add(
+          Cookie('hermes_session_at', 'fixture-session'),
+        );
+        request.response
+          ..headers.contentType = ContentType.json
+          ..write('{}');
+      }
+      await request.response.close();
+    } else if (request.method == 'POST' &&
+        request.uri.path == '/api/auth/ws-ticket') {
+      if (password != null &&
+          !request.cookies.any(
+            (cookie) =>
+                cookie.name == 'hermes_session_at' &&
+                cookie.value == 'fixture-session',
+          )) {
+        request.response.statusCode = HttpStatus.unauthorized;
+      } else {
+        request.response
+          ..headers.contentType = ContentType.json
+          ..write(jsonEncode({'ticket': 'fixture-ticket'}));
+      }
       await request.response.close();
     } else if (WebSocketTransformer.isUpgradeRequest(request)) {
       final socket = await WebSocketTransformer.upgrade(request);
