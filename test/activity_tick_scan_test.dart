@@ -39,7 +39,7 @@ Future<void> mountActivity(
       supportedLocales: AppLocalizations.supportedLocales,
       theme: hermesTheme(Brightness.dark),
       home: WorkspaceScreen(
-        connection: const SavedConnection(
+        connection: SavedConnection(
           id: 'activity-tick',
           label: 'Test',
           host: 'example.invalid',
@@ -130,13 +130,17 @@ Future<void> checkPassiveTickScan(
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('Activity ticks reuse the metadata scan; manual refresh is fresh',
-      (tester) async {
-    await checkPassiveTickScan(tester, inbox: false);
-  });
+  testWidgets(
+    'Activity ticks reuse the metadata scan; manual refresh is fresh',
+    (tester) async {
+      await checkPassiveTickScan(tester, inbox: false);
+    },
+  );
 
-  testWidgets('Inbox ticks reuse the metadata scan; manual refresh is fresh',
-      (tester) async {
-    await checkPassiveTickScan(tester, inbox: true);
-  });
+  testWidgets(
+    'Inbox ticks reuse the metadata scan; manual refresh is fresh',
+    (tester) async {
+      await checkPassiveTickScan(tester, inbox: true);
+    },
+  );
 }
