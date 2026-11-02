@@ -19,69 +19,69 @@ void main() {
   test(
     'stock ready: reopened stored chat submits against resumed runtime id',
     () async {
-    final gateway = await _Gateway.start(stockReady: true);
-    final first = gateway.client();
-    final reopened = gateway.client();
-    addTearDown(() async {
+      final gateway = await _Gateway.start(stockReady: true);
+      final first = gateway.client();
+      final reopened = gateway.client();
+      addTearDown(() async {
+        first.close();
+        reopened.close();
+        await gateway.close();
+      });
+
+      first.bindStoredSession('mobile', 'stored-253');
+      await first.ensureSession('mobile');
+      expect(first.storedSessionKeyFor('mobile'), 'stored-253');
       first.close();
-      reopened.close();
-      await gateway.close();
-    });
 
-    first.bindStoredSession('mobile', 'stored-253');
-    await first.ensureSession('mobile');
-    expect(first.storedSessionKeyFor('mobile'), 'stored-253');
-    first.close();
+      // Reopening is a new socket. Its session.resume returns a different
+      // runtime binding, not the durable key and not the previous socket's id.
+      reopened.bindStoredSession('mobile', 'stored-253');
+      await reopened.ensureSession('mobile');
+      final resumes = gateway.calls('session.resume').toList();
+      expect(resumes, hasLength(2));
+      expect(
+        resumes.map((rpc) => rpc.params['session_id']),
+        ['stored-253', 'stored-253'],
+      );
+      expect(reopened.storedSessionKeyFor('mobile'), 'stored-253');
 
-    // Reopening is a new socket. Its session.resume returns a different
-    // runtime binding, not the durable key and not the previous socket's id.
-    reopened.bindStoredSession('mobile', 'stored-253');
-    await reopened.ensureSession('mobile');
-    final resumes = gateway.calls('session.resume').toList();
-    expect(resumes, hasLength(2));
-    expect(
-      resumes.map((rpc) => rpc.params['session_id']),
-      ['stored-253', 'stored-253'],
-    );
-    expect(reopened.storedSessionKeyFor('mobile'), 'stored-253');
+      var sends = 0;
+      var completions = 0;
+      final submitted = reopened.submitPrompt(
+        sessionId: 'mobile',
+        text: 'Stock contract probe',
+        onSent: () => sends++,
+        onEvent: (event) {
+          if (event.isComplete) completions++;
+        },
+      );
+      final request = await gateway.take('prompt.submit');
+      expect(request.params, {
+        'session_id': 'runtime-stored-253-2',
+        'text': 'Stock contract probe',
+      });
+      expect(
+        request.params['session_id'],
+        isNot('stored-253'),
+        reason: 'Stock prompt.submit must use the resumed runtime binding.',
+      );
+      expect(gateway.calls('session.create'), isEmpty);
+      expect(gateway.calls('session.open'), isEmpty);
+      expect(gateway.calls('turn.reconcile'), isEmpty);
+      expect(gateway.calls('prompt.submit'), hasLength(1));
+      // The stock fixture deliberately advertises no turn_recovery. In
+      // particular, the server would reject version and client_turn_id.
+      expect(request.params, isNot(containsPair('version', 2)));
+      expect(request.params.containsKey('client_turn_id'), isFalse);
 
-    var sends = 0;
-    var completions = 0;
-    final submitted = reopened.submitPrompt(
-      sessionId: 'mobile',
-      text: 'Stock contract probe',
-      onSent: () => sends++,
-      onEvent: (event) {
-        if (event.isComplete) completions++;
-      },
-    );
-    final request = await gateway.take('prompt.submit');
-    expect(request.params, {
-      'session_id': 'runtime-stored-253-2',
-      'text': 'Stock contract probe',
-    });
-    expect(
-      request.params['session_id'],
-      isNot('stored-253'),
-      reason: 'Stock prompt.submit must use the resumed runtime binding.',
-    );
-    expect(gateway.calls('session.create'), isEmpty);
-    expect(gateway.calls('session.open'), isEmpty);
-    expect(gateway.calls('turn.reconcile'), isEmpty);
-    expect(gateway.calls('prompt.submit'), hasLength(1));
-    // The stock fixture deliberately advertises no turn_recovery. In
-    // particular, the server would reject version and client_turn_id.
-    expect(request.params, isNot(containsPair('version', 2)));
-    expect(request.params.containsKey('client_turn_id'), isFalse);
-
-    gateway.event(
-      'message.complete',
-      {'text': 'Done', 'status': 'complete'},
-      sessionId: 'runtime-stored-253-2',
-    );
-    await submitted.timeout(_deadline);
-    expect(sends, 1);
-    expect(completions, 1);
+      gateway.event(
+        'message.complete',
+        {'text': 'Done', 'status': 'complete'},
+        sessionId: 'runtime-stored-253-2',
+      );
+      await submitted.timeout(_deadline);
+      expect(sends, 1);
+      expect(completions, 1);
     },
   );
 
