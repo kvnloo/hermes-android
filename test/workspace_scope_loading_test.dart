@@ -7,6 +7,7 @@ import 'package:hermes_android/core/models/connection.dart';
 import 'package:hermes_android/core/models/session.dart';
 import 'package:hermes_android/core/services/projects_repository.dart';
 import 'package:hermes_android/core/services/projects_gateway_client.dart';
+import 'package:hermes_android/core/services/quick_chat_store.dart';
 import 'package:hermes_android/core/screens/workspace_screen.dart';
 import 'package:hermes_android/core/screens/workspace_sessions_screen.dart';
 import 'package:hermes_android/core/theme/hermes_theme.dart';
@@ -187,6 +188,8 @@ void main() {
       var archiveWrites = 0;
       var archiveReadBacks = 0;
       var archiveScans = 0;
+      final livePageIds = <List<String>>[];
+      final archiveFirstPageIds = <List<String>>[];
       Map<String, Object?> savedRow() => {...row(0), 'archived': archived};
 
       await mount(
@@ -205,12 +208,33 @@ void main() {
               return http.Response(jsonEncode({'session': savedRow()}), 200);
             }
           }
-          return livePage(archived ? [] : [row(0)]);
+          final liveRows = archived
+              ? <Map<String, Object?>>[]
+              : <Map<String, Object?>>[row(0)];
+          livePageIds.add([
+            for (final session in liveRows) session['id'] as String,
+          ]);
+          return livePage(liveRows);
         }),
         archive: MockClient((request) async {
-          final offset = request.url.queryParameters['offset'] ?? '0';
-          if (offset == '0') archiveScans++;
-          return offset == '0' ? archivePage(0, 5, 7) : archivePage(5, 2, 7);
+          final offset = int.parse(request.url.queryParameters['offset'] ?? '0');
+          // The post-PATCH server payload must include live-0, not merely
+          // increment the request count or rely on the optimistic ledger.
+          final rows = <Map<String, Object?>>[
+            if (archived) {...row(0), 'archived': true},
+            ...List.generate(7, (i) => row(i, archived: true)),
+          ];
+          final pageRows = rows.skip(offset).take(5).toList();
+          if (offset == 0) {
+            archiveScans++;
+            archiveFirstPageIds.add([
+              for (final session in pageRows) session['id'] as String,
+            ]);
+          }
+          return http.Response(
+            jsonEncode({'sessions': pageRows, 'total': rows.length}),
+            200,
+          );
         }),
       );
       await tester.tap(find.text('Chats').last);
@@ -250,6 +274,17 @@ void main() {
         scansAfterMutation + 1,
         reason: 'confirmed onArchive must invalidate the shared scan',
       );
+      expect(
+        archiveFirstPageIds.last,
+        contains('live-0'),
+        reason: 'the new archive GET payload must contain the archived chat',
+      );
+      expect(
+        livePageIds.last,
+        isNot(contains('live-0')),
+        reason: 'the live-session GET must no longer return the archived chat',
+      );
+      expect(find.text('Live chat 0'), findsNothing);
       await tester.pump(const Duration(seconds: 10));
       await tester.pump();
       expect(
@@ -257,12 +292,31 @@ void main() {
         scansAfterMutation + 1,
         reason: 'the new post-mutation scan may be reused on later ticks',
       );
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Archived'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        find.text('Live chat 0'),
+        findsOneWidget,
+        reason: 'the archived payload must render under the Archived filter',
+      );
     },
   );
 
   testWidgets(
-    'pushed archivedQuick view reads fresh archives on every tick (#149)',
+    'Chats archive route wires tickLoad and fresh archive reads (#149)',
     (tester) async {
+      // An expired Quick chat exercises the dedicated archive route's list.
+      // The general Archived chip cannot open this route's promote action.
+      final quickChats = QuickChatStore(
+        await SharedPreferences.getInstance(),
+        connectionId: 'scope-loading',
+      );
+      await quickChats.record(
+        'archived-0',
+        expiresAt: DateTime.now().subtract(const Duration(days: 1)),
+      );
+
       var archiveScans = 0;
       await mount(
         tester,
@@ -277,58 +331,42 @@ void main() {
       await tester.tap(find.text('Chats').last);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
-      final sourceFinder = find.byWidgetPredicate(
-        (widget) =>
-            widget is WorkspaceSessionsScreen &&
-            widget.view == WorkspaceSessionView.all &&
-            widget.kind == WorkspaceSessionKind.chats,
-      );
-      final source = tester.widget<WorkspaceSessionsScreen>(sourceFinder);
-      expect(source.tickLoad, isNotNull);
-      final scansBeforePush = archiveScans;
-      expect(scansBeforePush, greaterThan(0));
+      final scansBeforeRoute = archiveScans;
+      expect(scansBeforeRoute, greaterThan(0));
 
-      // Push with WorkspaceScreen's actual Chats loader callbacks: the shell
-      // does not currently expose a navigation entry for archivedQuick.
-      unawaited(
-        Navigator.of(tester.element(sourceFinder)).push<void>(
-          MaterialPageRoute<void>(
-            builder: (_) => WorkspaceSessionsScreen(
-              title: 'Archived quick chats',
-              view: WorkspaceSessionView.archivedQuick,
-              refreshInterval: source.refreshInterval,
-              load: source.load,
-              loadProgressively: source.loadProgressively,
-              tickLoad: source.tickLoad,
-              onOpenSession: (_) {},
-            ),
-          ),
-        ),
-      );
+      // Tap the actual WorkspaceScreen entry: this uses
+      // _openWorkspaceSessionView, not a test-built route with copied loaders.
+      await tester.tap(find.byTooltip('Archived quick chats'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
-      expect(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is WorkspaceSessionsScreen &&
-              widget.view == WorkspaceSessionView.archivedQuick,
-        ),
-        findsOneWidget,
+      final routeFinder = find.byWidgetPredicate(
+        (widget) =>
+            widget is WorkspaceSessionsScreen &&
+            widget.view == WorkspaceSessionView.archivedQuick &&
+            !widget.embedded,
       );
-      expect(archiveScans, greaterThan(scansBeforePush));
-      final scansAfterPush = archiveScans;
+      expect(routeFinder, findsOneWidget);
+      final route = tester.widget<WorkspaceSessionsScreen>(routeFinder);
+      expect(route.tickLoad, isNotNull);
+      expect(route.loadProgressively, isNotNull);
+      expect(route.refreshInterval, const Duration(seconds: 10));
+      expect(find.text('Archived chat 0'), findsOneWidget);
+      expect(
+        archiveScans,
+        scansBeforeRoute + 1,
+        reason: 'opening the real archived route must fetch archives afresh',
+      );
 
+      final scansAfterRoute = archiveScans;
       for (var tick = 0; tick < 2; tick++) {
         await tester.pump(const Duration(seconds: 10));
         await tester.pump();
+        expect(
+          archiveScans,
+          scansAfterRoute + tick + 1,
+          reason: 'each visible archived-route tick must scan exactly once',
+        );
       }
-      // Negative control: main b7cd9e2 also makes two fresh archive scans
-      // for two archivedQuick ticks; a broken reuse guard would make zero.
-      expect(
-        archiveScans,
-        scansAfterPush + 2,
-        reason: 'archivedQuick must bypass passive archive-scan reuse',
-      );
     },
   );
 
