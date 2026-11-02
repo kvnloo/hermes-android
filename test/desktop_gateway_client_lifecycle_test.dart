@@ -71,7 +71,7 @@ void main() {
       expect(gateway.calls('prompt.submit'), hasLength(1));
       // The stock fixture deliberately advertises no turn_recovery. In
       // particular, the server would reject version and client_turn_id.
-      expect(request.params, isNot(containsPair('version', 2)));
+      expect(request.params.containsKey('version'), isFalse);
       expect(request.params.containsKey('client_turn_id'), isFalse);
 
       gateway.event(
@@ -90,7 +90,9 @@ void main() {
     (tester) async {
       final previousOverrides = HttpOverrides.current;
       HttpOverrides.global = null;
-      addTearDown(() => HttpOverrides.global = previousOverrides);
+      addTearDown(() {
+        HttpOverrides.global = previousOverrides;
+      });
       SharedPreferences.setMockInitialValues({});
       final gateway = await _Gateway.start(stockReady: true);
       final controller = GatewayTurnApplicationController();
@@ -149,6 +151,7 @@ void main() {
         sessionId: 'runtime-stored-widget-1',
       );
       await tester.pump();
+      expect(gateway.restChatWrites, isEmpty);
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
@@ -813,7 +816,7 @@ class _Gateway {
 
   Future<void> _http(HttpRequest request) async {
     if (request.method == 'POST' &&
-        request.uri.path != '/api/auth/ws-ticket') {
+        request.uri.path.contains('/chat')) {
       restChatWrites.add(request.uri.path);
     }
     if (request.uri.path == '/api/auth/ws-ticket') {
