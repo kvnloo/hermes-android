@@ -921,6 +921,86 @@ void main() {
       expect(probe.done, 0);
       expect(probe.errors, ['permission_denied']);
     });
+
+    // The app always streams. Stock v0.22.5 opens the SSE response (HTTP 200)
+    // before the API turn is admitted, so the ownership refusal arrives as the
+    // finish chunk, not as a 409. These are the exact bytes v0.22.5's
+    // APIServerAdapter wrote for `POST /v1/chat/completions` (stream=true,
+    // X-Hermes-Session-Id = a CLI/Desktop-owned session).
+    String stockStreamRefusal({
+      String message = 'permission_denied',
+      String type = 'RuntimeStoreError',
+    }) {
+      const id = 'chatcmpl-192e15a7bf4842ecb033a0534e367';
+      final role = {
+        'id': id,
+        'object': 'chat.completion.chunk',
+        'created': 1793608409,
+        'model': 'hermes-agent',
+        'choices': [
+          {
+            'index': 0,
+            'delta': {'role': 'assistant'},
+            'finish_reason': null,
+          },
+        ],
+      };
+      final finish = {
+        'id': id,
+        'object': 'chat.completion.chunk',
+        'created': 1793608409,
+        'model': 'hermes-agent',
+        'choices': [
+          {'index': 0, 'delta': <String, dynamic>{}, 'finish_reason': 'error'},
+        ],
+        'usage': {
+          'prompt_tokens': 0,
+          'completion_tokens': 0,
+          'total_tokens': 0,
+        },
+        'error': {'message': message, 'type': type},
+        'hermes': {
+          'completed': true,
+          'partial': false,
+          'failed': true,
+          'error': message,
+          'error_code': 'agent_error',
+        },
+      };
+      return 'data: ${jsonEncode(role)}\n\n'
+          'data: ${jsonEncode(finish)}\n\n'
+          'data: [DONE]\n\n';
+    }
+
+    test(
+      'stock v0.22.5 streamed refusal gives the same actionable route',
+      () async {
+        final probe = await _run(stockStreamRefusal());
+        expect(probe.done, 0);
+        expect(probe.tokens, isEmpty);
+        expect(probe.errors, hasLength(1));
+        expect(probe.errors.single, contains('another Hermes surface'));
+        expect(probe.errors.single, contains('Dashboard / Proxy Settings'));
+      },
+    );
+
+    test('streamed provider permission errors keep their own text', () async {
+      const providerError = 'Error code: 403 - PERMISSION_DENIED: model access';
+      final probe = await _run(
+        stockStreamRefusal(message: providerError, type: 'agent_error'),
+      );
+      expect(probe.done, 0);
+      expect(probe.errors, [providerError]);
+    });
+
+    test(
+      'streamed permission_denied from another error type is kept',
+      () async {
+        final probe = await _run(stockStreamRefusal(type: 'agent_error'));
+        expect(probe.done, 0);
+        expect(probe.errors, ['permission_denied']);
+      },
+    );
   });
 }
 
