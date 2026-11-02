@@ -300,6 +300,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
   int _activityBlockedCount = 0;
   int _activityRead = 0;
   int _activitySessionRead = 0;
+  SharedSessionScan? _activitySessionScan;
   int _sessionMetadataRead = 0;
   int _activityRecordsRead = 0;
   int _activityJournalRead = 0;
@@ -406,6 +407,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
   /// Mounts, foreground loads, archived surfaces, explicit refreshes and local
   /// archive/rename mutations still read fresh archive rows.
   static const _passiveArchiveScanReuse = Duration(minutes: 5);
+  static const _passiveActivityScanReuse = Duration(minutes: 5);
 
   SharedSessionScan get _archivesLoader => _archiveLoader ??= SharedSessionScan(
     (publish) => _dashboardClient.getArchivedSessions(
@@ -539,9 +541,25 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     }
   }
 
+  /// The Activity metadata cache is opt-in for timer ticks only. An explicit
+  /// refresh starts a new scan even when the previous read has not expired.
+  /// The completed payload is just a success marker: the actual rows and
+  /// partial-state bookkeeping live in [_activitySessions].
+  Future<void> _refreshActivitySessions({bool reuseRecent = false}) async {
+    final owner = _activitySessionScan ??= SharedSessionScan(
+      (_) async {
+        await _scanActivitySessions();
+        return const <Session>[];
+      },
+      reuseCompletedFor: _passiveActivityScanReuse,
+    );
+    if (!reuseRecent) owner.invalidate();
+    await owner.load(reuseCompleted: reuseRecent);
+  }
+
   /// Seek useful recent rows without turning each poll into Home's full scan.
   /// A request budget or a filled preview is not exhaustive absence proof.
-  Future<void> _refreshActivitySessions() async {
+  Future<void> _scanActivitySessions() async {
     final scan = ++_activitySessionRead;
     var partial = true;
     try {
@@ -595,13 +613,14 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
   /// A stock/REST connection must not depend on a recovery-v2 journal existing.
   Future<ActivityFeed> _loadOperationalActivity({
     required bool refreshSessions,
+    bool reuseRecentSessions = false,
   }) async {
     final connection = widget.connection;
     final l10n = context.l10n;
     var stale = false;
     if (refreshSessions) {
       try {
-        await _refreshActivitySessions();
+        await _refreshActivitySessions(reuseRecent: reuseRecentSessions);
       } catch (_) {
         if (!mounted) rethrow;
         // Read ownership (shared with Home) decides freshness. An obsolete
@@ -692,7 +711,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
   }
 
   /// Reads the feed and keeps the shell badge in step with it.
-  Future<ActivityFeed> _loadActivity({bool refreshSessions = true}) async {
+  Future<ActivityFeed> _loadActivity({
+    bool refreshSessions = true,
+    bool reuseRecentSessions = false,
+  }) async {
     final read = ++_activityRead;
     final loader = widget.activityFeedLoader;
     // Titles may not be cached yet when Activity is the first destination the
@@ -705,7 +727,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     }
     final feed = loader != null
         ? await loader(widget.connection, _sessionTitles)
-        : await _loadOperationalActivity(refreshSessions: refreshSessions);
+        : await _loadOperationalActivity(
+            refreshSessions: refreshSessions,
+            reuseRecentSessions: reuseRecentSessions,
+          );
     final inboxCount = feed.groups
         .where(
           (group) =>
@@ -926,6 +951,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     _signalsGeneration++;
     _browserLoader?.close();
     _archiveLoader?.close();
+    _activitySessionScan?.close();
     // Only tear down what this screen created; an injected repository stays
     // owned by whoever supplied it.
     if (_ownsRepository) {
@@ -1094,6 +1120,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           active: _destination == HermesDestination.activity,
           refreshInterval: widget.sessionsRefreshInterval,
           loadFeed: _loadActivity,
+          tickLoadFeed: () => _loadActivity(reuseRecentSessions: true),
           onOpenItem: _openActivityItem,
         );
       case HermesDestination.more:
@@ -1314,6 +1341,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           key: _inboxKey,
           refreshInterval: widget.sessionsRefreshInterval,
           loadFeed: _loadActivity,
+          tickLoadFeed: () => _loadActivity(reuseRecentSessions: true),
           onOpenItem: _openActivityItem,
           actionableOnly: true,
         ),
@@ -1703,6 +1731,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     _archiveChanges.record(session, archived);
     _browserLoader?.invalidate();
     _archiveLoader?.invalidate();
+    _activitySessionScan?.invalidate();
     setState(() {
       _knownSessions = _archiveChanges.apply(
         _knownSessions,
@@ -1732,6 +1761,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       );
       _browserLoader?.invalidate();
       _archiveLoader?.invalidate();
+      _activitySessionScan?.invalidate();
       _chatsKey.currentState?.reconcileTitle(session, savedTitle);
       _cronsKey.currentState?.reconcileTitle(session, savedTitle);
       _knownSessions = [
