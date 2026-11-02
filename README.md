@@ -761,8 +761,12 @@ Check that the Android connection's API key matches `API_SERVER_KEY` from the He
 
 The API server can list and read a session owned by the Desktop Gateway, TUI,
 CLI or another surface, but cannot send a new turn into that session through
-`POST /v1/chat/completions`. Stock Hermes rejects the request with HTTP 409
-(`permission_denied`) **before executing the prompt**; repeating the same REST
+`POST /v1/chat/completions`. Stock Hermes refuses the write before executing
+its prompt. A non-streaming request receives HTTP 409 with `error.code` set to
+`permission_denied`. The app's streaming request instead receives HTTP 200
+`text/event-stream`, followed by an error finish chunk containing
+`error: {"message": "permission_denied", "type": "RuntimeStoreError"}`.
+**HTTP 200 does not mean the prompt was admitted.** Repeating the same REST
 request will not fix it. This is not necessarily an invalid API key.
 
 For an existing Desktop/Gateway chat, configure the saved connection under
