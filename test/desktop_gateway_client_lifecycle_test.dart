@@ -16,7 +16,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'support/fake_voice_composer_adapter.dart';
 
 void main() {
-  test('stock ready: reopened stored chat submits against resumed runtime id', () async {
+  test(
+    'stock ready: reopened stored chat submits against resumed runtime id',
+    () async {
     final gateway = await _Gateway.start(stockReady: true);
     final first = gateway.client();
     final reopened = gateway.client();
@@ -80,7 +82,8 @@ void main() {
     await submitted.timeout(_deadline);
     expect(sends, 1);
     expect(completions, 1);
-  });
+    },
+  );
 
   testWidgets(
     'saved ChatScreen with Desktop gateway submits over WS, not REST',
@@ -830,12 +833,10 @@ class _Gateway {
             'params': {
               'type': 'gateway.ready',
               'payload': {
-                'capabilities': {
-                  'change_events': {},
-                  'heartbeat': {},
-                  'replay_epoch': {},
-                  'skin': {},
-                },
+                'change_events': {},
+                'heartbeat': {},
+                'replay_epoch': {},
+                'skin': {},
               },
             },
           }),
