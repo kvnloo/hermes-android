@@ -2015,6 +2015,15 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                 child: const Icon(Icons.inbox_outlined),
               ),
             ),
+            // Archived Quick has a dedicated promotion route; unlike the
+            // general Archived chip it must be reachable from Chats.
+            IconButton(
+              tooltip: context.l10n.archived_quick_chats,
+              onPressed: () => _openWorkspaceSessionView(
+                WorkspaceSessionView.archivedQuick,
+              ),
+              icon: const Icon(Icons.archive_outlined),
+            ),
             IconButton(
               tooltip: context.l10n.search_all_chats,
               onPressed: () =>
