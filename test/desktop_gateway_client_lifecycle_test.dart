@@ -94,7 +94,10 @@ void main() {
         HttpOverrides.global = previousOverrides;
       });
       SharedPreferences.setMockInitialValues({});
-      final gateway = await _Gateway.start(stockReady: true);
+      // Real loopback socket setup must run outside WidgetTester's fake clock.
+      final gateway = (await tester.runAsync(
+        () => _Gateway.start(stockReady: true),
+      ))!;
       final controller = GatewayTurnApplicationController();
       addTearDown(() async {
         await controller.close();
