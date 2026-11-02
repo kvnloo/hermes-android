@@ -132,6 +132,206 @@ void main() {
     },
   );
 
+
+  testWidgets(
+    'Crons passive ticks reuse the shared archive scan (#149)',
+    (tester) async {
+      var activeReads = 0;
+      var archiveScans = 0;
+      await mount(
+        tester,
+        sessionsRefreshInterval: const Duration(seconds: 10),
+        active: MockClient((request) async {
+          if (request.url.queryParameters.containsKey('limit')) activeReads++;
+          return livePage([]);
+        }),
+        archive: MockClient((request) async {
+          if (request.url.queryParameters['offset'] == '0') archiveScans++;
+          return archivePage(0, 0, 0);
+        }),
+      );
+      await tester.tap(find.text('Crons').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is WorkspaceSessionsScreen &&
+              widget.kind == WorkspaceSessionKind.crons,
+        ),
+        findsOneWidget,
+      );
+      final scansAfterOpen = archiveScans;
+      final activeAfterOpen = activeReads;
+      expect(scansAfterOpen, greaterThan(0));
+
+      for (var tick = 0; tick < 3; tick++) {
+        await tester.pump(const Duration(seconds: 10));
+        await tester.pump();
+      }
+      expect(activeReads, greaterThan(activeAfterOpen));
+      // Negative control: main b7cd9e2 would make three more archive scans
+      // (scansAfterOpen + 3), once per Crons tick.
+      expect(
+        archiveScans,
+        scansAfterOpen,
+        reason: 'Crons ticks must reuse the completed archive authority',
+      );
+    },
+  );
+
+  testWidgets(
+    'archiving a chat invalidates the passive archive tick cache (#149)',
+    (tester) async {
+      var archived = false;
+      var archiveWrites = 0;
+      var archiveReadBacks = 0;
+      var archiveScans = 0;
+      Map<String, Object?> savedRow() => {...row(0), 'archived': archived};
+
+      await mount(
+        tester,
+        sessionsRefreshInterval: const Duration(seconds: 10),
+        active: MockClient((request) async {
+          if (request.url.path.endsWith('/api/sessions/live-0')) {
+            if (request.method == 'PATCH') {
+              expect(jsonDecode(request.body)['archived'], isTrue);
+              archiveWrites++;
+              archived = true;
+              return http.Response(jsonEncode({'session': savedRow()}), 200);
+            }
+            if (request.method == 'GET') {
+              archiveReadBacks++;
+              return http.Response(jsonEncode({'session': savedRow()}), 200);
+            }
+          }
+          return livePage(archived ? [] : [row(0)]);
+        }),
+        archive: MockClient((request) async {
+          final offset = request.url.queryParameters['offset'] ?? '0';
+          if (offset == '0') archiveScans++;
+          return offset == '0' ? archivePage(0, 5, 7) : archivePage(5, 2, 7);
+        }),
+      );
+      await tester.tap(find.text('Chats').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Live chat 0'), findsOneWidget);
+      final scansBeforeMutation = archiveScans;
+      expect(scansBeforeMutation, greaterThan(0));
+
+      await tester.pump(const Duration(seconds: 10));
+      await tester.pump();
+      expect(archiveScans, scansBeforeMutation);
+
+      await tester.tap(find.byType(PopupMenuButton<String>).first);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is PopupMenuItem<String> && widget.value == 'archive',
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
+      expect(archiveWrites, 1);
+      expect(archiveReadBacks, 1);
+      final scansAfterMutation = archiveScans;
+      expect(scansAfterMutation, scansBeforeMutation);
+
+      await tester.pump(const Duration(seconds: 10));
+      await tester.pump();
+      // Negative control: main b7cd9e2 already re-scans on the pre-action
+      // tick (scansBeforeMutation + 1); with reuse, only this post-archive
+      // tick should add one fresh scan.
+      expect(
+        archiveScans,
+        scansAfterMutation + 1,
+        reason: 'confirmed onArchive must invalidate the shared scan',
+      );
+      await tester.pump(const Duration(seconds: 10));
+      await tester.pump();
+      expect(
+        archiveScans,
+        scansAfterMutation + 1,
+        reason: 'the new post-mutation scan may be reused on later ticks',
+      );
+    },
+  );
+
+  testWidgets(
+    'pushed archivedQuick view reads fresh archives on every tick (#149)',
+    (tester) async {
+      var archiveScans = 0;
+      await mount(
+        tester,
+        sessionsRefreshInterval: const Duration(seconds: 10),
+        active: MockClient((_) async => livePage([])),
+        archive: MockClient((request) async {
+          final offset = request.url.queryParameters['offset'] ?? '0';
+          if (offset == '0') archiveScans++;
+          return offset == '0' ? archivePage(0, 5, 7) : archivePage(5, 2, 7);
+        }),
+      );
+      await tester.tap(find.text('Chats').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      final sourceFinder = find.byWidgetPredicate(
+        (widget) =>
+            widget is WorkspaceSessionsScreen &&
+            widget.view == WorkspaceSessionView.all &&
+            widget.kind == WorkspaceSessionKind.chats,
+      );
+      final source = tester.widget<WorkspaceSessionsScreen>(sourceFinder);
+      expect(source.tickLoad, isNotNull);
+      final scansBeforePush = archiveScans;
+      expect(scansBeforePush, greaterThan(0));
+
+      // Push with WorkspaceScreen's actual Chats loader callbacks: the shell
+      // does not currently expose a navigation entry for archivedQuick.
+      unawaited(
+        Navigator.of(tester.element(sourceFinder)).push<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => WorkspaceSessionsScreen(
+              title: 'Archived quick chats',
+              view: WorkspaceSessionView.archivedQuick,
+              refreshInterval: source.refreshInterval,
+              load: source.load,
+              loadProgressively: source.loadProgressively,
+              tickLoad: source.tickLoad,
+              onOpenSession: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is WorkspaceSessionsScreen &&
+              widget.view == WorkspaceSessionView.archivedQuick,
+        ),
+        findsOneWidget,
+      );
+      expect(archiveScans, greaterThan(scansBeforePush));
+      final scansAfterPush = archiveScans;
+
+      for (var tick = 0; tick < 2; tick++) {
+        await tester.pump(const Duration(seconds: 10));
+        await tester.pump();
+      }
+      // Negative control: main b7cd9e2 also makes two fresh archive scans
+      // for two archivedQuick ticks; a broken reuse guard would make zero.
+      expect(
+        archiveScans,
+        scansAfterPush + 2,
+        reason: 'archivedQuick must bypass passive archive-scan reuse',
+      );
+    },
+  );
+
   testWidgets(
     'Unassigned and Archived show five while independent pages load',
     (tester) async {
