@@ -292,6 +292,26 @@ void main() {
         scansAfterMutation + 1,
         reason: 'the new post-mutation scan may be reused on later ticks',
       );
+      // Inspect the actual shell loader result as well as the HTTP fixture:
+      // request counts and the optimistic archive ledger alone are insufficient.
+      final chats = tester.widget<WorkspaceSessionsScreen>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is WorkspaceSessionsScreen &&
+              widget.embedded &&
+              widget.kind == WorkspaceSessionKind.chats,
+        ),
+      );
+      final loaded = await chats.load();
+      expect(
+        loaded.archivedSessions.map((session) => session.id),
+        contains('live-0'),
+      );
+      expect(
+        loaded.sessions.map((session) => session.id),
+        isNot(contains('live-0')),
+      );
+      await tester.pump();
       await tester.tap(find.widgetWithText(ChoiceChip, 'Archived'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
