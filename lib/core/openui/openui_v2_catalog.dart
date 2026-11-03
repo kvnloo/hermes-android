@@ -36,6 +36,7 @@ final class OpenUiV2Catalog {
   static const maxValue = 1e12;
   static const panelTypes = <String>{
     'Treemap', 'BarChart', 'StackedArea', 'Heatmap',
+    'Stat', 'StackedBar', 'LineChart', 'Table',
     'RideOptions', 'MailList', 'Route', 'PullRequest',
   };
 
@@ -218,6 +219,39 @@ final class _Check {
 
   void panel(OpenUiCall node) {
     switch (node.name) {
+      case 'Stat':
+        arity(node, 2, 3);
+        string(node.args[0], 'title', max: 200);
+        if (node.args[1] is OpenUiString) {
+          string(node.args[1], 'value', max: 100);
+        } else {
+          number(node.args[1], 'value', min: -OpenUiV2Catalog.maxValue);
+        }
+        if (node.args.length == 3) {
+          string(node.args[2], 'detail', max: 200);
+        }
+      case 'Table':
+        arity(node, 3);
+        string(node.args[0], 'title', max: 200);
+        final columns = array(node.args[1], 'columns', min: 1, max: 10);
+        for (final column in columns) {
+          string(column, 'column', min: 1, max: 100);
+        }
+        for (final row in array(node.args[2], 'rows', max: 100)) {
+          final cells = array(row, 'table cells', max: 10);
+          if (cells.length != columns.length) {
+            bad(row, 'Table rows must match the declared columns.');
+          }
+          for (final cell in cells) {
+            if (cell is OpenUiString) {
+              string(cell, 'cell', max: 400);
+            } else if (cell is OpenUiNumber) {
+              number(cell, 'cell', min: -OpenUiV2Catalog.maxValue);
+            } else {
+              bad(cell, 'Table cells must be strings or numbers.');
+            }
+          }
+        }
       case 'Treemap':
         arity(node, 4);
         string(node.args[0], 'title', max: 200);
@@ -252,6 +286,8 @@ final class _Check {
           numberField(bar, 'value', entry);
         }
       case 'StackedArea':
+      case 'StackedBar':
+      case 'LineChart':
         arity(node, 4);
         string(node.args[0], 'title', max: 200);
         string(node.args[1], 'unit', max: 40);
@@ -267,7 +303,7 @@ final class _Check {
           final values = array(field(row, 'values', entry),
               'values', max: 60);
           if (values.length != categories.length) {
-            bad(entry, 'StackedArea series "$name" needs ' +
+            bad(entry, node.name + ' series "$name" needs ' +
                 categories.length.toString() + ' values.');
           }
           for (final value in values) {
