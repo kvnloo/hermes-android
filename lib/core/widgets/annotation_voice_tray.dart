@@ -24,6 +24,8 @@ class AnnotationVoiceTray extends StatefulWidget {
     required this.handsFreeSpeechEnabled,
     required this.speakReply,
     this.onFinalTurn,
+    this.active = true,
+    this.currentScreen,
     this.voiceAdapter,
     this.localeId,
     this.clock,
@@ -32,6 +34,9 @@ class AnnotationVoiceTray extends StatefulWidget {
 
   final String conversationId;
   final ScreenInfo screen;
+  /// Sample the laid-out viewport at Send, not at first build.
+  final ScreenInfo Function()? currentScreen;
+  final bool active;
   final List<Stroke> Function() currentStrokes;
   final AnnotationVoiceSendController sender;
   final Future<void> Function() beforeRecording;
@@ -78,6 +83,18 @@ class _AnnotationVoiceTrayState extends State<AnnotationVoiceTray> {
       composer: _composer,
       clock: widget.clock,
     );
+  }
+
+  @override
+  void didUpdateWidget(covariant AnnotationVoiceTray oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active && !widget.active) {
+      _pressed = false;
+      ++_hold;
+      // Closing the tray cancels its microphone, retaining completed speech
+      // segments and the durable receipt for reopening the same draft.
+      unawaited(_voice.cancel());
+    }
   }
 
   void _rebuild() {
@@ -148,7 +165,7 @@ class _AnnotationVoiceTrayState extends State<AnnotationVoiceTray> {
         conversationId: widget.conversationId,
         strokes: List<Stroke>.unmodifiable(widget.currentStrokes()),
         segments: _voice.segments,
-        screen: widget.screen,
+        screen: widget.currentScreen?.call() ?? widget.screen,
         createdAt: (widget.clock ?? (() => DateTime.now().millisecondsSinceEpoch))(),
         typed: _typed.text,
       );
