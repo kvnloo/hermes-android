@@ -262,7 +262,7 @@ class HermesApp extends StatefulWidget {
   final Future<Session?> Function(SavedConnection, String)?
   testNotificationSessionLookup;
 
-  /// Test-only completion signal for a navigation generation's finalizer.
+  /// Test-only signal after the navigation finalizer and the next route frame.
   @visibleForTesting
   final void Function()? testNotificationNavigationSettled;
 
@@ -1150,8 +1150,12 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
       if (deferred && mounted && !_closingTurnOwner && !_background) {
         _resumeNotificationNavigation();
       }
-      // HTTP response completion precedes this asynchronous navigation fence.
-      widget.testNotificationNavigationSettled?.call();
+      // Pushing a route schedules its widget tree for the next frame. The
+      // finalizer is not itself proof that the new ChatScreen has rendered.
+      final settled = widget.testNotificationNavigationSettled;
+      if (settled != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => settled());
+      }
     }
   }
 
