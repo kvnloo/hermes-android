@@ -3594,6 +3594,21 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get provider_oauth_account_status_unknown =>
       'Estado da conta no servidor indisponível.';
+  @override
+  String get annotation_mode => 'Anotar ecrã';
+
+  @override
+  String get annotation_undo => 'Desfazer anotação';
+
+  @override
+  String get annotation_clear => 'Limpar marcações';
+
+  @override
+  String get annotation_snapshot => 'Anexar captura anotada';
+
+  @override
+  String get annotation_exit => 'Sair do modo de anotação';
+
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -7062,4 +7077,19 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   @override
   String get provider_oauth_account_status_unknown =>
       'Status da conta no servidor indisponível.';
+  @override
+  String get annotation_mode => 'Anotar a tela';
+
+  @override
+  String get annotation_undo => 'Desfazer anotação';
+
+  @override
+  String get annotation_clear => 'Limpar marcações';
+
+  @override
+  String get annotation_snapshot => 'Anexar captura anotada';
+
+  @override
+  String get annotation_exit => 'Sair do modo de anotação';
+
 }

@@ -3601,4 +3601,19 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get provider_oauth_account_status_unknown =>
       'Host-Kontostatus nicht verfügbar.';
+
+  @override
+  String get annotation_mode => 'Bildschirm annotieren';
+
+  @override
+  String get annotation_undo => 'Anmerkung rückgängig';
+
+  @override
+  String get annotation_clear => 'Markierungen löschen';
+
+  @override
+  String get annotation_snapshot => 'Markierten Screenshot anhängen';
+
+  @override
+  String get annotation_exit => 'Anmerkungsmodus beenden';
 }

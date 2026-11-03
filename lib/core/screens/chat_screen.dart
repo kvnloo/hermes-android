@@ -25,12 +25,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../controllers/annotation_controller.dart';
 import '../controllers/voice_composer_controller.dart';
 import '../controllers/delegated_task_controller.dart';
 import '../services/delegated_task_history.dart';
 import '../widgets/delegated_task_timeline.dart';
 import '../widgets/delegated_task_labels.dart';
 import '../services/connection_manager.dart';
+import '../services/annotation_snapshot.dart';
 import '../services/attachment_draft_service.dart';
 import '../services/chat_presentation_state.dart';
 import '../services/chat_model_override_store.dart';
@@ -82,6 +84,7 @@ import '../widgets/chat_context_header.dart';
 import '../widgets/chat_activity_bar.dart';
 import '../widgets/markdown_code_block.dart';
 import '../widgets/markdown_link_handler.dart';
+import '../widgets/annotation_chat_shell.dart';
 import '../widgets/attachment_draft_tile.dart';
 import '../widgets/chat_end_affordance.dart';
 import '../widgets/received_recovery_inspector.dart';
@@ -536,6 +539,14 @@ class ChatScreen extends StatefulWidget {
   @visibleForTesting
   final AttachmentDraftService? testAttachmentDraftService;
 
+  /// Route-owned ink shared with the voice tray (PR #12's _annotationInk).
+  /// Snapshot capture only observes it; this screen never creates or disposes
+  /// a second annotation controller. Null disables the standalone snapshot UI.
+  final AnnotationController? annotationController;
+
+  @visibleForTesting
+  final AnnotationSnapshotCapture? testAnnotationSnapshotCapture;
+
   @visibleForTesting
   final TestRemotePromptSubmit? testRemotePromptSubmit;
 
@@ -620,6 +631,8 @@ class ChatScreen extends StatefulWidget {
     this.testTurnApplicationSession,
     this.testApiClient,
     this.testAttachmentDraftService,
+    this.testAnnotationSnapshotCapture,
+    this.annotationController,
     this.testRemotePromptSubmit,
     this.testNormalResume,
     this.testServerFilePicker,
@@ -721,6 +734,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   late final ApiClient _client;
   late final GatewayChatClient _gateway;
   late final AttachmentDraftService _attachmentDraftService;
+  late final AnnotationSnapshotCapture _annotationSnapshotCapture;
+  // PR #12 owns the chat's _annotationInk at chat_screen.dart:848.
+  // The snapshot lane consumes that owner through an explicit injection seam.
+  AnnotationController? get _annotationInk => widget.annotationController;
+  final GlobalKey _annotationBoundaryKey = GlobalKey();
+  bool _annotationSnapshotInProgress = false;
+  bool _annotationMenuActive = false;
+  int _annotationReservedDraftRows = 0;
   late final AttachmentDraftSendCoordinator _attachmentSendCoordinator;
   late final Future<ChatModelOverrideStore> _chatModelStore;
   late final Future<void> _sessionModelRestore;
@@ -884,6 +905,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _annotationInk?.addListener(_onAnnotationModeChanged);
+    _annotationMenuActive = _annotationInk?.active ?? false;
+    if (_annotationMenuActive) {
+      _annotationReservedDraftRows = _attachmentDrafts.length +
+          (_canReserveAnnotationAttachment ? 1 : 0);
+    }
+    _annotationSnapshotCapture =
+        widget.testAnnotationSnapshotCapture ?? const AnnotationSnapshotCapture();
     _notificationApprovalOrigin = NotificationApprovalAuthority.origin(
       widget.connection,
     );
@@ -1613,6 +1642,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   @override
   void didUpdateWidget(covariant ChatScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.annotationController, widget.annotationController)) {
+      oldWidget.annotationController?.removeListener(_onAnnotationModeChanged);
+      _annotationInk?.addListener(_onAnnotationModeChanged);
+      _annotationMenuActive = _annotationInk?.active ?? false;
+      _annotationReservedDraftRows = _annotationMenuActive
+          ? _attachmentDrafts.length +
+              (_canReserveAnnotationAttachment ? 1 : 0)
+          : 0;
+    }
     if (oldWidget.connection != widget.connection ||
         oldWidget.session.id != widget.session.id ||
         !widget.active) {
@@ -1662,6 +1700,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    // The owner may also drive the voice tray; never dispose it here.
+    _annotationInk?.removeListener(_onAnnotationModeChanged);
     final pendingSubmission = _recoverableSubmissionState;
     if (pendingSubmission != null && !pendingSubmission.isCompleted) {
       pendingSubmission.complete();
@@ -3546,6 +3586,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         (_turnApplicationSession != null && !_legacyTransportFallback);
     if (!remote ||
         _preparingPaste ||
+        _annotationSnapshotInProgress ||
         _sending ||
         _streaming ||
         _preparingSend ||
@@ -3604,7 +3645,126 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
   }
 
+  bool get _annotationUsesRemoteDrafts =>
+      (_turnApplicationSession != null && !_legacyTransportFallback) ||
+      _desktopGateway != null ||
+      widget.testRemotePromptSubmit != null;
+
+  bool get _canReserveAnnotationAttachment =>
+      _annotationUsesRemoteDrafts
+          ? _attachmentDrafts.length < maxRemoteAttachmentDrafts
+          : _attachmentDrafts.isEmpty;
+
+  void _onAnnotationModeChanged() {
+    final active = _annotationInk?.active ?? false;
+    if (mounted && _annotationMenuActive != active) {
+      setState(() {
+        _annotationMenuActive = active;
+        // Reserve one ListTile before drawing starts, not after ink is laid.
+        _annotationReservedDraftRows = active
+            ? _attachmentDrafts.length +
+                (_canReserveAnnotationAttachment ? 1 : 0)
+            : 0;
+      });
+    }
+  }
+
+  /// Reserve capacity before capture without inserting a tile (which would
+  /// move the very conversation under the marks). Commit the tile afterward.
+  /// No turn is sent; failed capture/preparation never discards the drawing.
+  Future<void> _attachAnnotationSnapshot() async {
+    final controller = _annotationInk;
+    if (!mounted ||
+        controller == null ||
+        !controller.active ||
+        _annotationSnapshotInProgress ||
+        _preparingPaste ||
+        _preparingSend ||
+        _sending ||
+        _streaming ||
+        _pendingReattachResync ||
+        _transcriptLoadBlocksComposer) {
+      return;
+    }
+    final remote = _annotationUsesRemoteDrafts;
+    if (remote && _attachmentDrafts.length >= maxRemoteAttachmentDrafts) {
+      _showAttachmentError(
+        context.l10n.you_can_attach_up_to_items(maxRemoteAttachmentDrafts),
+      );
+      return;
+    }
+    if (!remote && _attachmentDrafts.isNotEmpty) {
+      _showAttachmentError(
+        context.l10n.unable_to_prepare_this_image_try_another_one,
+      );
+      return;
+    }
+    controller.finishStroke();
+    final drawing = controller.drawing;
+    final scheme = Theme.of(context).colorScheme;
+    final ratio = MediaQuery.devicePixelRatioOf(context);
+    final timestamp = DateTime.now().toUtc().toIso8601String()
+        .replaceAll(RegExp(r'[:.]'), '-');
+    final existing = List<AttachmentDraft>.of(_attachmentDrafts);
+    setState(() => _annotationSnapshotInProgress = true);
+    AttachmentDraft? prepared;
+    try {
+      // The slot was reserved when annotation mode opened, before any ink.
+      // Wait for this frame to finish without moving the marked viewport.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || !identical(controller, _annotationInk) ||
+          !controller.active) return;
+      final png = await _annotationSnapshotCapture.capture(
+        boundaryKey: _annotationBoundaryKey,
+        drawing: drawing,
+        accent: scheme.primary,
+        red: scheme.error,
+        eraserColor: scheme.onSurface,
+        pixelRatio: ratio,
+      );
+      prepared = await _attachmentDraftService.prepareCapturedPng(
+        pngBytes: png,
+        displayName: 'annotation-$timestamp.png',
+        existingDrafts: existing,
+        mode: remote
+            ? AttachmentDraftMode.remoteGateway
+            : AttachmentDraftMode.rest,
+      );
+      if (!mounted || !identical(controller, _annotationInk) ||
+          !controller.active) return;
+      // Another picker may have completed while the boundary was encoding.
+      // Revalidate before changing any composer geometry or attachments.
+      if (remote) {
+        _attachmentDraftService.validateRemoteDrafts([
+          ..._attachmentDrafts,
+          prepared,
+        ]);
+      } else if (_attachmentDrafts.isNotEmpty) {
+        throw const AttachmentDraftException(
+          'The existing attachment must be removed before a screenshot.',
+        );
+      }
+      final ready = prepared;
+      setState(() => _attachmentDrafts.add(ready));
+      prepared = null;
+    } on AttachmentDraftException catch (error) {
+      _showAttachmentError(error.message);
+    } catch (_) {
+      if (mounted) {
+        _showAttachmentError(
+          context.l10n.unable_to_prepare_this_image_try_another_one,
+        );
+      }
+    } finally {
+      if (prepared != null) {
+        await _attachmentDraftService.removeCachedFile(prepared);
+      }
+      if (mounted) setState(() => _annotationSnapshotInProgress = false);
+    }
+  }
+
   Future<void> _showAttachmentPicker() async {
+    if (_annotationSnapshotInProgress) return;
     await _handsFree.stop(reason: HandsFreeStopReason.attachmentAction);
     if (!mounted) return;
     if (_transcriptLoadBlocksComposer ||
@@ -4218,6 +4378,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
     if (_voiceComposer.listening ||
         _startingVoiceInput ||
+        _annotationSnapshotInProgress ||
         _preparingPaste ||
         _preparingSend ||
         _archiving ||
@@ -6463,6 +6624,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   _fetchMessages(focusSavedHistory: true);
                 }
                 if (action == 'export') _exportConversation();
+                if (action == 'annotation-mode') _annotationInk?.toggle();
                 if (action == 'received-output-info') {
                   unawaited(_showReceivedOutputDetails());
                 }
@@ -6473,6 +6635,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 }
               },
               itemBuilder: (_) => [
+                if (_annotationInk != null)
+                  PopupMenuItem(
+                  value: 'annotation-mode',
+                  child: ListTile(
+                    leading: Icon(Icons.draw_outlined),
+                    title: Text(context.l10n.annotation_mode),
+                    trailing: _annotationMenuActive
+                        ? const Icon(Icons.check)
+                        : null,
+                  ),
+                ),
                 PopupMenuItem(
                   value: 'rename',
                   enabled: _canRename,
@@ -6525,8 +6698,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           ],
         ],
       ),
-      body: Center(
-        child: ConstrainedBox(
+      body: AnnotationChatShell(
+        controller: _annotationInk,
+        boundaryKey: _annotationBoundaryKey,
+        onCapture: () => unawaited(_attachAnnotationSnapshot()),
+        capturing: _annotationSnapshotInProgress,
+        child: Center(
+          child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: Responsive.isTablet(context) ? 800 : double.infinity,
           ),
@@ -6591,6 +6769,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -6664,8 +6843,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final handsFreeAction = _buildHandsFreeComposerAction();
     final separateVoiceAction = MediaQuery.sizeOf(context).width < 400;
     final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final reserveAnnotationSlot =
+        _annotationMenuActive && _canReserveAnnotationAttachment;
     final sendEnabled =
         !_transcriptLoadBlocksComposer &&
+        !_annotationSnapshotInProgress &&
         !_preparingPaste &&
         !_startingVoiceInput &&
         !_archiving &&
@@ -6767,7 +6949,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         ),
                       ),
                     ),
-                    if (_attachmentDrafts.isNotEmpty)
+                    if (_attachmentDrafts.isNotEmpty || reserveAnnotationSlot)
                       Container(
                         width: double.infinity,
                         margin: const EdgeInsets.fromLTRB(4, 4, 4, 8),
@@ -6780,35 +6962,55 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         ),
                         child: Semantics(
                           label: context.l10n.attachment_drafts,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              // Scaffold has already subtracted the keyboard and app bar.
-                              maxHeight: availableHeight * 0.32,
-                            ),
+                          child: AnnotationAttachmentSlotViewport(
+                            annotationActive: _annotationMenuActive,
+                            reservedRowCount: _annotationReservedDraftRows,
+                            availableHeight: availableHeight,
                             child: ListView.builder(
-                              shrinkWrap: true,
-                              itemCount: _attachmentDrafts.length,
-                              itemBuilder: (context, index) =>
-                                  AttachmentDraftTile(
-                                    draft: _attachmentDrafts[index],
-                                    index: index,
-                                    total: _attachmentDrafts.length,
-                                    busy: _sending || _preparingPaste,
-                                    onMovePrevious: () => _moveAttachment(
-                                      _attachmentDrafts[index],
-                                      -1,
+                              shrinkWrap: !_annotationMenuActive,
+                              itemCount: _attachmentDrafts.length +
+                                  (reserveAnnotationSlot ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (index == _attachmentDrafts.length) {
+                                  return SizedBox(
+                                    key: const Key('annotation-attachment-slot'),
+                                    height: annotationDraftRowExtent,
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                        ),
+                                        child: Text(
+                                          context.l10n.annotation_snapshot,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                        ),
+                                      ),
                                     ),
-                                    onMoveNext: () => _moveAttachment(
-                                      _attachmentDrafts[index],
-                                      1,
-                                    ),
-                                    onRetry: () => _retryAttachment(
-                                      _attachmentDrafts[index],
-                                    ),
-                                    onRemove: () => _removeAttachment(
-                                      _attachmentDrafts[index],
-                                    ),
+                                  );
+                                }
+                                final draft = _attachmentDrafts[index];
+                                return AttachmentDraftTile(
+                                  draft: draft,
+                                  index: index,
+                                  total: _attachmentDrafts.length,
+                                  busy: _sending ||
+                                      _preparingPaste ||
+                                      _annotationSnapshotInProgress,
+                                  onMovePrevious: () => _moveAttachment(
+                                    draft,
+                                    -1,
                                   ),
+                                  onMoveNext: () => _moveAttachment(
+                                    draft,
+                                    1,
+                                  ),
+                                  onRetry: () => _retryAttachment(draft),
+                                  onRemove: () => _removeAttachment(draft),
+                                );
+                              },
                             ),
                           ),
                         ),

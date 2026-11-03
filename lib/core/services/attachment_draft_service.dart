@@ -140,6 +140,36 @@ class AttachmentDraftService {
     return Directory('${root.path}${Platform.pathSeparator}attachment_drafts');
   }
 
+  /// Stage a generated annotation through the same image sanitizer and limits
+  /// as the gallery. The temporary source is deleted even when decoding fails.
+  Future<AttachmentDraft> prepareCapturedPng({
+    required Uint8List pngBytes,
+    required String displayName,
+    required Iterable<AttachmentDraft> existingDrafts,
+    required AttachmentDraftMode mode,
+  }) async {
+    if (pngBytes.isEmpty || pngBytes.length > maxRemoteAttachmentDraftBytes) {
+      throw const AttachmentDraftException(
+        'The annotated screenshot is empty or exceeds the attachment budget.',
+      );
+    }
+    if (mode == AttachmentDraftMode.remoteGateway) {
+      _ensureRemoteSlot(existingDrafts);
+    }
+    final source = await _newCacheFile('png');
+    try {
+      await _cacheFileWriter(source, pngBytes);
+      return await prepareImage(
+        sourcePath: source.path,
+        displayName: displayName,
+        existingDrafts: existingDrafts,
+        mode: mode,
+      );
+    } finally {
+      await _deleteIfPresent(source);
+    }
+  }
+
   Future<AttachmentDraft> prepareImage({
     required String sourcePath,
     required String displayName,

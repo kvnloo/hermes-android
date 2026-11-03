@@ -3595,4 +3595,19 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get provider_oauth_account_status_unknown =>
       'Статус аккаунта на хосте недоступен.';
+  @override
+  String get annotation_mode => 'Аннотировать экран';
+
+  @override
+  String get annotation_undo => 'Отменить аннотацию';
+
+  @override
+  String get annotation_clear => 'Очистить пометки';
+
+  @override
+  String get annotation_snapshot => 'Прикрепить снимок с пометками';
+
+  @override
+  String get annotation_exit => 'Выйти из режима аннотаций';
+
 }

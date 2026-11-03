@@ -1000,5 +1000,10 @@
         "type": "String"
       }
     }
-  }
+  },
+  "annotation_mode": "标注屏幕",
+  "annotation_undo": "撤销标注",
+  "annotation_clear": "清除标记",
+  "annotation_snapshot": "附加带标注的截屏",
+  "annotation_exit": "退出标注模式"
 }

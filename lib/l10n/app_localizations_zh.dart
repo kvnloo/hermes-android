@@ -3447,6 +3447,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get provider_oauth_account_status_unknown => '无法获取主机账户状态。';
+  @override
+  String get annotation_mode => '标注屏幕';
+
+  @override
+  String get annotation_undo => '撤销标注';
+
+  @override
+  String get annotation_clear => '清除标记';
+
+  @override
+  String get annotation_snapshot => '附加带标注的截屏';
+
+  @override
+  String get annotation_exit => '退出标注模式';
+
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -6769,4 +6784,19 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get provider_oauth_account_status_unknown => '无法获取主机账户状态。';
+  @override
+  String get annotation_mode => '标注屏幕';
+
+  @override
+  String get annotation_undo => '撤销标注';
+
+  @override
+  String get annotation_clear => '清除标记';
+
+  @override
+  String get annotation_snapshot => '附加带标注的截屏';
+
+  @override
+  String get annotation_exit => '退出标注模式';
+
 }
