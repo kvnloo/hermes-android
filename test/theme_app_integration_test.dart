@@ -91,7 +91,7 @@ void main() {
       app.darkTheme!.colorScheme.primary,
       hermesTheme(
         Brightness.dark,
-        palette: HermesPalette.cyan,
+        palette: HermesPalette.values.last,
       ).colorScheme.primary,
     );
     expect(

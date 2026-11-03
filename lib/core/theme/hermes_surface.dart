@@ -40,7 +40,7 @@ enum HermesMaterialKind { pack, water, quartz }
 /// Persist [name], never [index].
 enum HermesMaterial {
   none(HermesMaterialKind.pack, null, Color(0x00000000), 0, 0),
-  water(HermesMaterialKind.water, null, Color(0xFF1F6F78), 0.10, 0.9),
+  water(HermesMaterialKind.water, null, Color(0xFF1F6F78), 0.14, 1.6),
   quartz(HermesMaterialKind.quartz, null, Color(0xFFE8EEF2), 0.08, 0.8),
   slate(
     HermesMaterialKind.pack,
@@ -254,10 +254,13 @@ class HermesSurface extends ThemeExtension<HermesSurface> {
 
   /// Body text must stay AA over a mid-grey wallpaper region (a typical
   /// blurred average). Below this, secondary text fails on mid tones.
-  static double tintFloor(HermesTokens tokens) => minTintFor(
-    text: tokens.muted,
-    tint: tokens.surface,
-    wallpaper: const Color(0xFF808080),
+  static double tintFloor(HermesTokens tokens) => math.min(
+    tintMax,
+    minTintFor(
+      text: tokens.muted,
+      tint: tokens.surface,
+      wallpaper: const Color(0xFF808080),
+    ),
   );
 
   /// Body text stays AA even over the worst wallpaper highlight.
@@ -310,7 +313,7 @@ class HermesSurface extends ThemeExtension<HermesSurface> {
     final panel = light.withValues(alpha: dark ? 0.07 : 0.42);
     final chrome = Color.alphaBlend(
       light.withValues(alpha: dark ? 0.10 : 0.30),
-      tokens.surface.withValues(alpha: math.min(0.5, tintMax - tint + 0.2)),
+      tokens.surface.withValues(alpha: math.min(0.32, tintMax - tint + 0.1)),
     );
     return HermesSurface(
       glass: true,

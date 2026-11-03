@@ -6103,7 +6103,7 @@ abstract class AppLocalizations {
   /// No description provided for @theme_glass_blur_off.
   ///
   /// In en, this message translates to:
-  /// **'Blur is off right now (battery saver or a device setting), so the tint is raised.'**
+  /// **'Blur is off on this phone right now (battery saver or no device support), so the tint is raised.'**
   String get theme_glass_blur_off;
 
   /// No description provided for @theme_material.

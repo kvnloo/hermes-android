@@ -92,7 +92,7 @@ Surface waterSurface(vec2 uv, float t) {
   s.rough = 0.08;
   // Caustic lines: thin bright ridges where the height field folds.
   float ridge = 1.0 - abs(2.0 * fract(h * 3.0 + t * 0.02) - 1.0);
-  s.glint = pow(ridge, 10.0) * 0.6;
+  s.glint = pow(ridge, 8.0) * 1.0;
   return s;
 }
 

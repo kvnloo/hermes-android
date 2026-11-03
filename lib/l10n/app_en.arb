@@ -1155,7 +1155,7 @@
   "theme_glass_deep": "Deep",
   "theme_glass_tint": "Tint",
   "theme_glass_blur": "Blur",
-  "theme_glass_blur_off": "Blur is off right now (battery saver or a device setting), so the tint is raised.",
+  "theme_glass_blur_off": "Blur is off on this phone right now (battery saver or no device support), so the tint is raised.",
   "theme_material": "Material",
   "theme_material_none": "None",
   "theme_material_water": "Water",

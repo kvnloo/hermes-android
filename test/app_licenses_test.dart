@@ -77,6 +77,7 @@ void main() {
       'Flutter iOS scaffold (source material)',
       'Gradle wrapper (Library build material)',
       'Gradle wrapper (Library build material)',
+      'elemental-ui materials (GPL-3.0-only)',
     ]);
     for (var index = 0; index < _noticeAssets.length; index++) {
       final entry = entries[index + 1] as LicenseEntryWithLineBreaks;

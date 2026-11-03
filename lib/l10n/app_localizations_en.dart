@@ -3602,7 +3602,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get theme_glass_blur_off =>
-      'Blur is off right now (battery saver or a device setting), so the tint is raised.';
+      'Blur is off on this phone right now (battery saver or no device support), so the tint is raised.';
 
   @override
   String get theme_material => 'Material';

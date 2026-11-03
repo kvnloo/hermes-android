@@ -28,7 +28,8 @@ void registerAppLicenses({AssetBundle? assetBundle}) {
           'Gradle wrapper (Library build material)',
       'third_party/licenses/gradle-NOTICE.txt':
           'Gradle wrapper (Library build material)',
-      'third_party/elemental-ui/LICENSE': 'elemental-ui materials (GPL-3.0-only)',
+      'third_party/elemental-ui/LICENSE':
+          'elemental-ui materials (GPL-3.0-only)',
     };
     for (final notice in notices.entries) {
       yield LicenseEntryWithLineBreaks([
