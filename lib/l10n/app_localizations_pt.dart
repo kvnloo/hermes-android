@@ -769,6 +769,25 @@ class AppLocalizationsPt extends AppLocalizations {
   String get code_copied => 'Código copiado';
 
   @override
+  String get openui_show_source => 'Mostrar código-fonte';
+
+  @override
+  String get openui_hide_source => 'Ocultar código-fonte';
+
+  @override
+  String get openui_board_unavailable => 'Não foi possível exibir este painel. O código-fonte original está abaixo.';
+
+  @override
+  String get openui_board_incomplete => 'Este painel está incompleto. O código-fonte original está abaixo.';
+
+  @override
+  String get openui_board_unsupported => 'Este painel contém um componente ainda não compatível com Android. O código-fonte está abaixo.';
+
+  @override
+  String get openui_read_only => 'Somente leitura · os toques selecionam valores localmente';
+
+
+  @override
   String get code_format => 'Code';
 
   @override
@@ -4319,6 +4338,25 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get code_copied => 'Código copiado';
+
+  @override
+  String get openui_show_source => 'Mostrar código-fonte';
+
+  @override
+  String get openui_hide_source => 'Ocultar código-fonte';
+
+  @override
+  String get openui_board_unavailable => 'Não foi possível exibir este painel. O código-fonte original está abaixo.';
+
+  @override
+  String get openui_board_incomplete => 'Este painel está incompleto. O código-fonte original está abaixo.';
+
+  @override
+  String get openui_board_unsupported => 'Este painel contém um componente ainda não compatível com Android. O código-fonte está abaixo.';
+
+  @override
+  String get openui_read_only => 'Somente leitura · os toques selecionam valores localmente';
+
 
   @override
   String get coming_next => 'Em breve';

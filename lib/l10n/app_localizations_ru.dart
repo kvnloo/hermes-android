@@ -767,6 +767,25 @@ class AppLocalizationsRu extends AppLocalizations {
   String get code_copied => 'Код скопирован';
 
   @override
+  String get openui_show_source => 'Показать исходный код';
+
+  @override
+  String get openui_hide_source => 'Скрыть исходный код';
+
+  @override
+  String get openui_board_unavailable => 'Не удалось показать панель. Исходный код приведён ниже.';
+
+  @override
+  String get openui_board_incomplete => 'Панель не завершена. Исходный код приведён ниже.';
+
+  @override
+  String get openui_board_unsupported => 'Панель содержит элемент, пока не поддерживаемый на Android. Исходный код приведён ниже.';
+
+  @override
+  String get openui_read_only => 'Только чтение · выбор значений остаётся на устройстве';
+
+
+  @override
   String get code_format => 'Code';
 
   @override

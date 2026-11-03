@@ -745,6 +745,25 @@ class AppLocalizationsKo extends AppLocalizations {
   String get code_copied => '코드가 복사되었습니다';
 
   @override
+  String get openui_show_source => '소스 보기';
+
+  @override
+  String get openui_hide_source => '소스 숨기기';
+
+  @override
+  String get openui_board_unavailable => '이 보드를 표시할 수 없습니다. 원본 소스는 아래에 있습니다.';
+
+  @override
+  String get openui_board_incomplete => '이 보드는 완성되지 않았습니다. 원본 소스는 아래에 있습니다.';
+
+  @override
+  String get openui_board_unsupported => '이 보드에는 Android에서 아직 지원하지 않는 패널이 있습니다. 원본 소스는 아래에 있습니다.';
+
+  @override
+  String get openui_read_only => '읽기 전용 · 탭 선택은 기기에만 적용됩니다';
+
+
+  @override
   String get code_format => 'Code';
 
   @override
