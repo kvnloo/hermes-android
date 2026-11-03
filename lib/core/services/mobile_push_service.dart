@@ -45,9 +45,11 @@ class MobilePushService extends ChangeNotifier with WidgetsBindingObserver {
   }) : _channel = channel ?? const MethodChannel(channelName),
        _clock = clock ?? DateTime.now,
        _clientFactory = clientFactory ?? _dashboard,
-       supported =
-           supported ??
-           (!kIsWeb && defaultTargetPlatform == TargetPlatform.android);
+       supported = supported ?? _supportedByDefault;
+
+  static bool get _supportedByDefault =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
   static const channelName = 'com.hermesagent.hermes_android/mobile_push';
   static final shared = MobilePushService();
   final MethodChannel _channel;
