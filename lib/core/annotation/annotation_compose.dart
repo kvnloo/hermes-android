@@ -126,7 +126,7 @@ String composeMessage({
   final silent = alignment.unspoken.isNotEmpty
       ? '\nAlso marked without speaking: ${alignment.unspoken.map(marker).join(' ')}'
       : '';
-  final body = said.isNotEmpty ? said + silent : '';
+  final body = said.isNotEmpty ? '$said$silent' : '';
   final legend = count > 0 ? strokeLegend(strokes) : '';
   return <String>[
     head,
