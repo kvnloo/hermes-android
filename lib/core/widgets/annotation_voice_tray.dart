@@ -234,8 +234,9 @@ class _AnnotationVoiceTrayState extends State<AnnotationVoiceTray> {
                   key: const Key('annotation-aligned-transcript'),
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
-              TextField(
-                key: const Key('annotation-typed-note'),
+              if (widget.active)
+                TextField(
+                  key: const Key('annotation-typed-note'),
                 controller: _typed,
                 minLines: 1,
                 maxLines: 3,
