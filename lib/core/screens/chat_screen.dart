@@ -6626,7 +6626,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                 child: Stack(
                                   children: [
                                     Positioned.fill(child: _buildBody()),
-                                    if (_annotationInk.active)
+                                    if (_annotationWired && _annotationInk.active)
                                       Positioned.fill(
                                         child: InkOverlay(controller: _annotationInk),
                                       ),
@@ -6723,6 +6723,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   bool get _annotationWired =>
+      widget.active &&
+      _voiceElementActive &&
       _desktopGateway != null &&
       _normalChat != null &&
       _annotationSender != null &&
@@ -6787,7 +6789,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   Future<String> _captureAnnotationPng(AnnotationSendEnvelope envelope) async {
-    if (!_annotationWired || !_annotationInk.active || !mounted) {
+    if (!_annotationWired ||
+        !_annotationInk.active ||
+        !_voiceRouteCurrent ||
+        !_voiceForeground ||
+        !mounted) {
       throw StateError('Annotation screenshot is no longer on this chat.');
     }
     if (_annotationInk.live != null ||
@@ -6821,7 +6827,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       final file = File(
         '${directory.path}${Platform.pathSeparator}annotation-${const Uuid().v4()}.png',
       );
-      await file.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
+      await file.writeAsBytes(
+        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+        flush: true,
+      );
       return file.path;
     } finally {
       image.dispose();
