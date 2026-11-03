@@ -310,7 +310,7 @@ void main() {
         <String, num>{'x': 0, 'y': 0, 'width': 100, 'height': 100},
       );
       final fractional = <StrokePoint>[
-        const StrokePoint(x: 0.211, y: 0.309, p: 0.5, t: 0),
+        const StrokePoint(x: 0.215, y: 0.309, p: 0.5, t: 0),
         const StrokePoint(x: 0.807, y: 0.799, p: 0.5, t: 1),
       ];
       expect(
