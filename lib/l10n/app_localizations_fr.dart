@@ -3604,4 +3604,84 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get provider_oauth_account_status_unknown =>
       'État du compte sur le serveur indisponible.';
+
+  @override
+  String get theme_palette_mono => 'Mono';
+
+  @override
+  String get theme_surface => 'Surface';
+
+  @override
+  String get theme_surface_solid => 'Opaque';
+
+  @override
+  String get theme_surface_glass => 'Verre';
+
+  @override
+  String get theme_surface_glass_hint =>
+      'Votre fond d\'écran transparaît derrière Hermes, flouté et teinté pour garder le texte lisible.';
+
+  @override
+  String get theme_glass_clear => 'Clair';
+
+  @override
+  String get theme_glass_frost => 'Givre';
+
+  @override
+  String get theme_glass_deep => 'Profond';
+
+  @override
+  String get theme_glass_tint => 'Teinte';
+
+  @override
+  String get theme_glass_blur => 'Flou';
+
+  @override
+  String get theme_glass_blur_off =>
+      'Le flou est désactivé (économiseur de batterie ou réglage de l\'appareil), la teinte est donc renforcée.';
+
+  @override
+  String get theme_material => 'Matière';
+
+  @override
+  String get theme_material_none => 'Aucune';
+
+  @override
+  String get theme_material_water => 'Eau';
+
+  @override
+  String get theme_material_quartz => 'Quartz';
+
+  @override
+  String get theme_material_slate => 'Ardoise';
+
+  @override
+  String get theme_material_basalt => 'Basalte';
+
+  @override
+  String get theme_material_limestone => 'Calcaire';
+
+  @override
+  String get theme_quiet_chrome => 'Interface discrète';
+
+  @override
+  String get theme_quiet_chrome_hint =>
+      'Masquer les libellés de navigation et les contours des cartes.';
+
+  @override
+  String get theme_liquid_chrome => 'Navigation liquide';
+
+  @override
+  String get theme_liquid_chrome_hint =>
+      'Le verre de navigation courbe ce qui défile dessous.';
+
+  @override
+  String get theme_surface_reload_title => 'Redessiner la fenêtre ?';
+
+  @override
+  String get theme_surface_reload_body =>
+      'Hermes redémarre sa fenêtre pour changer de surface. Les discussions et brouillons sont conservés.';
+
+  @override
+  String get theme_surface_reload_action => 'Redessiner';
 }

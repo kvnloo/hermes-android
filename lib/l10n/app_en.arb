@@ -1144,5 +1144,30 @@
         "type": "String"
       }
     }
-  }
+  },
+  "theme_palette_mono": "Mono",
+  "theme_surface": "Surface",
+  "theme_surface_solid": "Solid",
+  "theme_surface_glass": "Glass",
+  "theme_surface_glass_hint": "Your wallpaper shows through Hermes, blurred and tinted so text stays readable.",
+  "theme_glass_clear": "Clear",
+  "theme_glass_frost": "Frost",
+  "theme_glass_deep": "Deep",
+  "theme_glass_tint": "Tint",
+  "theme_glass_blur": "Blur",
+  "theme_glass_blur_off": "Blur is off right now (battery saver or a device setting), so the tint is raised.",
+  "theme_material": "Material",
+  "theme_material_none": "None",
+  "theme_material_water": "Water",
+  "theme_material_quartz": "Quartz",
+  "theme_material_slate": "Slate",
+  "theme_material_basalt": "Basalt",
+  "theme_material_limestone": "Limestone",
+  "theme_quiet_chrome": "Quiet chrome",
+  "theme_quiet_chrome_hint": "Hide navigation labels and card outlines.",
+  "theme_liquid_chrome": "Liquid navigation",
+  "theme_liquid_chrome_hint": "Navigation glass bends what scrolls beneath it.",
+  "theme_surface_reload_title": "Redraw the window?",
+  "theme_surface_reload_body": "Hermes restarts its window to switch surfaces. Chats and drafts are kept.",
+  "theme_surface_reload_action": "Redraw"
 }

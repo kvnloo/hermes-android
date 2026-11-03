@@ -60,6 +60,7 @@ dependencies:
   # Notifications
   flutter_local_notifications: ^18.0.0
   cryptography: ^2.7.0
+  liquid_glass_renderer: 0.2.0-dev.4
 
 dev_dependencies:
   flutter_test:
@@ -77,8 +78,14 @@ flutter:
     - family: Cinzel
       fonts:
         - asset: assets/fonts/Cinzel-Variable.ttf
+  shaders:
+    - shaders/elemental_glass.frag
   assets:
     - assets/
+    - assets/elemental/geo.basalt.vesicular.v1/
+    - assets/elemental/geo.limestone.porous.v1/
+    - assets/elemental/geo.slate.layered.v1/
+    - third_party/elemental-ui/LICENSE
     - LICENSE
     - assets/fonts/OFL.txt
     - third_party/embedded-push-notice.md

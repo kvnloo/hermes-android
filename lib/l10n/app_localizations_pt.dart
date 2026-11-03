@@ -3594,6 +3594,86 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get provider_oauth_account_status_unknown =>
       'Estado da conta no servidor indisponível.';
+
+  @override
+  String get theme_palette_mono => 'Mono';
+
+  @override
+  String get theme_surface => 'Superfície';
+
+  @override
+  String get theme_surface_solid => 'Sólida';
+
+  @override
+  String get theme_surface_glass => 'Vidro';
+
+  @override
+  String get theme_surface_glass_hint =>
+      'O seu fundo aparece através do Hermes, desfocado e tingido para o texto continuar legível.';
+
+  @override
+  String get theme_glass_clear => 'Claro';
+
+  @override
+  String get theme_glass_frost => 'Geada';
+
+  @override
+  String get theme_glass_deep => 'Profundo';
+
+  @override
+  String get theme_glass_tint => 'Tom';
+
+  @override
+  String get theme_glass_blur => 'Desfoque';
+
+  @override
+  String get theme_glass_blur_off =>
+      'O desfoque está desligado (poupança de bateria ou definição do dispositivo), por isso o tom foi reforçado.';
+
+  @override
+  String get theme_material => 'Material';
+
+  @override
+  String get theme_material_none => 'Nenhum';
+
+  @override
+  String get theme_material_water => 'Água';
+
+  @override
+  String get theme_material_quartz => 'Quartzo';
+
+  @override
+  String get theme_material_slate => 'Ardósia';
+
+  @override
+  String get theme_material_basalt => 'Basalto';
+
+  @override
+  String get theme_material_limestone => 'Calcário';
+
+  @override
+  String get theme_quiet_chrome => 'Interface discreta';
+
+  @override
+  String get theme_quiet_chrome_hint =>
+      'Ocultar etiquetas de navegação e contornos dos cartões.';
+
+  @override
+  String get theme_liquid_chrome => 'Navegação líquida';
+
+  @override
+  String get theme_liquid_chrome_hint =>
+      'O vidro da navegação curva o que passa por baixo.';
+
+  @override
+  String get theme_surface_reload_title => 'Redesenhar a janela?';
+
+  @override
+  String get theme_surface_reload_body =>
+      'O Hermes reinicia a janela para mudar de superfície. As conversas e rascunhos são mantidos.';
+
+  @override
+  String get theme_surface_reload_action => 'Redesenhar';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -7062,4 +7142,84 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   @override
   String get provider_oauth_account_status_unknown =>
       'Status da conta no servidor indisponível.';
+
+  @override
+  String get theme_palette_mono => 'Mono';
+
+  @override
+  String get theme_surface => 'Superfície';
+
+  @override
+  String get theme_surface_solid => 'Sólida';
+
+  @override
+  String get theme_surface_glass => 'Vidro';
+
+  @override
+  String get theme_surface_glass_hint =>
+      'Seu papel de parede aparece através do Hermes, desfocado e tingido para o texto continuar legível.';
+
+  @override
+  String get theme_glass_clear => 'Claro';
+
+  @override
+  String get theme_glass_frost => 'Geada';
+
+  @override
+  String get theme_glass_deep => 'Profundo';
+
+  @override
+  String get theme_glass_tint => 'Tom';
+
+  @override
+  String get theme_glass_blur => 'Desfoque';
+
+  @override
+  String get theme_glass_blur_off =>
+      'O desfoque está desligado (economia de bateria ou configuração do aparelho), então o tom foi reforçado.';
+
+  @override
+  String get theme_material => 'Material';
+
+  @override
+  String get theme_material_none => 'Nenhum';
+
+  @override
+  String get theme_material_water => 'Água';
+
+  @override
+  String get theme_material_quartz => 'Quartzo';
+
+  @override
+  String get theme_material_slate => 'Ardósia';
+
+  @override
+  String get theme_material_basalt => 'Basalto';
+
+  @override
+  String get theme_material_limestone => 'Calcário';
+
+  @override
+  String get theme_quiet_chrome => 'Interface discreta';
+
+  @override
+  String get theme_quiet_chrome_hint =>
+      'Ocultar rótulos de navegação e contornos dos cartões.';
+
+  @override
+  String get theme_liquid_chrome => 'Navegação líquida';
+
+  @override
+  String get theme_liquid_chrome_hint =>
+      'O vidro da navegação curva o que rola por baixo.';
+
+  @override
+  String get theme_surface_reload_title => 'Redesenhar a janela?';
+
+  @override
+  String get theme_surface_reload_body =>
+      'O Hermes reinicia a janela para trocar de superfície. Conversas e rascunhos são mantidos.';
+
+  @override
+  String get theme_surface_reload_action => 'Redesenhar';
 }

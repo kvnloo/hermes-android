@@ -1000,5 +1000,30 @@
         "type": "String"
       }
     }
-  }
+  },
+  "theme_palette_mono": "모노",
+  "theme_surface": "표면",
+  "theme_surface_solid": "솔리드",
+  "theme_surface_glass": "글래스",
+  "theme_surface_glass_hint": "배경화면이 Hermes 뒤로 비쳐 보입니다. 글자가 잘 읽히도록 흐림과 색조를 더합니다.",
+  "theme_glass_clear": "투명",
+  "theme_glass_frost": "서리",
+  "theme_glass_deep": "깊게",
+  "theme_glass_tint": "색조",
+  "theme_glass_blur": "흐림",
+  "theme_glass_blur_off": "지금은 흐림이 꺼져 있어(절전 모드 또는 기기 설정) 색조를 높였습니다.",
+  "theme_material": "소재",
+  "theme_material_none": "없음",
+  "theme_material_water": "물",
+  "theme_material_quartz": "석영",
+  "theme_material_slate": "점판암",
+  "theme_material_basalt": "현무암",
+  "theme_material_limestone": "석회암",
+  "theme_quiet_chrome": "조용한 크롬",
+  "theme_quiet_chrome_hint": "내비게이션 레이블과 카드 테두리를 숨깁니다.",
+  "theme_liquid_chrome": "리퀴드 내비게이션",
+  "theme_liquid_chrome_hint": "내비게이션 유리가 아래로 스크롤되는 내용을 굴절시킵니다.",
+  "theme_surface_reload_title": "창을 다시 그릴까요?",
+  "theme_surface_reload_body": "표면을 바꾸기 위해 Hermes 창을 다시 시작합니다. 채팅과 초안은 유지됩니다.",
+  "theme_surface_reload_action": "다시 그리기"
 }

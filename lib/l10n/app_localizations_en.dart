@@ -3568,4 +3568,84 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get provider_oauth_account_status_unknown =>
       'Host account status unavailable.';
+
+  @override
+  String get theme_palette_mono => 'Mono';
+
+  @override
+  String get theme_surface => 'Surface';
+
+  @override
+  String get theme_surface_solid => 'Solid';
+
+  @override
+  String get theme_surface_glass => 'Glass';
+
+  @override
+  String get theme_surface_glass_hint =>
+      'Your wallpaper shows through Hermes, blurred and tinted so text stays readable.';
+
+  @override
+  String get theme_glass_clear => 'Clear';
+
+  @override
+  String get theme_glass_frost => 'Frost';
+
+  @override
+  String get theme_glass_deep => 'Deep';
+
+  @override
+  String get theme_glass_tint => 'Tint';
+
+  @override
+  String get theme_glass_blur => 'Blur';
+
+  @override
+  String get theme_glass_blur_off =>
+      'Blur is off right now (battery saver or a device setting), so the tint is raised.';
+
+  @override
+  String get theme_material => 'Material';
+
+  @override
+  String get theme_material_none => 'None';
+
+  @override
+  String get theme_material_water => 'Water';
+
+  @override
+  String get theme_material_quartz => 'Quartz';
+
+  @override
+  String get theme_material_slate => 'Slate';
+
+  @override
+  String get theme_material_basalt => 'Basalt';
+
+  @override
+  String get theme_material_limestone => 'Limestone';
+
+  @override
+  String get theme_quiet_chrome => 'Quiet chrome';
+
+  @override
+  String get theme_quiet_chrome_hint =>
+      'Hide navigation labels and card outlines.';
+
+  @override
+  String get theme_liquid_chrome => 'Liquid navigation';
+
+  @override
+  String get theme_liquid_chrome_hint =>
+      'Navigation glass bends what scrolls beneath it.';
+
+  @override
+  String get theme_surface_reload_title => 'Redraw the window?';
+
+  @override
+  String get theme_surface_reload_body =>
+      'Hermes restarts its window to switch surfaces. Chats and drafts are kept.';
+
+  @override
+  String get theme_surface_reload_action => 'Redraw';
 }

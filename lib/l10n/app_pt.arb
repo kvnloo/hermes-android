@@ -1000,5 +1000,30 @@
         "type": "String"
       }
     }
-  }
+  },
+  "theme_palette_mono": "Mono",
+  "theme_surface": "Superfície",
+  "theme_surface_solid": "Sólida",
+  "theme_surface_glass": "Vidro",
+  "theme_surface_glass_hint": "O seu fundo aparece através do Hermes, desfocado e tingido para o texto continuar legível.",
+  "theme_glass_clear": "Claro",
+  "theme_glass_frost": "Geada",
+  "theme_glass_deep": "Profundo",
+  "theme_glass_tint": "Tom",
+  "theme_glass_blur": "Desfoque",
+  "theme_glass_blur_off": "O desfoque está desligado (poupança de bateria ou definição do dispositivo), por isso o tom foi reforçado.",
+  "theme_material": "Material",
+  "theme_material_none": "Nenhum",
+  "theme_material_water": "Água",
+  "theme_material_quartz": "Quartzo",
+  "theme_material_slate": "Ardósia",
+  "theme_material_basalt": "Basalto",
+  "theme_material_limestone": "Calcário",
+  "theme_quiet_chrome": "Interface discreta",
+  "theme_quiet_chrome_hint": "Ocultar etiquetas de navegação e contornos dos cartões.",
+  "theme_liquid_chrome": "Navegação líquida",
+  "theme_liquid_chrome_hint": "O vidro da navegação curva o que passa por baixo.",
+  "theme_surface_reload_title": "Redesenhar a janela?",
+  "theme_surface_reload_body": "O Hermes reinicia a janela para mudar de superfície. As conversas e rascunhos são mantidos.",
+  "theme_surface_reload_action": "Redesenhar"
 }

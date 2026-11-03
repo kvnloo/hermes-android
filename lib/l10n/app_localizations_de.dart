@@ -3601,4 +3601,84 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get provider_oauth_account_status_unknown =>
       'Host-Kontostatus nicht verfügbar.';
+
+  @override
+  String get theme_palette_mono => 'Mono';
+
+  @override
+  String get theme_surface => 'Oberfläche';
+
+  @override
+  String get theme_surface_solid => 'Massiv';
+
+  @override
+  String get theme_surface_glass => 'Glas';
+
+  @override
+  String get theme_surface_glass_hint =>
+      'Dein Hintergrund scheint durch Hermes, unscharf und getönt, damit Text lesbar bleibt.';
+
+  @override
+  String get theme_glass_clear => 'Klar';
+
+  @override
+  String get theme_glass_frost => 'Frost';
+
+  @override
+  String get theme_glass_deep => 'Tief';
+
+  @override
+  String get theme_glass_tint => 'Tönung';
+
+  @override
+  String get theme_glass_blur => 'Unschärfe';
+
+  @override
+  String get theme_glass_blur_off =>
+      'Unschärfe ist gerade aus (Energiesparen oder Geräteeinstellung), daher ist die Tönung erhöht.';
+
+  @override
+  String get theme_material => 'Material';
+
+  @override
+  String get theme_material_none => 'Keins';
+
+  @override
+  String get theme_material_water => 'Wasser';
+
+  @override
+  String get theme_material_quartz => 'Quarz';
+
+  @override
+  String get theme_material_slate => 'Schiefer';
+
+  @override
+  String get theme_material_basalt => 'Basalt';
+
+  @override
+  String get theme_material_limestone => 'Kalkstein';
+
+  @override
+  String get theme_quiet_chrome => 'Ruhige Leisten';
+
+  @override
+  String get theme_quiet_chrome_hint =>
+      'Navigationsbeschriftungen und Kartenränder ausblenden.';
+
+  @override
+  String get theme_liquid_chrome => 'Flüssige Navigation';
+
+  @override
+  String get theme_liquid_chrome_hint =>
+      'Das Navigationsglas bricht, was darunter scrollt.';
+
+  @override
+  String get theme_surface_reload_title => 'Fenster neu zeichnen?';
+
+  @override
+  String get theme_surface_reload_body =>
+      'Hermes startet sein Fenster neu, um die Oberfläche zu wechseln. Chats und Entwürfe bleiben erhalten.';
+
+  @override
+  String get theme_surface_reload_action => 'Neu zeichnen';
 }

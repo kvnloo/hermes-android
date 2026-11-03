@@ -1000,5 +1000,30 @@
         "type": "String"
       }
     }
-  }
+  },
+  "theme_palette_mono": "Mono",
+  "theme_surface": "Oberfläche",
+  "theme_surface_solid": "Massiv",
+  "theme_surface_glass": "Glas",
+  "theme_surface_glass_hint": "Dein Hintergrund scheint durch Hermes, unscharf und getönt, damit Text lesbar bleibt.",
+  "theme_glass_clear": "Klar",
+  "theme_glass_frost": "Frost",
+  "theme_glass_deep": "Tief",
+  "theme_glass_tint": "Tönung",
+  "theme_glass_blur": "Unschärfe",
+  "theme_glass_blur_off": "Unschärfe ist gerade aus (Energiesparen oder Geräteeinstellung), daher ist die Tönung erhöht.",
+  "theme_material": "Material",
+  "theme_material_none": "Keins",
+  "theme_material_water": "Wasser",
+  "theme_material_quartz": "Quarz",
+  "theme_material_slate": "Schiefer",
+  "theme_material_basalt": "Basalt",
+  "theme_material_limestone": "Kalkstein",
+  "theme_quiet_chrome": "Ruhige Leisten",
+  "theme_quiet_chrome_hint": "Navigationsbeschriftungen und Kartenränder ausblenden.",
+  "theme_liquid_chrome": "Flüssige Navigation",
+  "theme_liquid_chrome_hint": "Das Navigationsglas bricht, was darunter scrollt.",
+  "theme_surface_reload_title": "Fenster neu zeichnen?",
+  "theme_surface_reload_body": "Hermes startet sein Fenster neu, um die Oberfläche zu wechseln. Chats und Entwürfe bleiben erhalten.",
+  "theme_surface_reload_action": "Neu zeichnen"
 }

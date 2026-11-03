@@ -3496,4 +3496,81 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get provider_oauth_account_status_unknown => 'ホストのアカウント状態を取得できません。';
+
+  @override
+  String get theme_palette_mono => 'モノ';
+
+  @override
+  String get theme_surface => 'サーフェス';
+
+  @override
+  String get theme_surface_solid => 'ソリッド';
+
+  @override
+  String get theme_surface_glass => 'ガラス';
+
+  @override
+  String get theme_surface_glass_hint =>
+      '壁紙が Hermes の背後に透けて見えます。文字が読めるようにぼかしと色調を加えます。';
+
+  @override
+  String get theme_glass_clear => 'クリア';
+
+  @override
+  String get theme_glass_frost => 'フロスト';
+
+  @override
+  String get theme_glass_deep => 'ディープ';
+
+  @override
+  String get theme_glass_tint => '色調';
+
+  @override
+  String get theme_glass_blur => 'ぼかし';
+
+  @override
+  String get theme_glass_blur_off => '現在ぼかしはオフです（省電力または端末設定）。そのため色調を強めています。';
+
+  @override
+  String get theme_material => 'マテリアル';
+
+  @override
+  String get theme_material_none => 'なし';
+
+  @override
+  String get theme_material_water => '水';
+
+  @override
+  String get theme_material_quartz => '水晶';
+
+  @override
+  String get theme_material_slate => 'スレート';
+
+  @override
+  String get theme_material_basalt => '玄武岩';
+
+  @override
+  String get theme_material_limestone => '石灰岩';
+
+  @override
+  String get theme_quiet_chrome => '静かなクローム';
+
+  @override
+  String get theme_quiet_chrome_hint => 'ナビゲーションのラベルとカードの枠線を隠します。';
+
+  @override
+  String get theme_liquid_chrome => 'リキッドナビゲーション';
+
+  @override
+  String get theme_liquid_chrome_hint => 'ナビゲーションのガラスが下をスクロールする内容を屈折させます。';
+
+  @override
+  String get theme_surface_reload_title => 'ウィンドウを再描画しますか？';
+
+  @override
+  String get theme_surface_reload_body =>
+      'サーフェスを切り替えるため Hermes のウィンドウを再起動します。チャットと下書きは保持されます。';
+
+  @override
+  String get theme_surface_reload_action => '再描画';
 }

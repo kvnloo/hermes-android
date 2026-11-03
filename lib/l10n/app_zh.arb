@@ -1000,5 +1000,30 @@
         "type": "String"
       }
     }
-  }
+  },
+  "theme_palette_mono": "单色",
+  "theme_surface": "表面",
+  "theme_surface_solid": "实色",
+  "theme_surface_glass": "玻璃",
+  "theme_surface_glass_hint": "壁纸会透过 Hermes 显示，并加上模糊和色调，让文字保持清晰。",
+  "theme_glass_clear": "通透",
+  "theme_glass_frost": "磨砂",
+  "theme_glass_deep": "深邃",
+  "theme_glass_tint": "色调",
+  "theme_glass_blur": "模糊",
+  "theme_glass_blur_off": "模糊目前已关闭（省电模式或设备设置），因此提高了色调。",
+  "theme_material": "材质",
+  "theme_material_none": "无",
+  "theme_material_water": "水",
+  "theme_material_quartz": "石英",
+  "theme_material_slate": "板岩",
+  "theme_material_basalt": "玄武岩",
+  "theme_material_limestone": "石灰岩",
+  "theme_quiet_chrome": "安静界面",
+  "theme_quiet_chrome_hint": "隐藏导航标签和卡片边框。",
+  "theme_liquid_chrome": "液态导航",
+  "theme_liquid_chrome_hint": "导航玻璃会折射其下滚动的内容。",
+  "theme_surface_reload_title": "重绘窗口？",
+  "theme_surface_reload_body": "Hermes 将重启窗口以切换表面。聊天和草稿会保留。",
+  "theme_surface_reload_action": "重绘"
 }

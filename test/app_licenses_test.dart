@@ -17,6 +17,7 @@ const _noticeAssets = <String>[
   'third_party/licenses/flutter-BSD-3-Clause.txt',
   'third_party/licenses/Apache-2.0.txt',
   'third_party/licenses/gradle-NOTICE.txt',
+  'third_party/elemental-ui/LICENSE',
 ];
 
 void main() {

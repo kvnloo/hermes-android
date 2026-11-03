@@ -3447,6 +3447,81 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get provider_oauth_account_status_unknown => '无法获取主机账户状态。';
+
+  @override
+  String get theme_palette_mono => '单色';
+
+  @override
+  String get theme_surface => '表面';
+
+  @override
+  String get theme_surface_solid => '实色';
+
+  @override
+  String get theme_surface_glass => '玻璃';
+
+  @override
+  String get theme_surface_glass_hint => '壁纸会透过 Hermes 显示，并加上模糊和色调，让文字保持清晰。';
+
+  @override
+  String get theme_glass_clear => '通透';
+
+  @override
+  String get theme_glass_frost => '磨砂';
+
+  @override
+  String get theme_glass_deep => '深邃';
+
+  @override
+  String get theme_glass_tint => '色调';
+
+  @override
+  String get theme_glass_blur => '模糊';
+
+  @override
+  String get theme_glass_blur_off => '模糊目前已关闭（省电模式或设备设置），因此提高了色调。';
+
+  @override
+  String get theme_material => '材质';
+
+  @override
+  String get theme_material_none => '无';
+
+  @override
+  String get theme_material_water => '水';
+
+  @override
+  String get theme_material_quartz => '石英';
+
+  @override
+  String get theme_material_slate => '板岩';
+
+  @override
+  String get theme_material_basalt => '玄武岩';
+
+  @override
+  String get theme_material_limestone => '石灰岩';
+
+  @override
+  String get theme_quiet_chrome => '安静界面';
+
+  @override
+  String get theme_quiet_chrome_hint => '隐藏导航标签和卡片边框。';
+
+  @override
+  String get theme_liquid_chrome => '液态导航';
+
+  @override
+  String get theme_liquid_chrome_hint => '导航玻璃会折射其下滚动的内容。';
+
+  @override
+  String get theme_surface_reload_title => '重绘窗口？';
+
+  @override
+  String get theme_surface_reload_body => 'Hermes 将重启窗口以切换表面。聊天和草稿会保留。';
+
+  @override
+  String get theme_surface_reload_action => '重绘';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -6769,4 +6844,79 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get provider_oauth_account_status_unknown => '无法获取主机账户状态。';
+
+  @override
+  String get theme_palette_mono => '单色';
+
+  @override
+  String get theme_surface => '表面';
+
+  @override
+  String get theme_surface_solid => '实色';
+
+  @override
+  String get theme_surface_glass => '玻璃';
+
+  @override
+  String get theme_surface_glass_hint => '壁纸会透过 Hermes 显示，并加上模糊和色调，让文字保持清晰。';
+
+  @override
+  String get theme_glass_clear => '通透';
+
+  @override
+  String get theme_glass_frost => '磨砂';
+
+  @override
+  String get theme_glass_deep => '深邃';
+
+  @override
+  String get theme_glass_tint => '色调';
+
+  @override
+  String get theme_glass_blur => '模糊';
+
+  @override
+  String get theme_glass_blur_off => '模糊目前已关闭（省电模式或设备设置），因此提高了色调。';
+
+  @override
+  String get theme_material => '材质';
+
+  @override
+  String get theme_material_none => '无';
+
+  @override
+  String get theme_material_water => '水';
+
+  @override
+  String get theme_material_quartz => '石英';
+
+  @override
+  String get theme_material_slate => '板岩';
+
+  @override
+  String get theme_material_basalt => '玄武岩';
+
+  @override
+  String get theme_material_limestone => '石灰岩';
+
+  @override
+  String get theme_quiet_chrome => '安静界面';
+
+  @override
+  String get theme_quiet_chrome_hint => '隐藏导航标签和卡片边框。';
+
+  @override
+  String get theme_liquid_chrome => '液态导航';
+
+  @override
+  String get theme_liquid_chrome_hint => '导航玻璃会折射其下滚动的内容。';
+
+  @override
+  String get theme_surface_reload_title => '重绘窗口？';
+
+  @override
+  String get theme_surface_reload_body => 'Hermes 将重启窗口以切换表面。聊天和草稿会保留。';
+
+  @override
+  String get theme_surface_reload_action => '重绘';
 }
