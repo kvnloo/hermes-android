@@ -99,6 +99,10 @@ final class OpenUiLang {
         switch (value) {
           case OpenUiReference():
             final name = value.name;
+            if (stack.length >= 80) {
+              throw _Fault('Reference depth exceeded.',
+                  value.line, value.column);
+            }
             if (stack.contains(name)) {
               throw _Fault('Cyclic reference: $name.', value.line, value.column);
             }
