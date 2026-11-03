@@ -38,8 +38,9 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         initialShareIntent = intent.takeIf(::isShareIntent)
         initialLaunchAction = launchActionFor(intent)
-        super.onCreate(savedInstanceState)
+        // Before Flutter attaches: the first frame must already show the wallpaper.
         glass().configureWindow()
+        super.onCreate(savedInstanceState)
         runCatching { MobilePushBridge.captureTap(this, intent) }
     }
 

@@ -424,6 +424,10 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
     notificationPrefs.addListener(_syncOngoingChats);
     _mobilePush.addListener(_onMobilePushChanged);
     GlassWindowService.shared.addListener(_onGlassWindowChanged);
+    // main() may have asked before the activity window finished configuring.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(GlassWindowService.shared.init()),
+    );
     notificationResponseHandler = _notificationHandler;
     ConnectionMutationBarrier.addListener(_pruneApprovalActions);
     // A notification that launched a terminated app carries its tap/action in
@@ -487,6 +491,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _background = false;
+      unawaited(GlassWindowService.shared.init());
       _restoreNormalSessions();
       if (_rootFrameReady) {
         if (!_backgroundPolicyReady) unawaited(_loadBackgroundPolicy());

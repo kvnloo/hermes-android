@@ -20,9 +20,10 @@ class GlassWindowService extends ChangeNotifier {
 
   HermesWindowCapabilities get capabilities => _capabilities;
 
-  /// Reads the window state once; safe to call repeatedly and off Android.
+  /// Reads the window state; safe to call repeatedly and off Android.
+  /// Later calls re-read it (the activity may have been recreated).
   Future<void> init() async {
-    if (_initialized) return;
+    if (_initialized) return _refresh();
     _initialized = true;
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'blurChanged') {
