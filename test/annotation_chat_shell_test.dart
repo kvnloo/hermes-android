@@ -121,5 +121,4 @@ void main() {
       initialComposerTop,
     );
   });
-
 }

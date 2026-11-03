@@ -10,7 +10,10 @@ import 'package:hermes_android/core/services/annotation_snapshot.dart';
 import 'package:hermes_android/core/services/attachment_draft_service.dart';
 import 'package:image/image.dart' as image_lib;
 
-Future<ui.Image> _fakeBoundary(RenderRepaintBoundary boundary, double scale) async {
+Future<ui.Image> _fakeBoundary(
+  RenderRepaintBoundary boundary,
+  double scale,
+) async {
   expect(boundary.size, const Size(100, 60));
   expect(scale, 2);
   final recorder = ui.PictureRecorder();
@@ -91,8 +94,9 @@ void main() {
     tester,
   ) async {
     final key = GlobalKey();
-    final sandbox = await Directory.systemTemp.createTemp('annotation-snapshot-');
-    addTearDown(() async => sandbox.delete(recursive: true));
+    // Temp setup must also avoid FakeAsync's non-advancing I/O clock.
+    final sandbox = Directory.systemTemp.createTempSync('annotation-snapshot-');
+    addTearDown(() => sandbox.deleteSync(recursive: true));
     final drafts = <AttachmentDraft>[];
     final service = AttachmentDraftService(
       cacheDirectoryProvider: () async => Directory('${sandbox.path}/cache'),
@@ -188,6 +192,9 @@ void main() {
   });
 }
 
-Future<ui.Image> _throwCapture(RenderRepaintBoundary boundary, double scale) async {
+Future<ui.Image> _throwCapture(
+  RenderRepaintBoundary boundary,
+  double scale,
+) async {
   throw StateError('Fake boundary failure');
 }
