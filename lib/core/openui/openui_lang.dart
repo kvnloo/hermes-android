@@ -393,10 +393,11 @@ final class _Reader {
           }
           _take();
           _expect(_Kind.colon, '":"');
-          fields[key.text] = _value(depth + 1);
-          if (fields.length > 1 && fields.keys.toSet().length != fields.length) {
-            throw _Fault('Duplicate object key.', key.line, key.column);
+          if (fields.containsKey(key.text)) {
+            throw _Fault('Duplicate object key: ' + key.text,
+                key.line, key.column);
           }
+          fields[key.text] = _value(depth + 1);
           _lines();
           if (_current.kind == _Kind.rBrace) break;
           _expect(_Kind.comma, '","');
