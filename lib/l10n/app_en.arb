@@ -1144,5 +1144,13 @@
         "type": "String"
       }
     }
-  }
+  },
+  "turbo_section": "Turbo",
+  "turbo_description_parallel": "Parallel fast free model pool",
+  "turbo_description_quality": "Quality-focused free models",
+  "turbo_description_reasoning": "Free models for reasoning",
+  "turbo_description_verify": "Free models for checking answers",
+  "turbo_description_longctx": "Free models for long contexts",
+  "turbo_description_public": "Public free model pool",
+  "turbo_description_other": "Routed through vLLM Semantic Router"
 }

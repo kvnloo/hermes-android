@@ -34,6 +34,7 @@ import '../services/connection_manager.dart';
 import '../services/attachment_draft_service.dart';
 import '../services/chat_presentation_state.dart';
 import '../services/chat_model_override_store.dart';
+import '../services/turbo_model_catalog.dart';
 import '../services/chat_density_preference.dart';
 import '../services/chat_history_window.dart';
 import '../services/desktop_gateway_client.dart';
@@ -190,6 +191,13 @@ class _ChatModelPickerSheetState extends State<_ChatModelPickerSheet> {
               choice.provider.toLowerCase().contains(query),
         )
         .toList(growable: false);
+    final turboChoices = visibleChoices
+        .where((choice) => isTurboModelRoute(choice.provider, choice.model))
+        .toList()
+      ..sort((a, b) => compareTurboModelIds(a.model, b.model));
+    final ordinaryChoices = visibleChoices
+        .where((choice) => !isTurboModelRoute(choice.provider, choice.model))
+        .toList(growable: false);
 
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -295,30 +303,31 @@ class _ChatModelPickerSheetState extends State<_ChatModelPickerSheet> {
                           ),
                         ),
                       )
-                    else
-                      SliverList.builder(
-                        itemCount: visibleChoices.length,
-                        itemBuilder: (context, index) {
-                          final choice = visibleChoices[index];
-                          final selected =
-                              choice.model == _selectedChoice?.model &&
-                              choice.provider == _selectedChoice?.provider;
-                          return ListTile(
-                            leading: Icon(
-                              selected
-                                  ? Icons.check_circle
-                                  : Icons.smart_toy_outlined,
-                              color: selected
-                                  ? Theme.of(context).colorScheme.primary
-                                  : null,
+                    else ...[
+                      if (turboChoices.isNotEmpty) ...[
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                            child: Text(
+                              context.l10n.turbo_section,
+                              key: const Key('chat-turbo-section'),
+                              style: Theme.of(context).textTheme.titleSmall,
                             ),
-                            title: Text(choice.model),
-                            subtitle: Text(choice.provider),
-                            onTap: () =>
-                                setState(() => _selectedChoice = choice),
-                          );
-                        },
-                      ),
+                          ),
+                        ),
+                        SliverList.builder(
+                          itemCount: turboChoices.length,
+                          itemBuilder: (context, index) =>
+                              _modelTile(turboChoices[index], turbo: true),
+                        ),
+                      ],
+                      if (ordinaryChoices.isNotEmpty)
+                        SliverList.builder(
+                          itemCount: ordinaryChoices.length,
+                          itemBuilder: (context, index) =>
+                              _modelTile(ordinaryChoices[index]),
+                        ),
+                    ],
                   ],
                 ),
               ),
@@ -355,6 +364,28 @@ class _ChatModelPickerSheetState extends State<_ChatModelPickerSheet> {
       ),
     );
   }
+
+  Widget _modelTile(_ModelChoice choice, {bool turbo = false}) {
+    final selected =
+        choice.model == _selectedChoice?.model &&
+        choice.provider == _selectedChoice?.provider;
+    return ListTile(
+      key: ValueKey('chat-model:' + choice.provider + ':' + choice.model),
+      leading: Icon(
+        selected ? Icons.check_circle : Icons.smart_toy_outlined,
+        color: selected ? Theme.of(context).colorScheme.primary : null,
+      ),
+      title: Text(choice.model),
+      subtitle: turbo
+          ? Text(
+              _turboModelDescription(context, choice.model),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            )
+          : Text(choice.provider),
+      onTap: () => setState(() => _selectedChoice = choice),
+    );
+  }
 }
 
 class _ModelSelection {
@@ -362,6 +393,18 @@ class _ModelSelection {
   final String reasoningEffort;
 
   const _ModelSelection({required this.choice, required this.reasoningEffort});
+}
+
+String _turboModelDescription(BuildContext context, String model) {
+  return switch (turboModelAlias(model)) {
+    'turbo' => context.l10n.turbo_description_parallel,
+    'free-quality' => context.l10n.turbo_description_quality,
+    'free-reasoning' => context.l10n.turbo_description_reasoning,
+    'free-verify' => context.l10n.turbo_description_verify,
+    'free-longctx' => context.l10n.turbo_description_longctx,
+    'free-public' => context.l10n.turbo_description_public,
+    _ => context.l10n.turbo_description_other,
+  };
 }
 
 const _reasoningEffortOptions = <String>[
@@ -4096,7 +4139,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       final provider =
           (rawProvider['slug'] ?? rawProvider['id'])?.toString().trim() ?? '';
       final models = rawProvider['models'];
-      if (provider.isEmpty || models is! List) continue;
+      if (provider.isEmpty) continue;
+      // Older routers may advertise the provider without expanding its
+      // documented virtual-model inventory. Never offer these presets unless
+      // the gateway explicitly advertises the vllm-sr provider.
+      if (provider == 'vllm-sr' && (models is! List || models.isEmpty)) {
+        for (final model in turboVirtualModelIds) {
+          choices.add(_ModelChoice(provider: provider, model: model));
+        }
+        continue;
+      }
+      if (models is! List) continue;
       for (final rawModel in models) {
         final model = rawModel is String
             ? rawModel.trim()
@@ -6752,12 +6805,51 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                       ),
                                     )
                                   : const Icon(Icons.tune, size: 18),
-                              label: Text(
-                                context.l10n.model_scope_label(
-                                  _sessionModel ?? widget.session.model,
-                                  _sessionModelOverride
-                                      ? context.l10n.this_chat
-                                      : context.l10n.profile_default,
+                              label: Text.rich(
+                                TextSpan(
+                                  children: [
+                                    if (isTurboModelRoute(
+                                      _sessionProvider ?? '',
+                                      _sessionModel ?? widget.session.model,
+                                    )) ...[
+                                      WidgetSpan(
+                                        alignment: PlaceholderAlignment.middle,
+                                        child: Container(
+                                          key: const Key('chat-turbo-chip'),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primaryContainer,
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            context.l10n.turbo_section,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelSmall
+                                                ?.copyWith(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onPrimaryContainer,
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                      const TextSpan(text: '  '),
+                                    ],
+                                    TextSpan(
+                                      text: context.l10n.model_scope_label(
+                                        _sessionModel ?? widget.session.model,
+                                        _sessionModelOverride
+                                            ? context.l10n.this_chat
+                                            : context.l10n.profile_default,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,

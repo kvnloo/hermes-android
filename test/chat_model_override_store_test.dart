@@ -81,4 +81,28 @@ void main() {
       isNull,
     );
   });
+
+  test('keeps router virtual models scoped to the selected chat', () async {
+    final store = await ChatModelOverrideStore.open();
+    await store.save(
+      connectionIdentity: 'router-connection',
+      sessionId: 'turbo-chat',
+      provider: 'vllm-sr',
+      model: 'vllm-sr/free-reasoning',
+    );
+    final restored = (await ChatModelOverrideStore.open()).read(
+      connectionIdentity: 'router-connection',
+      sessionId: 'turbo-chat',
+    );
+    expect(restored?.provider, 'vllm-sr');
+    expect(restored?.model, 'vllm-sr/free-reasoning');
+    expect(
+      store.read(
+        connectionIdentity: 'router-connection',
+        sessionId: 'other-chat',
+      ),
+      isNull,
+    );
+  });
+
 }

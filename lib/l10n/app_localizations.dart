@@ -6039,6 +6039,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Host account status unavailable.'**
   String get provider_oauth_account_status_unknown;
+
+  /// English fallback for the router model picker.
+  String get turbo_section;
+
+  /// English fallback for the router model picker.
+  String get turbo_description_parallel;
+
+  /// English fallback for the router model picker.
+  String get turbo_description_quality;
+
+  /// English fallback for the router model picker.
+  String get turbo_description_reasoning;
+
+  /// English fallback for the router model picker.
+  String get turbo_description_verify;
+
+  /// English fallback for the router model picker.
+  String get turbo_description_longctx;
+
+  /// English fallback for the router model picker.
+  String get turbo_description_public;
+
+  /// English fallback for the router model picker.
+  String get turbo_description_other;
 }
 
 class _AppLocalizationsDelegate
