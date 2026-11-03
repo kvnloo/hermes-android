@@ -4,10 +4,14 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hermes_android/core/controllers/annotation_controller.dart';
 import 'package:hermes_android/core/models/annotation_ink.dart';
 import 'package:hermes_android/core/models/attachment_draft.dart';
 import 'package:hermes_android/core/services/annotation_snapshot.dart';
 import 'package:hermes_android/core/services/attachment_draft_service.dart';
+import 'package:hermes_android/core/widgets/annotation_chat_shell.dart';
+import 'package:hermes_android/core/widgets/ink_overlay.dart';
+import 'package:hermes_android/l10n/app_localizations.dart';
 import 'package:image/image.dart' as image_lib;
 
 Future<ui.Image> _fakeBoundary(
@@ -190,6 +194,89 @@ void main() {
     );
     expect(drawing.strokes, hasLength(1));
   });
+
+  testWidgets('chat snapshot uses the one injected ink owner and keeps it alive', (
+    tester,
+  ) async {
+    final owner = AnnotationController()..enter();
+    addTearDown(owner.dispose);
+    final boundaryKey = GlobalKey();
+    Drawing? submittedDrawing;
+    var captureActions = 0;
+
+    Widget chat(AnnotationController? controller) => MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 400,
+            height: 240,
+            child: AnnotationChatShell(
+              controller: controller,
+              boundaryKey: boundaryKey,
+              capturing: false,
+              onCapture: () {
+                captureActions++;
+                submittedDrawing = controller?.drawing;
+              },
+              child: const ColoredBox(color: Colors.blue),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(chat(owner));
+    owner.startStroke(
+      pointer: InkPointerKind.stylus,
+      point: const StrokePoint(0.1, 0.5, t: 100),
+      pointers: 1,
+    );
+    owner.appendStrokePoint(const StrokePoint(0.9, 0.5, t: 120));
+    owner.finishStroke();
+    await tester.pump();
+
+    final shell = tester.widget<AnnotationChatShell>(
+      find.byType(AnnotationChatShell),
+    );
+    expect(identical(shell.controller, owner), isTrue);
+    expect(find.byType(InkOverlay), findsOneWidget);
+    expect(
+      identical(tester.widget<InkOverlay>(find.byType(InkOverlay)).controller, owner),
+      isTrue,
+    );
+
+    await tester.tap(find.byKey(const Key('annotation-snapshot')));
+    expect(captureActions, 1);
+    expect(identical(submittedDrawing, owner.drawing), isTrue);
+    expect(submittedDrawing!.strokes, hasLength(1));
+
+    final bytes = await tester.runAsync(
+      () => const AnnotationSnapshotCapture(captureBoundary: _blueChatBoundary)
+          .capture(
+            boundaryKey: boundaryKey,
+            drawing: submittedDrawing!,
+            accent: Colors.green,
+            red: Colors.red,
+            eraserColor: Colors.black,
+          ),
+    );
+    expect(bytes, isNotNull);
+    final png = image_lib.decodePng(bytes!);
+    expect(png, isNotNull);
+    expect(png!.width, 400);
+    expect(png.height, 240);
+    expect(png.getPixel(200, 10).b, greaterThan(png.getPixel(200, 10).r));
+    expect(png.getPixel(200, 120).r, greaterThan(png.getPixel(200, 120).b));
+
+    // Unmounting the attach-only UI never disposes the route-owned controller.
+    await tester.pumpWidget(chat(null));
+    expect(find.byType(InkOverlay), findsNothing);
+    expect(find.byKey(const Key('annotation-snapshot')), findsNothing);
+    expect(owner.active, isTrue);
+    expect(owner.drawing.strokes, hasLength(1));
+  });
 }
 
 Future<ui.Image> _throwCapture(
@@ -197,4 +284,23 @@ Future<ui.Image> _throwCapture(
   double scale,
 ) async {
   throw StateError('Fake boundary failure');
+}
+
+Future<ui.Image> _blueChatBoundary(
+  RenderRepaintBoundary boundary,
+  double scale,
+) async {
+  expect(boundary.size, const Size(400, 240));
+  expect(scale, 1);
+  final recorder = ui.PictureRecorder();
+  ui.Canvas(recorder).drawRect(
+    const ui.Rect.fromLTWH(0, 0, 400, 240),
+    ui.Paint()..color = Colors.blue,
+  );
+  final picture = recorder.endRecording();
+  try {
+    return await picture.toImage(400, 240);
+  } finally {
+    picture.dispose();
+  }
 }
