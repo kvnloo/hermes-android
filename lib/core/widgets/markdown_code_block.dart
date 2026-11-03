@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:highlight/highlight.dart' as syntax;
 
 import '../theme/hermes_theme.dart';
+import 'openui_board.dart';
 
 import 'package:hermes_android/core/l10n/l10n.dart';
 
@@ -16,7 +17,7 @@ import 'package:hermes_android/core/l10n/l10n.dart';
 List<Object> splitMarkdownCodeBlocks(String content) {
   final result = <Object>[];
   final regex = RegExp(
-    r'```([\w+-]*)[ \t]*\r?\n([\s\S]*?)```',
+    r'^[ ]{0,3}```([\w+-]*)[ \t]*\r?\n([\s\S]*?)^[ ]{0,3}```[ \t]*(?=\r?\n|$)',
     multiLine: true,
   );
   var cursor = 0;
@@ -60,7 +61,7 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
 
   List<syntax.Node>? _parseCode() {
     final language = widget.language;
-    if (language == null || widget.code.length > 60000) return null;
+    if (language == null || language == 'openui-v2' || widget.code.length > 60000) return null;
     try {
       return syntax.highlight.parse(widget.code, language: language).nodes;
     } catch (_) {
@@ -125,6 +126,9 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.language == 'openui-v2') {
+      return OpenUiBoard(source: widget.code);
+    }
     final tokens = HermesTokens.of(context);
     final scheme = Theme.of(context).colorScheme;
     final code = SelectableText.rich(
