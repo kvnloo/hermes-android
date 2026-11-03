@@ -141,7 +141,7 @@ class _OpenUiBoardState extends State<OpenUiBoard> {
           for (var index = 0; index < board.panels.length; index++) ...[
             Divider(height: HermesSpacing.lg, color: tokens.border),
             _OpenUiPanel(
-              key: ValueKey('openui-panel-' + index.toString()),
+              key: ValueKey('openui-panel-$index'),
               panel: board.panels[index],
             ),
           ],
@@ -239,7 +239,7 @@ class _OpenUiPanelState extends State<_OpenUiPanel> {
         content = const SizedBox.shrink();
     }
     return Column(
-      key: Key('openui-panel-' + type.toLowerCase()),
+      key: Key('openui-panel-${type.toLowerCase()}'),
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -285,7 +285,7 @@ class _OpenUiPanelState extends State<_OpenUiPanel> {
       children: [
         for (var i = 0; i < rows.length; i++)
           InkWell(
-            key: Key('openui-bar-' + i.toString()),
+            key: Key('openui-bar-$i'),
             onTap: () => _choose(i),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: HermesSpacing.xs),
@@ -320,9 +320,8 @@ class _OpenUiPanelState extends State<_OpenUiPanel> {
             ),
           ),
         if (_selected != null)
-          _readout(context, _str(rows[_selected!]['label']!) + ' · ' +
-              _format(_num(rows[_selected!]['value']!)) +
-              (unit.isEmpty ? '' : ' ' + unit)),
+          _readout(context,
+              '${_str(rows[_selected!]['label']!)} · ${_format(_num(rows[_selected!]['value']!))}${unit.isEmpty ? '' : ' $unit'}'),
       ],
     );
   }
@@ -382,7 +381,7 @@ class _OpenUiPanelState extends State<_OpenUiPanel> {
                   SizedBox(
                     width: width / categories.length,
                     child: InkWell(
-                      key: Key('openui-category-' + i.toString()),
+                      key: Key('openui-category-$i'),
                       onTap: () => _choose(i),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: HermesSpacing.xs),
@@ -400,12 +399,11 @@ class _OpenUiPanelState extends State<_OpenUiPanel> {
           ),
         ),
         if (selected != null)
-          _readout(context, categories[selected] + ' · ' +
-              [
+          _readout(context,
+              '${categories[selected]} · ${[
                 for (var i = 0; i < names.length; i++)
-                  names[i] + ' ' + _format(values[i][selected]),
-              ].join(' · ') +
-              (unit.isEmpty ? '' : ' ' + unit)),
+                  '${names[i]} ${_format(values[i][selected])}',
+              ].join(' · ')}${unit.isEmpty ? '' : ' $unit'}'),
       ],
     );
   }
@@ -515,7 +513,7 @@ class _OpenUiPanelState extends State<_OpenUiPanel> {
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: HermesSpacing.xs),
             child: Text(
-              _str(rows[i]['path']!) + ' · ' + _format(sizes[i]) + ' ' + unit,
+              '${_str(rows[i]['path']!)} · ${_format(sizes[i])} $unit',
               style: tokens.typography.label.copyWith(
                 color: _selected == i ? tokens.accent : tokens.onSurface,
               ),
@@ -581,11 +579,8 @@ class _OpenUiPanelState extends State<_OpenUiPanel> {
       ),
       if (_selected != null)
         _readout(context,
-            rows[_selected! ~/ cols.length] + ' · ' +
-            cols[_selected! % cols.length] + ' · ' +
-            _format(counts[_selected! ~/ cols.length]
-                [_selected! % cols.length]) +
-            (unit.isEmpty ? '' : ' ' + unit)),
+            '${rows[_selected! ~/ cols.length]} · ${cols[_selected! % cols.length]} · '
+            '${_format(counts[_selected! ~/ cols.length][_selected! % cols.length])}${unit.isEmpty ? '' : ' $unit'}'),
     ]);
   }
 }

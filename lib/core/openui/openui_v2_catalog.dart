@@ -115,7 +115,7 @@ final class _Check {
       case OpenUiCall():
         if (node.name != 'Board' &&
             !OpenUiV2Catalog.panelTypes.contains(node.name)) {
-          bad(node, 'Unsupported or unknown component: ' + node.name);
+          bad(node, 'Unsupported or unknown component: ${node.name}');
         }
         for (final arg in node.args) {
           noUnsupportedCalls(arg);
@@ -142,7 +142,7 @@ final class _Check {
 
   void arity(OpenUiCall node, int min, [int? max]) {
     if (node.args.length < min || node.args.length > (max ?? min)) {
-      bad(node, node.name + ' has an invalid number of arguments.');
+      bad(node, '${node.name} has an invalid number of arguments.');
     }
   }
 
@@ -303,8 +303,7 @@ final class _Check {
           final values = array(field(row, 'values', entry),
               'values', max: 60);
           if (values.length != categories.length) {
-            bad(entry, node.name + ' series "$name" needs ' +
-                categories.length.toString() + ' values.');
+            bad(entry, '${node.name} series "$name" needs ${categories.length} values.');
           }
           for (final value in values) {
             number(value, 'value');
@@ -324,15 +323,13 @@ final class _Check {
         }
         final counts = array(node.args[4], 'counts', max: 31);
         if (counts.length != rows.length) {
-          bad(node, 'Heatmap needs ' + rows.length.toString() +
-              ' count rows.');
+          bad(node, 'Heatmap needs ${rows.length} count rows.');
         }
         for (var i = 0; i < counts.length; i++) {
           final cells = array(counts[i], 'count row', max: 48);
           if (cells.length != columns.length) {
             final label = (rows[i] as OpenUiString).value;
-            bad(counts[i], 'Heatmap row "$label" needs ' +
-                columns.length.toString() + ' counts.');
+            bad(counts[i], 'Heatmap row "$label" needs ${columns.length} counts.');
           }
           for (final cell in cells) {
             number(cell, 'count');

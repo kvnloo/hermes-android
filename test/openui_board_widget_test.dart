@@ -40,17 +40,16 @@ Widget _host(String code) => testAppWithL10n(
 void main() {
   test('only a closed fence becomes a markdown code-block widget', () {
     final fence = String.fromCharCodes([96, 96, 96]);
-    final complete = 'Before\n' + fence + 'openui-v2\n' +
-        _treemap + fence + '\nAfter';
+    final complete = 'Before\n${fence}openui-v2\n$_treemap${fence}\nAfter';
     final parts = splitMarkdownCodeBlocks(complete);
     expect(parts.whereType<MarkdownCodeBlock>(), hasLength(1));
     expect((parts.whereType<MarkdownCodeBlock>().single).code, _treemap);
     final partial = splitMarkdownCodeBlocks(
-        'Before\n' + fence + 'openui-v2\nroot = Board(');
+        'Before\n${fence}openui-v2\nroot = Board(');
     expect(partial.whereType<MarkdownCodeBlock>(), isEmpty);
     expect(partial.single, contains('root = Board('));
     final inlineCloser = splitMarkdownCodeBlocks(
-        fence + 'openui-v2\nroot = Board(' + fence);
+        '${fence}openui-v2\nroot = Board($fence');
     expect(inlineCloser.whereType<MarkdownCodeBlock>(), isEmpty);
   });
 
@@ -75,7 +74,7 @@ void main() {
     await tester.pumpWidget(_host(_native));
     await tester.pump();
     for (final kind in ['stat', 'barchart', 'stackedbar', 'linechart', 'table']) {
-      expect(find.byKey(Key('openui-panel-' + kind)), findsOneWidget);
+      expect(find.byKey(Key('openui-panel-$kind')), findsOneWidget);
     }
     expect(find.byKey(const Key('openui-table')), findsOneWidget);
     expect(find.text('42'), findsOneWidget);
@@ -122,7 +121,7 @@ void main() {
     for (final source in [
       'root = Board("B", "", [Table("T", ["A","B"], [["one"]])])',
       'root = Board(',
-      _native + '\nextra = Mutation("send", {})',
+      '$_native\nextra = Mutation("send", {})',
       'root = Board("Travel", "", [RideOptions("uber", "A", "B", '
           '[{name:"X",minutes:2,price:"10",seats:4}])])',
     ]) {

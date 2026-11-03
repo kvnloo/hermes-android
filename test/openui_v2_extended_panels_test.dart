@@ -69,10 +69,9 @@ void main() {
   });
 
   test('board still rejects tools, oversized input, and ninth panel', () {
-    expect(_status(_board + '\ndata = Query("remote", {})'),
+    expect(_status('$_board\ndata = Query("remote", {})'),
         OpenUiCatalogStatus.invalid);
-    final nine = 'root = Board("B", "", [' +
-        List.filled(9, 'Stat("A", "1")').join(',') + '])';
+    final nine = 'root = Board("B", "", [${List.filled(9, 'Stat("A", "1")').join(',')}])';
     expect(_status(nine), OpenUiCatalogStatus.invalid);
     expect(_status(List.filled(65537, 'x').join()),
         OpenUiCatalogStatus.invalid);
