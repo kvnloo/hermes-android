@@ -92,7 +92,7 @@ Surface waterSurface(vec2 uv, float t) {
   s.rough = 0.08;
   // Caustic lines: thin bright ridges where the height field folds.
   float ridge = 1.0 - abs(2.0 * fract(h * 3.0 + t * 0.02) - 1.0);
-  s.glint = pow(ridge, 8.0) * 1.0;
+  s.glint = smoothstep(0.86, 1.0, ridge) * 0.7 * valueNoise(uv * 0.7 + t * 0.03);
   return s;
 }
 
@@ -169,7 +169,10 @@ void main() {
 
   // Light the pane rather than darken it: specular and glints add white light,
   // the body adds only a thin veil of the material's own colour.
-  float sheen = clamp((specular * radiance * nDotL) * uParams.z + s.glint * uParams.z, 0.0, 1.0);
+  // Specular peaks of smooth water/crystal are unbounded under GGX; cap them
+  // so a highlight reads as a glint, never as a white blotch.
+  float highlight = min(specular * radiance * nDotL, 1.0) * 0.6;
+  float sheen = clamp((highlight + s.glint) * uParams.z, 0.0, 1.0);
   float bodyAlpha = uBody.a;
   vec3 colour = linearToSrgb(body);
   vec3 premul = colour * bodyAlpha + vec3(1.0) * sheen * (1.0 - bodyAlpha);

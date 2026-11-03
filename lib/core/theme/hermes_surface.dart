@@ -40,28 +40,28 @@ enum HermesMaterialKind { pack, water, quartz }
 /// Persist [name], never [index].
 enum HermesMaterial {
   none(HermesMaterialKind.pack, null, HermesGlassInk.none, 0, 0),
-  water(HermesMaterialKind.water, null, HermesGlassInk.water, 0.14, 1.6),
-  quartz(HermesMaterialKind.quartz, null, HermesGlassInk.quartz, 0.08, 0.8),
+  water(HermesMaterialKind.water, null, HermesGlassInk.water, 0.10, 0.30),
+  quartz(HermesMaterialKind.quartz, null, HermesGlassInk.quartz, 0.07, 0.28),
   slate(
     HermesMaterialKind.pack,
     'geo.slate.layered.v1',
     HermesGlassInk.slate,
-    0.22,
-    0.55,
+    0.12,
+    0.35,
   ),
   basalt(
     HermesMaterialKind.pack,
     'geo.basalt.vesicular.v1',
     HermesGlassInk.basalt,
-    0.20,
-    0.6,
+    0.12,
+    0.35,
   ),
   limestone(
     HermesMaterialKind.pack,
     'geo.limestone.porous.v1',
     HermesGlassInk.limestone,
-    0.16,
-    0.5,
+    0.10,
+    0.3,
   );
 
   const HermesMaterial(
