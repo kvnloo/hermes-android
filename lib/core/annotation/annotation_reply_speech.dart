@@ -43,8 +43,13 @@ class AnnotationFinalReplyObserver {
     }
 
     final token = chat.subscribe(inspect);
-    _subscriptions[turnId] = token;
-    inspect(chat.snapshot);
+    // subscribe may call back synchronously before returning its token.
+    if (_completed.contains(turnId)) {
+      chat.unsubscribe(token);
+    } else {
+      _subscriptions[turnId] = token;
+      inspect(chat.snapshot);
+    }
   }
 
   void dispose() {
