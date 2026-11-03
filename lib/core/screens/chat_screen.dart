@@ -6638,6 +6638,164 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     );
   }
 
+
+  void _onAnnotationInkChanged() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _annotationWired =>
+      _desktopGateway != null &&
+      _normalChat != null &&
+      _annotationSender != null &&
+      _annotationScopeSession == widget.session.id &&
+      _annotationScopeConnection == widget.connection.id &&
+      _normalChat!.storedSessionId != null &&
+      !_legacyTransportFallback &&
+      _turnApplicationSession == null;
+
+  bool _annotationSpeechAllowed() =>
+      handsFreeEnabled.value &&
+      _voiceReplyEnabled &&
+      _voiceForeground &&
+      _voiceRouteCurrent;
+
+  annotation.ScreenInfo _annotationScreenInfo() {
+    final render = _annotationCaptureKey.currentContext?.findRenderObject();
+    final size = render is RenderRepaintBoundary && render.hasSize
+        ? render.size
+        : MediaQuery.sizeOf(context);
+    return annotation.ScreenInfo(
+      id: widget.session.id,
+      route: '/chat/${widget.session.id}',
+      width: size.width,
+      height: size.height,
+    );
+  }
+
+  List<annotation.Stroke> _annotationStrokes() => <annotation.Stroke>[
+    for (final stroke in _annotationInk.drawing.strokes)
+      annotation.Stroke(
+        id: stroke.id,
+        tool: stroke.tool.name,
+        color: stroke.color.name,
+        pointer: stroke.pointer.name,
+        points: [
+          for (final point in stroke.points)
+            annotation.StrokePoint(
+              x: point.x,
+              y: point.y,
+              p: point.p,
+              t: point.t,
+            ),
+        ],
+        startedAt: stroke.startedAt,
+        endedAt: stroke.endedAt,
+        targets: stroke.targets,
+      ),
+  ];
+
+  Future<void> _beforeAnnotationRecording() async {
+    if (!_annotationWired ||
+        !_annotationInk.active ||
+        !_voiceRouteCurrent ||
+        !_voiceForeground) {
+      throw StateError('Annotation recording requires the active chat.');
+    }
+    await _handsFree.stop(reason: HandsFreeStopReason.manualDictation);
+    await _voiceComposer.cancel();
+    await _voiceComposer.settle();
+    await _replySpeaker.stop();
+  }
+
+  Future<String> _captureAnnotationPng(AnnotationSendEnvelope envelope) async {
+    if (!_annotationWired || !_annotationInk.active || !mounted) {
+      throw StateError('Annotation screenshot is no longer on this chat.');
+    }
+    if (_annotationInk.live != null ||
+        annotationFingerprint(_annotationStrokes(), envelope.segments) !=
+            envelope.fingerprint) {
+      throw StateError('Finish the current stroke before capturing annotation.');
+    }
+    final render = _annotationCaptureKey.currentContext?.findRenderObject();
+    if (render is! RenderRepaintBoundary || !render.hasSize) {
+      throw StateError('Annotation screenshot is not laid out.');
+    }
+    if (render.debugNeedsPaint) {
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    if (!mounted ||
+        (render.size.width - envelope.screen.width.toDouble()).abs() > 1 ||
+        (render.size.height - envelope.screen.height.toDouble()).abs() > 1) {
+      throw StateError('Annotation screen changed during capture.');
+    }
+    final image = await render.toImage(pixelRatio: 1.0);
+    try {
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null || bytes.lengthInBytes == 0) {
+        throw StateError('Annotation screenshot was empty.');
+      }
+      if (annotationFingerprint(_annotationStrokes(), envelope.segments) !=
+          envelope.fingerprint) {
+        throw StateError('Annotation ink changed during screenshot capture.');
+      }
+      final directory = await getTemporaryDirectory();
+      final file = File(
+        '${directory.path}${Platform.pathSeparator}annotation-${const Uuid().v4()}.png',
+      );
+      await file.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
+      return file.path;
+    } finally {
+      image.dispose();
+    }
+  }
+
+  Future<String> _annotationPreparePrompt(AnnotationSendEnvelope envelope) async {
+    final gateway = _desktopGateway;
+    final sessionId = _normalChat?.storedSessionId;
+    if (!_annotationWired ||
+        gateway == null ||
+        sessionId == null ||
+        sessionId.isEmpty) {
+      throw StateError(
+        'Annotation attachments require an established Desktop Gateway chat.',
+      );
+    }
+    String? captured;
+    final files = AnnotationGatewayFiles(
+      draftService: _attachmentDraftService,
+      gateway: gateway,
+      sessionId: sessionId,
+      captureAnnotatedImage: (submitted) async {
+        final path = await _captureAnnotationPng(submitted);
+        captured = path;
+        return path;
+      },
+    );
+    try {
+      return await files.preparePrompt(envelope);
+    } finally {
+      final path = captured;
+      if (path != null) {
+        try {
+          final file = File(path);
+          if (await file.exists()) await file.delete();
+        } catch (_) {
+          // Temporary cleanup is not proof of a remote receipt.
+        }
+      }
+    }
+  }
+
+  Future<void> _annotationConfirmed(
+    AnnotationSendEnvelope submitted,
+    AnnotationSendOutcome _,
+  ) async {
+    // New ink has different IDs, so it survives the original delivery.
+    _annotationInk.removeSubmittedStrokeIds(
+      submitted.strokes.map((stroke) => stroke.id).toSet(),
+    );
+  }
+
   Widget _buildGatewayNotification(GatewayNotification notification) {
     final tokens = HermesTokens.of(context);
     final color = switch (notification.level) {
