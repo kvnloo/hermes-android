@@ -615,9 +615,12 @@ class _BarPainter extends CustomPainter {
           Paint()..color = color);
     }
     if (active) {
-      canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(4)),
-          Paint()..color = color..style = PaintingStyle.stroke
-            ..strokeWidth = 2);
+      final outline = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(4)), outline);
     }
   }
 
@@ -651,7 +654,7 @@ class _SeriesPainter extends CustomPainter {
     double x(int i) => (i + 0.5) * size.width / count;
     double y(double value) => size.height * (1 - value / maximum);
     canvas.drawLine(Offset(0, size.height), Offset(size.width, size.height),
-        Paint()..color = grid..strokeWidth = 1);
+        (Paint()..color = grid)..strokeWidth = 1);
     if (type == 'StackedBar') {
       for (var i = 0; i < count; i++) {
         var cumulative = 0.0;
@@ -688,9 +691,11 @@ class _SeriesPainter extends CustomPainter {
         for (var i = 1; i < count; i++) {
           path.lineTo(x(i), y(data[s][i]));
         }
-        canvas.drawPath(path,
-            Paint()..color = colors[s % colors.length]
-              ..style = PaintingStyle.stroke..strokeWidth = 2.5);
+        final strokePaint = Paint()
+          ..color = colors[s % colors.length]
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5;
+        canvas.drawPath(path, strokePaint);
         for (var i = 0; i < count; i++) {
           canvas.drawCircle(Offset(x(i), y(data[s][i])), 2.5,
               Paint()..color = colors[s % colors.length]);
@@ -700,7 +705,7 @@ class _SeriesPainter extends CustomPainter {
     if (selected != null) {
       canvas.drawLine(
         Offset(x(selected!), 0), Offset(x(selected!), size.height),
-        Paint()..color = colors.first..strokeWidth = 1.5,
+        (Paint()..color = colors.first)..strokeWidth = 1.5,
       );
     }
   }
@@ -735,10 +740,11 @@ class _TreemapPainter extends CustomPainter {
       canvas.drawRect(rect, Paint()..color = Color.lerp(
           background, foreground,
           maximum > 0 ? colors[i] / maximum : 0.0)!);
-      canvas.drawRect(rect.deflate(0.5),
-          Paint()..color = selected == i ? foreground : stroke
-            ..strokeWidth = selected == i ? 3 : 1
-            ..style = PaintingStyle.stroke);
+      final outline = Paint()
+        ..color = (selected == i ? foreground : stroke)
+        ..strokeWidth = (selected == i ? 3 : 1)
+        ..style = PaintingStyle.stroke;
+      canvas.drawRect(rect.deflate(0.5), outline);
       start += width;
     }
   }
@@ -775,10 +781,12 @@ class _HeatmapPainter extends CustomPainter {
               low, high, maximum > 0 ? values[r][c] / maximum : 0.0)!,
         );
         if (selected == r * columns + c) {
+          final outline = Paint()
+            ..color = stroke
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.5;
           canvas.drawRRect(
-            RRect.fromRectAndRadius(rect, const Radius.circular(3)),
-            Paint()..color = stroke..style = PaintingStyle.stroke
-              ..strokeWidth = 2.5,
+            RRect.fromRectAndRadius(rect, const Radius.circular(3)), outline,
           );
         }
       }
