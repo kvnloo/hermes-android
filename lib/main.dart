@@ -261,6 +261,11 @@ class HermesApp extends StatefulWidget {
   @visibleForTesting
   final Future<Session?> Function(SavedConnection, String)?
   testNotificationSessionLookup;
+
+  /// Test-only completion signal for a navigation generation's finalizer.
+  @visibleForTesting
+  final void Function()? testNotificationNavigationSettled;
+
   const HermesApp({
     required this.connManager,
     this.shareIntents,
@@ -271,6 +276,7 @@ class HermesApp extends StatefulWidget {
     this.loadBackgroundPolicy,
     this.notificationClientFactory,
     this.testNotificationSessionLookup,
+    this.testNotificationNavigationSettled,
     super.key,
   });
 
@@ -1144,6 +1150,8 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
       if (deferred && mounted && !_closingTurnOwner && !_background) {
         _resumeNotificationNavigation();
       }
+      // HTTP response completion precedes this asynchronous navigation fence.
+      widget.testNotificationNavigationSettled?.call();
     }
   }
 
