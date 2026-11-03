@@ -80,7 +80,7 @@ void main() {
     expect(restored?.conversationId, pending.conversationId);
     expect(restored?.fingerprint, pending.fingerprint);
     expect(restored?.mode, pending.mode);
-    expect(() => reopened.write(pending), throwsStateError);
+    await expectLater(reopened.write(pending), throwsStateError);
 
     await reopened.clearIfSame(pending);
     expect(await store.read(), isNull);
