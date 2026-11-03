@@ -1000,5 +1000,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "openui_show_source": "Quelltext anzeigen",
+  "openui_hide_source": "Quelltext ausblenden",
+  "openui_board_unavailable": "Dieses Board konnte nicht angezeigt werden. Der Quelltext steht unten.",
+  "openui_board_incomplete": "Dieses Board ist unvollständig. Der Quelltext steht unten.",
+  "openui_board_unsupported": "Dieses Board enthält ein unter Android noch nicht unterstütztes Element. Der Quelltext steht unten.",
+  "openui_read_only": "Schreibgeschützt · Tippen zeigt Werte nur lokal"
 }

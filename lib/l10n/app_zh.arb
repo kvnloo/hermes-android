@@ -1000,5 +1000,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "openui_show_source": "显示源代码",
+  "openui_hide_source": "隐藏源代码",
+  "openui_board_unavailable": "无法显示此面板。原始源代码如下。",
+  "openui_board_incomplete": "此面板尚未完成。原始源代码如下。",
+  "openui_board_unsupported": "此面板包含 Android 暂不支持的组件。原始源代码如下。",
+  "openui_read_only": "只读 · 点按选择仅保留在本机"
 }
