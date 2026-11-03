@@ -67,7 +67,7 @@ class ThemePreferenceStore {
       preset: byName(
         HermesGlassPreset.values,
         presetKey,
-        HermesGlassPreset.frost,
+        HermesGlassPreset.clear,
       ),
       tint: number(tintKey)?.clamp(0, 1).toDouble(),
       blur: number(blurKey)?.clamp(0, HermesSurfaceStyle.maxBlur).toDouble(),

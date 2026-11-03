@@ -78,7 +78,7 @@ void main() {
       );
       expect(sharp.tint, greaterThan(blurred.tint));
       expect(sharp.blurDp, 0);
-      expect(blurred.blurDp, HermesGlassPreset.frost.blur);
+      expect(blurred.blurDp, HermesGlassPreset.clear.blur);
     });
   });
 
@@ -174,7 +174,7 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       final style = ThemePreferenceStore(prefs).readSurface();
       expect(style.mode, HermesSurfaceMode.solid);
-      expect(style.preset, HermesGlassPreset.frost);
+      expect(style.preset, HermesGlassPreset.clear);
       expect(style.tint, isNull);
       expect(style.blur, HermesSurfaceStyle.maxBlur);
       expect(style.material, HermesMaterial.water);

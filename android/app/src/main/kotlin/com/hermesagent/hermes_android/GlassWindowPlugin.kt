@@ -3,6 +3,7 @@ package com.hermesagent.hermes_android
 import android.annotation.TargetApi
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.ColorDrawable
@@ -88,15 +89,26 @@ class GlassWindowPlugin private constructor(
                         result.success(state())
                     }
                     // Window mode follows the saved preference on the next create.
+                    // A fresh launch rather than recreate(): live wallpapers only
+                    // start drawing for a new wallpaper target on a real launch.
                     "recreate" -> {
                         result.success(true)
-                        activity.window.decorView.post { activity.recreate() }
+                        activity.window.decorView.post { relaunch() }
                     }
                     else -> result.notImplemented()
                 }
             }
         }
         if (glass && Build.VERSION.SDK_INT >= GlassWindow.MIN_BLUR_SDK) ensureListener()
+    }
+
+    private fun relaunch() {
+        val intent = Intent(activity, activity.javaClass)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        activity.startActivity(intent)
+        activity.finish()
+        @Suppress("DEPRECATION")
+        activity.overridePendingTransition(0, 0)
     }
 
     fun detach() {

@@ -95,7 +95,7 @@ enum HermesMaterial {
 class HermesSurfaceStyle {
   const HermesSurfaceStyle({
     this.mode = HermesSurfaceMode.solid,
-    this.preset = HermesGlassPreset.frost,
+    this.preset = HermesGlassPreset.clear,
     this.tint,
     this.blur,
     this.material = HermesMaterial.none,
@@ -276,7 +276,7 @@ class HermesSurface extends ThemeExtension<HermesSurface> {
 
   /// With cross-window blur off (battery saver), wallpaper detail is sharp, so
   /// raise the tint until blur returns.
-  static const double noBlurBoost = 0.12;
+  static const double noBlurBoost = 0.06;
 
   static double presetTint(HermesGlassPreset preset, HermesTokens tokens) {
     final floor = tintFloor(tokens);
