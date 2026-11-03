@@ -19,15 +19,27 @@ class AnnotationFinalReplyObserver {
 
   /// Narrow observation seam for testing the real terminal contract without a
   /// WebSocket, a second Gateway owner, or a second speech service.
-  AnnotationFinalReplyObserver.fromCallbacks({
+  factory AnnotationFinalReplyObserver.fromCallbacks({
     required NormalGatewayChatSnapshot Function() snapshot,
     required Object Function(void Function(NormalGatewayChatSnapshot)) subscribe,
     required void Function(Object) unsubscribe,
+    required bool Function() speechEnabled,
+    required Future<void> Function(String text) speakReply,
+  }) => AnnotationFinalReplyObserver._(
+    snapshot,
+    subscribe,
+    unsubscribe,
+    speechEnabled: speechEnabled,
+    speakReply: speakReply,
+  );
+
+  AnnotationFinalReplyObserver._(
+    this._snapshot,
+    this._subscribe,
+    this._unsubscribe, {
     required this.speechEnabled,
     required this.speakReply,
-  }) : _snapshot = snapshot,
-       _subscribe = subscribe,
-       _unsubscribe = unsubscribe;
+  });
 
   final NormalGatewayChatSnapshot Function() _snapshot;
   final Object Function(void Function(NormalGatewayChatSnapshot)) _subscribe;
