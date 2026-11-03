@@ -733,6 +733,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   final GlobalKey _annotationBoundaryKey = GlobalKey();
   bool _annotationSnapshotInProgress = false;
   bool _annotationMenuActive = false;
+  int _annotationReservedDraftRows = 0;
   late final AttachmentDraftSendCoordinator _attachmentSendCoordinator;
   late final Future<ChatModelOverrideStore> _chatModelStore;
   late final Future<void> _sessionModelRestore;
@@ -3623,10 +3624,27 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
   }
 
+  bool get _annotationUsesRemoteDrafts =>
+      (_turnApplicationSession != null && !_legacyTransportFallback) ||
+      _desktopGateway != null ||
+      widget.testRemotePromptSubmit != null;
+
+  bool get _canReserveAnnotationAttachment =>
+      _annotationUsesRemoteDrafts
+          ? _attachmentDrafts.length < maxRemoteAttachmentDrafts
+          : _attachmentDrafts.isEmpty;
+
   void _onAnnotationModeChanged() {
     final active = _annotationController.active;
     if (mounted && _annotationMenuActive != active) {
-      setState(() => _annotationMenuActive = active);
+      setState(() {
+        _annotationMenuActive = active;
+        // Reserve one ListTile before drawing starts, not after ink is laid.
+        _annotationReservedDraftRows = active
+            ? _attachmentDrafts.length +
+                (_canReserveAnnotationAttachment ? 1 : 0)
+            : 0;
+      });
     }
   }
 
@@ -3645,10 +3663,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         _transcriptLoadBlocksComposer) {
       return;
     }
-    final remote =
-        (_turnApplicationSession != null && !_legacyTransportFallback) ||
-        _desktopGateway != null ||
-        widget.testRemotePromptSubmit != null;
+    final remote = _annotationUsesRemoteDrafts;
     if (remote && _attachmentDrafts.length >= maxRemoteAttachmentDrafts) {
       _showAttachmentError(
         context.l10n.you_can_attach_up_to_items(maxRemoteAttachmentDrafts),
@@ -3671,7 +3686,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     setState(() => _annotationSnapshotInProgress = true);
     AttachmentDraft? prepared;
     try {
-      // Allow the slot reservation to settle without changing the composer.
+      // The slot was reserved when annotation mode opened, before any ink.
+      // Wait for this frame to finish without moving the marked viewport.
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
       final png = await _annotationSnapshotCapture.capture(
@@ -3704,7 +3720,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         );
       }
       final ready = prepared;
-      setState(() => _attachmentDrafts.add(ready!));
+      setState(() => _attachmentDrafts.add(ready));
       prepared = null;
     } on AttachmentDraftException catch (error) {
       _showAttachmentError(error.message);
@@ -6801,6 +6817,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final handsFreeAction = _buildHandsFreeComposerAction();
     final separateVoiceAction = MediaQuery.sizeOf(context).width < 400;
     final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final reserveAnnotationSlot =
+        _annotationMenuActive && _canReserveAnnotationAttachment;
     final sendEnabled =
         !_transcriptLoadBlocksComposer &&
         !_annotationSnapshotInProgress &&
@@ -6905,7 +6923,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         ),
                       ),
                     ),
-                    if (_attachmentDrafts.isNotEmpty)
+                    if (_attachmentDrafts.isNotEmpty || reserveAnnotationSlot)
                       Container(
                         width: double.infinity,
                         margin: const EdgeInsets.fromLTRB(4, 4, 4, 8),
@@ -6918,35 +6936,55 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         ),
                         child: Semantics(
                           label: context.l10n.attachment_drafts,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              // Scaffold has already subtracted the keyboard and app bar.
-                              maxHeight: availableHeight * 0.32,
-                            ),
+                          child: AnnotationAttachmentSlotViewport(
+                            annotationActive: _annotationMenuActive,
+                            reservedRowCount: _annotationReservedDraftRows,
+                            availableHeight: availableHeight,
                             child: ListView.builder(
-                              shrinkWrap: true,
-                              itemCount: _attachmentDrafts.length,
-                              itemBuilder: (context, index) =>
-                                  AttachmentDraftTile(
-                                    draft: _attachmentDrafts[index],
-                                    index: index,
-                                    total: _attachmentDrafts.length,
-                                    busy: _sending || _preparingPaste,
-                                    onMovePrevious: () => _moveAttachment(
-                                      _attachmentDrafts[index],
-                                      -1,
+                              shrinkWrap: !_annotationMenuActive,
+                              itemCount: _attachmentDrafts.length +
+                                  (reserveAnnotationSlot ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (index == _attachmentDrafts.length) {
+                                  return SizedBox(
+                                    key: const Key('annotation-attachment-slot'),
+                                    height: annotationDraftRowExtent,
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                        ),
+                                        child: Text(
+                                          context.l10n.annotation_snapshot,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                        ),
+                                      ),
                                     ),
-                                    onMoveNext: () => _moveAttachment(
-                                      _attachmentDrafts[index],
-                                      1,
-                                    ),
-                                    onRetry: () => _retryAttachment(
-                                      _attachmentDrafts[index],
-                                    ),
-                                    onRemove: () => _removeAttachment(
-                                      _attachmentDrafts[index],
-                                    ),
+                                  );
+                                }
+                                final draft = _attachmentDrafts[index];
+                                return AttachmentDraftTile(
+                                  draft: draft,
+                                  index: index,
+                                  total: _attachmentDrafts.length,
+                                  busy: _sending ||
+                                      _preparingPaste ||
+                                      _annotationSnapshotInProgress,
+                                  onMovePrevious: () => _moveAttachment(
+                                    draft,
+                                    -1,
                                   ),
+                                  onMoveNext: () => _moveAttachment(
+                                    draft,
+                                    1,
+                                  ),
+                                  onRetry: () => _retryAttachment(draft),
+                                  onRemove: () => _removeAttachment(draft),
+                                );
+                              },
                             ),
                           ),
                         ),

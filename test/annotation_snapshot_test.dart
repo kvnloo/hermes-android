@@ -65,15 +65,18 @@ void main() {
       past: const <List<Stroke>>[],
     );
     final capture = AnnotationSnapshotCapture(captureBoundary: _fakeBoundary);
-    final bytes = await capture.capture(
-      boundaryKey: key,
-      drawing: drawing,
-      accent: Colors.green,
-      red: Colors.red,
-      eraserColor: Colors.black,
-      pixelRatio: 2,
+    final bytes = await tester.runAsync(
+      () => capture.capture(
+        boundaryKey: key,
+        drawing: drawing,
+        accent: Colors.green,
+        red: Colors.red,
+        eraserColor: Colors.black,
+        pixelRatio: 2,
+      ),
     );
-    final decoded = image_lib.decodePng(bytes);
+    expect(bytes, isNotNull);
+    final decoded = image_lib.decodePng(bytes!);
     expect(decoded, isNotNull);
     expect(decoded!.width, 200);
     expect(decoded.height, 120);
@@ -109,30 +112,37 @@ void main() {
       ),
     );
     await tester.pump();
-    final bytes = await const AnnotationSnapshotCapture(
-      captureBoundary: _fakeBoundary,
-    ).capture(
-      boundaryKey: key,
-      drawing: EMPTY_DRAWING,
-      accent: Colors.green,
-      red: Colors.red,
-      eraserColor: Colors.black,
-      pixelRatio: 2,
-    );
-    final draft = await service.prepareCapturedPng(
-      pngBytes: bytes,
-      displayName: 'annotation.png',
-      existingDrafts: drafts,
-      mode: AttachmentDraftMode.remoteGateway,
-    );
-    drafts.add(draft);
-    expect(drafts, hasLength(1));
-    expect(draft.name, 'annotation.png');
-    expect(draft.sanitized, isTrue);
-    expect(draft.mediaType, 'image/png');
-    expect(await File(draft.cachedPath).exists(), isTrue);
-    expect(image_lib.decodePng(await File(draft.cachedPath).readAsBytes()), isNotNull);
-    await service.removeAll(drafts);
+    // Picture.toImage and PNG encoding need the real async clock in widget
+    // tests; the fake RepaintBoundary seam still verifies the 2x scale.
+    await tester.runAsync(() async {
+      final bytes = await const AnnotationSnapshotCapture(
+        captureBoundary: _fakeBoundary,
+      ).capture(
+        boundaryKey: key,
+        drawing: EMPTY_DRAWING,
+        accent: Colors.green,
+        red: Colors.red,
+        eraserColor: Colors.black,
+        pixelRatio: 2,
+      );
+      final draft = await service.prepareCapturedPng(
+        pngBytes: bytes,
+        displayName: 'annotation.png',
+        existingDrafts: drafts,
+        mode: AttachmentDraftMode.remoteGateway,
+      );
+      drafts.add(draft);
+      expect(drafts, hasLength(1));
+      expect(draft.name, 'annotation.png');
+      expect(draft.sanitized, isTrue);
+      expect(draft.mediaType, 'image/png');
+      expect(await File(draft.cachedPath).exists(), isTrue);
+      expect(
+        image_lib.decodePng(await File(draft.cachedPath).readAsBytes()),
+        isNotNull,
+      );
+      await service.removeAll(drafts);
+    });
   });
 
   testWidgets('failed capture preserves all ink for retry', (tester) async {

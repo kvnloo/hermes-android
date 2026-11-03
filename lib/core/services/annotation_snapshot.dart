@@ -36,10 +36,16 @@ class AnnotationSnapshotCapture {
     final renderObject = boundaryKey.currentContext?.findRenderObject();
     if (renderObject is! RenderRepaintBoundary ||
         !renderObject.hasSize ||
-        renderObject.size.isEmpty ||
-        renderObject.debugNeedsPaint) {
+        renderObject.size.isEmpty) {
       throw StateError('The chat viewport is not ready for a screenshot.');
     }
+    // debugNeedsPaint is a debug-only getter. Never evaluate it in release.
+    assert(() {
+      if (renderObject.debugNeedsPaint) {
+        throw StateError('The chat viewport is not ready for a screenshot.');
+      }
+      return true;
+    }());
     if (!pixelRatio.isFinite || pixelRatio <= 0 || pixelRatio > 4) {
       throw StateError('Invalid annotation screenshot scale.');
     }

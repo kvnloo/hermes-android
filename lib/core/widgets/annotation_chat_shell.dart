@@ -5,6 +5,42 @@ import '../controllers/annotation_controller.dart';
 import '../l10n/l10n.dart';
 import 'ink_overlay.dart';
 
+/// The existing draft tiles use two-line ListTiles, which occupy 72 logical
+/// pixels at the default text scale.
+const double annotationDraftRowExtent = 72;
+
+/// Keeps the composer position fixed while a reserved snapshot becomes a draft.
+/// The list scrolls inside its original footprint if more images are captured.
+class AnnotationAttachmentSlotViewport extends StatelessWidget {
+  const AnnotationAttachmentSlotViewport({
+    required this.annotationActive,
+    required this.reservedRowCount,
+    required this.availableHeight,
+    required this.child,
+    super.key,
+  });
+
+  final bool annotationActive;
+  final int reservedRowCount;
+  final double availableHeight;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final limit = availableHeight * 0.32;
+    final fixedHeight = (reservedRowCount * annotationDraftRowExtent)
+        .clamp(0.0, limit)
+        .toDouble();
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: annotationActive ? fixedHeight : 0,
+        maxHeight: annotationActive ? fixedHeight : limit,
+      ),
+      child: child,
+    );
+  }
+}
+
 /// A chat-only drawing layer; the RepaintBoundary is strictly below the ink.
 /// It never changes the chat/composer geometry while a capture is in flight.
 class AnnotationChatShell extends StatelessWidget {

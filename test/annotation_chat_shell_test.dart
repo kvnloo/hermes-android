@@ -73,4 +73,53 @@ void main() {
     expect(calls, 0);
     expect(controller.active, isTrue);
   });
+
+  testWidgets('reserved snapshot slot keeps composer geometry on commit', (
+    tester,
+  ) async {
+    Widget composerWithDraftRows(int rows) => MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          height: 400,
+          child: Column(
+            children: [
+              const Expanded(child: ColoredBox(color: Colors.blue)),
+              AnnotationAttachmentSlotViewport(
+                annotationActive: true,
+                reservedRowCount: 1,
+                availableHeight: 400,
+                child: ListView.builder(
+                  itemCount: rows,
+                  itemBuilder: (context, index) =>
+                      const SizedBox(height: annotationDraftRowExtent),
+                ),
+              ),
+              const SizedBox(
+                key: Key('composer-anchor'),
+                height: 56,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Slot exists before ink begins; committing a draft only changes the
+    // scrollable contents, never the composer origin or capture geometry.
+    await tester.pumpWidget(composerWithDraftRows(1));
+    final slot = find.byType(AnnotationAttachmentSlotViewport);
+    final initialHeight = tester.getSize(slot).height;
+    final initialComposerTop = tester.getTopLeft(
+      find.byKey(const Key('composer-anchor')),
+    ).dy;
+    expect(initialHeight, annotationDraftRowExtent);
+
+    await tester.pumpWidget(composerWithDraftRows(2));
+    expect(tester.getSize(slot).height, initialHeight);
+    expect(
+      tester.getTopLeft(find.byKey(const Key('composer-anchor'))).dy,
+      initialComposerTop,
+    );
+  });
+
 }
