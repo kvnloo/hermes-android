@@ -58,6 +58,7 @@ class NormalGatewayAnnotationSendPort implements AnnotationSendPort {
     }
     return AnnotationSendReservation(
       turnId: id,
+      cancelUnsent: () => chat.cancelPreparation(reservation),
       submitOnce: () async {
         final prompt = await preparePrompt(envelope);
         await chat.submitPrepared(
@@ -99,18 +100,9 @@ class NormalGatewayAnnotationSendPort implements AnnotationSendPort {
         return;
       }
       if (pending.mode == 'steer') {
-        // Existing assistant output belongs to the *original* running turn,
-        // not this annotation. Only a confirmed steer row proves its receipt.
-        final accepted = snapshot.displayRows.any(
-          (row) => row['display_kind'] == 'steer' &&
-              row['content'] is String &&
-              (row['content'] as String).contains('Annotated '),
-        );
-        if (accepted) {
-          completed.complete(
-            const AnnotationReceipt(AnnotationReceiptKind.accepted),
-          );
-        }
+        // The underlying run's own assistant/terminal events cannot prove the
+        // annotation steer was accepted. Only submitOnce's steer ack can.
+        // Without that ack this receipt remains pending; never retransmit.
         return;
       }
       // A local queued/preparing marker is never remote acceptance. An actual
