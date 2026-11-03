@@ -28,8 +28,11 @@ List<Object> splitMarkdownCodeBlocks(String content) {
   );
   var cursor = 0;
 
-  for (final match in regex.allMatches(content)) {
-    if (match.start < cursor) continue;
+  while (cursor < content.length) {
+    // Rescan after an OpenUI match, which may span an inline ``` token.
+    final matches = regex.allMatches(content, cursor).iterator;
+    if (!matches.moveNext()) break;
+    final match = matches.current;
 
     if (match.group(1) == 'openui-v2') {
       final completed = openUiRegex.matchAsPrefix(content, match.start);
