@@ -3,8 +3,12 @@
 // GET /api/sessions/{id}/messages.
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'package:flutter/material.dart';
 import '../widgets/session_name_dialog.dart';
@@ -25,7 +29,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../annotation/annotation_compose.dart' as annotation;
+import '../annotation/annotation_gateway_files.dart';
+import '../annotation/annotation_normal_gateway_port.dart';
+import '../annotation/annotation_reply_speech.dart';
+import '../annotation/annotation_voice_send.dart';
+import '../controllers/annotation_controller.dart';
 import '../controllers/voice_composer_controller.dart';
+import '../widgets/annotation_voice_tray.dart';
+import '../widgets/ink_overlay.dart';
 import '../controllers/delegated_task_controller.dart';
 import '../services/delegated_task_history.dart';
 import '../widgets/delegated_task_timeline.dart';
@@ -832,6 +844,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   /// unanswerable until the chat is re-entered.
   final Set<String> _selfAnsweredClarifyIdentities = {};
 
+  // Annotation uses this route's existing normal Gateway and reply speaker.
+  final AnnotationController _annotationInk = AnnotationController();
+  final GlobalKey _annotationCaptureKey = GlobalKey();
+  AnnotationVoiceSendController? _annotationSender;
+  AnnotationFinalReplyObserver? _annotationReplyObserver;
+  String? _annotationScopeSession;
+  String? _annotationScopeConnection;
+
   // Voice input / spoken replies
   final FlutterTts _flutterTts = FlutterTts();
   late final VoiceComposerController _voiceComposer;
@@ -915,6 +935,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         }
       },
     );
+    _annotationInk.addListener(_onAnnotationInkChanged);
     _textController.addListener(_onComposerChanged);
     if (widget.initialComposerText case final shared?) {
       _textController.text = shared;
@@ -1082,6 +1103,23 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       _normalChat!.invalidateDraftRecovery();
     }
     _normalSubscription = _normalChat!.subscribe(_applyNormalSnapshot);
+    _annotationReplyObserver?.dispose();
+    _annotationReplyObserver = AnnotationFinalReplyObserver(
+      chat: _normalChat!,
+      speechEnabled: _annotationSpeechAllowed,
+      speakReply: _speakAssistantText,
+    );
+    _annotationSender = AnnotationVoiceSendController(
+      store: PreferencesAnnotationPendingTurnStore(
+        'hermes_annotation_pending_${widget.connection.id}_${widget.session.id}',
+      ),
+      port: NormalGatewayAnnotationSendPort(
+        chat: _normalChat!,
+        preparePrompt: _annotationPreparePrompt,
+      ),
+    );
+    _annotationScopeSession = widget.session.id;
+    _annotationScopeConnection = widget.connection.id;
     final session = _normalSession!;
     unawaited(
       session.ready.then(
@@ -1668,6 +1706,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
     _manualAudioIntent++;
     _voiceBound = false;
+    _annotationReplyObserver?.dispose();
+    _annotationInk
+      ..removeListener(_onAnnotationInkChanged)
+      ..dispose();
     handsFreeRouteObserver.removeListener(_onVoiceRouteChanged);
     handsFreeEnabled.removeListener(_onHandsFreeEnabledChanged);
     ConnectionMutationBarrier.removeListener(_onVoiceAccountChanged);
