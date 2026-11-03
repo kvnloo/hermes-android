@@ -165,4 +165,62 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('inactive annotation editor is absent even offstage; draft survives', (
+    tester,
+  ) async {
+    final fakeVoice = FakeVoiceComposerAdapter();
+    final sender = AnnotationVoiceSendController(
+      store: _MemoryStore(),
+      port: _ImmediatePort(),
+    );
+
+    Widget screen(bool active) => MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(
+        body: Offstage(
+          offstage: !active,
+          child: AnnotationVoiceTray(
+            key: const Key('persistent-annotation-tray'),
+            active: active,
+            conversationId: 'test-chat',
+            screen: _screen,
+            currentStrokes: () => <Stroke>[],
+            sender: sender,
+            beforeRecording: () async {},
+            onConfirmed: (_, _) async {},
+            handsFreeSpeechEnabled: () => false,
+            speakReply: (_) async {},
+            voiceAdapter: fakeVoice,
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(screen(true));
+    await tester.enterText(
+      find.byKey(const Key('annotation-typed-note')),
+      'Keep annotation note',
+    );
+    await tester.pumpWidget(screen(false));
+
+    // The alias viewer inspects even offstage fields; none may leak in.
+    expect(
+      find.byKey(const Key('annotation-typed-note'), skipOffstage: false),
+      findsNothing,
+    );
+    expect(find.byType(TextField, skipOffstage: false), findsNothing);
+
+    await tester.pumpWidget(screen(true));
+    expect(find.byType(TextField, skipOffstage: false), findsOneWidget);
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('annotation-typed-note')))
+          .controller!
+          .text,
+      'Keep annotation note',
+    );
+    expect(tester.takeException(), isNull);
+  });
 }
