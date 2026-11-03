@@ -15,7 +15,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/fake_voice_composer_adapter.dart';
 
+// These tests exercise a real loopback HTTP + WebSocket server. Flutter's
+// default widget-test binding substitutes HTTP 400 for every HttpClient call,
+// which makes ticket minting fail before any lifecycle assertion is reached.
+class _LoopbackTestWidgetsFlutterBinding extends AutomatedTestWidgetsFlutterBinding {
+  @override
+  bool get overrideHttpClient => false;
+}
+
 void main() {
+  _LoopbackTestWidgetsFlutterBinding();
   test(
     'stock ready: reopened stored chat submits against resumed runtime id',
     () async {
@@ -88,11 +97,6 @@ void main() {
   testWidgets(
     'saved ChatScreen with Desktop gateway submits over WS, not REST',
     (tester) async {
-      final previousOverrides = HttpOverrides.current;
-      HttpOverrides.global = null;
-      addTearDown(() {
-        HttpOverrides.global = previousOverrides;
-      });
       SharedPreferences.setMockInitialValues({});
       // Real loopback socket setup must run outside WidgetTester's fake clock.
       final gateway = (await tester.runAsync(
