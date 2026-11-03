@@ -60,16 +60,26 @@ class NormalGatewayAnnotationSendPort implements AnnotationSendPort {
       turnId: id,
       cancelUnsent: () => chat.cancelPreparation(reservation),
       submitOnce: () async {
-        final prompt = await preparePrompt(envelope);
-        await chat.submitPrepared(
-          reservation: reservation,
-          text: prompt,
-          localContent: envelope.text,
-          knownStoredSessionId: chat.storedSessionId,
-          canRestoreDraft: false,
-        );
-        // Completing the submission RPC is not an assistant receipt.
-        return const AnnotationReceipt(AnnotationReceiptKind.pending);
+        try {
+          final prompt = await preparePrompt(envelope);
+          await chat.submitPrepared(
+            reservation: reservation,
+            text: prompt,
+            localContent: envelope.text,
+            knownStoredSessionId: chat.storedSessionId,
+            canRestoreDraft: false,
+          );
+          // Completing the submission RPC is not an assistant receipt.
+          return const AnnotationReceipt(AnnotationReceiptKind.pending);
+        } catch (_) {
+          // Attachment preparation can fail before the prompt is submitted.
+          // Release only a still-preparing reservation; retain the separate
+          // annotation pending receipt so nothing is retransmitted blindly.
+          if (chat.snapshot.phase == NormalGatewayTurnPhase.preparing) {
+            chat.cancelPreparation(reservation);
+          }
+          rethrow;
+        }
       },
     );
   }
