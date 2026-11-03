@@ -7,12 +7,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hermes_android/core/controllers/annotation_controller.dart';
 import 'package:hermes_android/core/models/annotation_ink.dart';
 import 'package:hermes_android/core/models/attachment_draft.dart';
+import 'package:hermes_android/core/screens/chat_screen.dart';
+import 'package:hermes_android/core/services/connection_manager.dart';
 import 'package:hermes_android/core/services/annotation_snapshot.dart';
 import 'package:hermes_android/core/services/attachment_draft_service.dart';
 import 'package:hermes_android/core/widgets/annotation_chat_shell.dart';
 import 'package:hermes_android/core/widgets/ink_overlay.dart';
 import 'package:hermes_android/l10n/app_localizations.dart';
 import 'package:image/image.dart' as image_lib;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'support/fake_voice_composer_adapter.dart';
 
 Future<ui.Image> _fakeBoundary(
   RenderRepaintBoundary boundary,
@@ -193,6 +198,52 @@ void main() {
       throwsStateError,
     );
     expect(drawing.strokes, hasLength(1));
+  });
+
+  testWidgets('ChatScreen passes its route owner into the snapshot shell', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final owner = AnnotationController()..enter();
+    addTearDown(owner.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: ChatScreen(
+          connection: SavedConnection(
+            id: 'annotation-owner-test',
+            label: 'Local test',
+            host: '127.0.0.1',
+            port: 1,
+            apiKey: '',
+          ),
+          session: const Session(
+            id: 'annotation-session',
+            title: 'Annotation',
+            model: 'test',
+            source: 'test',
+            messageCount: 0,
+            isActive: false,
+            preview: '',
+            startedAt: 1,
+          ),
+          annotationController: owner,
+          testVoiceComposerAdapter: FakeVoiceComposerAdapter(),
+        ),
+      ),
+    );
+    final shell = tester.widget<AnnotationChatShell>(
+      find.byType(AnnotationChatShell),
+    );
+    expect(identical(shell.controller, owner), isTrue);
+    expect(find.byType(InkOverlay), findsOneWidget);
+    expect(
+      identical(tester.widget<InkOverlay>(find.byType(InkOverlay)).controller, owner),
+      isTrue,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(owner.active, isTrue);
   });
 
   testWidgets('chat snapshot uses the one injected ink owner and keeps it alive', (
