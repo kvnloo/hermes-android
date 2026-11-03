@@ -24,7 +24,7 @@ class AnnotationGatewayFiles {
   final AttachmentDraftService draftService;
   final DesktopGatewayClient gateway;
   final String sessionId;
-  final Future<String> Function() captureAnnotatedImage;
+  final Future<String> Function(AnnotationSendEnvelope envelope) captureAnnotatedImage;
 
   Future<String> preparePrompt(AnnotationSendEnvelope envelope) async {
     final names = attachmentNames(envelope.createdAt);
@@ -33,7 +33,7 @@ class AnnotationGatewayFiles {
     try {
       // The screenshot producer composites the actual captured content and
       // the same strokes included in envelope.document.
-      final screenshot = await captureAnnotatedImage();
+      final screenshot = await captureAnnotatedImage(envelope);
       drafts.add(
         await draftService.prepareImage(
           sourcePath: screenshot,
