@@ -41,6 +41,9 @@ class MainActivity : FlutterActivity() {
         // Before Flutter attaches: the first frame must already show the wallpaper.
         glass().configureWindow()
         super.onCreate(savedInstanceState)
+        // Again after: switching from LaunchTheme to NormalTheme reinstates the
+        // theme's opaque window background.
+        glass().configureWindow()
         runCatching { MobilePushBridge.captureTap(this, intent) }
     }
 
