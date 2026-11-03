@@ -539,6 +539,11 @@ class ChatScreen extends StatefulWidget {
   @visibleForTesting
   final AttachmentDraftService? testAttachmentDraftService;
 
+  /// Route-owned ink shared with the voice tray (PR #12's _annotationInk).
+  /// Snapshot capture only observes it; this screen never creates or disposes
+  /// a second annotation controller. Null disables the standalone snapshot UI.
+  final AnnotationController? annotationController;
+
   @visibleForTesting
   final AnnotationSnapshotCapture? testAnnotationSnapshotCapture;
 
@@ -627,6 +632,7 @@ class ChatScreen extends StatefulWidget {
     this.testApiClient,
     this.testAttachmentDraftService,
     this.testAnnotationSnapshotCapture,
+    this.annotationController,
     this.testRemotePromptSubmit,
     this.testNormalResume,
     this.testServerFilePicker,
@@ -729,7 +735,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   late final GatewayChatClient _gateway;
   late final AttachmentDraftService _attachmentDraftService;
   late final AnnotationSnapshotCapture _annotationSnapshotCapture;
-  final AnnotationController _annotationController = AnnotationController();
+  // PR #12 owns the chat's _annotationInk at chat_screen.dart:848.
+  // The snapshot lane consumes that owner through an explicit injection seam.
+  AnnotationController? get _annotationInk => widget.annotationController;
   final GlobalKey _annotationBoundaryKey = GlobalKey();
   bool _annotationSnapshotInProgress = false;
   bool _annotationMenuActive = false;
@@ -897,7 +905,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    _annotationController.addListener(_onAnnotationModeChanged);
+    _annotationInk?.addListener(_onAnnotationModeChanged);
+    _annotationMenuActive = _annotationInk?.active ?? false;
+    if (_annotationMenuActive) {
+      _annotationReservedDraftRows = _attachmentDrafts.length +
+          (_canReserveAnnotationAttachment ? 1 : 0);
+    }
     _annotationSnapshotCapture =
         widget.testAnnotationSnapshotCapture ?? const AnnotationSnapshotCapture();
     _notificationApprovalOrigin = NotificationApprovalAuthority.origin(
@@ -1629,6 +1642,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   @override
   void didUpdateWidget(covariant ChatScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.annotationController, widget.annotationController)) {
+      oldWidget.annotationController?.removeListener(_onAnnotationModeChanged);
+      _annotationInk?.addListener(_onAnnotationModeChanged);
+      _annotationMenuActive = _annotationInk?.active ?? false;
+      _annotationReservedDraftRows = _annotationMenuActive
+          ? _attachmentDrafts.length +
+              (_canReserveAnnotationAttachment ? 1 : 0)
+          : 0;
+    }
     if (oldWidget.connection != widget.connection ||
         oldWidget.session.id != widget.session.id ||
         !widget.active) {
@@ -1678,9 +1700,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    _annotationController
-      ..removeListener(_onAnnotationModeChanged)
-      ..dispose();
+    // The owner may also drive the voice tray; never dispose it here.
+    _annotationInk?.removeListener(_onAnnotationModeChanged);
     final pendingSubmission = _recoverableSubmissionState;
     if (pendingSubmission != null && !pendingSubmission.isCompleted) {
       pendingSubmission.complete();
@@ -3635,7 +3656,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           : _attachmentDrafts.isEmpty;
 
   void _onAnnotationModeChanged() {
-    final active = _annotationController.active;
+    final active = _annotationInk?.active ?? false;
     if (mounted && _annotationMenuActive != active) {
       setState(() {
         _annotationMenuActive = active;
@@ -3652,8 +3673,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   /// move the very conversation under the marks). Commit the tile afterward.
   /// No turn is sent; failed capture/preparation never discards the drawing.
   Future<void> _attachAnnotationSnapshot() async {
+    final controller = _annotationInk;
     if (!mounted ||
-        !_annotationController.active ||
+        controller == null ||
+        !controller.active ||
         _annotationSnapshotInProgress ||
         _preparingPaste ||
         _preparingSend ||
@@ -3676,8 +3699,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       );
       return;
     }
-    _annotationController.finishStroke();
-    final drawing = _annotationController.drawing;
+    controller.finishStroke();
+    final drawing = controller.drawing;
     final scheme = Theme.of(context).colorScheme;
     final ratio = MediaQuery.devicePixelRatioOf(context);
     final timestamp = DateTime.now().toUtc().toIso8601String()
@@ -3689,7 +3712,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       // The slot was reserved when annotation mode opened, before any ink.
       // Wait for this frame to finish without moving the marked viewport.
       await WidgetsBinding.instance.endOfFrame;
-      if (!mounted) return;
+      if (!mounted || !identical(controller, _annotationInk) ||
+          !controller.active) return;
       final png = await _annotationSnapshotCapture.capture(
         boundaryKey: _annotationBoundaryKey,
         drawing: drawing,
@@ -3706,7 +3730,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             ? AttachmentDraftMode.remoteGateway
             : AttachmentDraftMode.rest,
       );
-      if (!mounted) return;
+      if (!mounted || !identical(controller, _annotationInk) ||
+          !controller.active) return;
       // Another picker may have completed while the boundary was encoding.
       // Revalidate before changing any composer geometry or attachments.
       if (remote) {
@@ -6599,7 +6624,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   _fetchMessages(focusSavedHistory: true);
                 }
                 if (action == 'export') _exportConversation();
-                if (action == 'annotation-mode') _annotationController.toggle();
+                if (action == 'annotation-mode') _annotationInk?.toggle();
                 if (action == 'received-output-info') {
                   unawaited(_showReceivedOutputDetails());
                 }
@@ -6610,7 +6635,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 }
               },
               itemBuilder: (_) => [
-                PopupMenuItem(
+                if (_annotationInk != null)
+                  PopupMenuItem(
                   value: 'annotation-mode',
                   child: ListTile(
                     leading: Icon(Icons.draw_outlined),
@@ -6673,7 +6699,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         ],
       ),
       body: AnnotationChatShell(
-        controller: _annotationController,
+        controller: _annotationInk,
         boundaryKey: _annotationBoundaryKey,
         onCapture: () => unawaited(_attachAnnotationSnapshot()),
         capturing: _annotationSnapshotInProgress,
