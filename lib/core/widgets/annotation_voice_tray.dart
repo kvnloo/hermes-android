@@ -234,18 +234,20 @@ class _AnnotationVoiceTrayState extends State<AnnotationVoiceTray> {
                   key: const Key('annotation-aligned-transcript'),
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
+              // Keep the draft controller mounted but not its hidden editor:
+              // parent viewers may inspect TextFields with skipOffstage: false.
               if (widget.active)
                 TextField(
                   key: const Key('annotation-typed-note'),
-                controller: _typed,
-                minLines: 1,
-                maxLines: 3,
-                enabled: !_sending,
-                decoration: InputDecoration(
-                  labelText: context.l10n.message,
-                  border: const OutlineInputBorder(),
+                  controller: _typed,
+                  minLines: 1,
+                  maxLines: 3,
+                  enabled: !_sending,
+                  decoration: InputDecoration(
+                    labelText: context.l10n.message,
+                    border: const OutlineInputBorder(),
+                  ),
                 ),
-              ),
               const SizedBox(height: 8),
               Row(
                 children: [
