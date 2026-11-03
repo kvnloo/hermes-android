@@ -233,13 +233,13 @@ final class _Check {
       case 'Table':
         arity(node, 3);
         string(node.args[0], 'title', max: 200);
-        final columns = array(node.args[1], 'columns', min: 1, max: 10);
-        for (final column in columns) {
+        final tableColumns = array(node.args[1], 'columns', min: 1, max: 10);
+        for (final column in tableColumns) {
           string(column, 'column', min: 1, max: 100);
         }
         for (final row in array(node.args[2], 'rows', max: 100)) {
           final cells = array(row, 'table cells', max: 10);
-          if (cells.length != columns.length) {
+          if (cells.length != tableColumns.length) {
             bad(row, 'Table rows must match the declared columns.');
           }
           for (final cell in cells) {
