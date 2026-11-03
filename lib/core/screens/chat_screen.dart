@@ -3,8 +3,12 @@
 // GET /api/sessions/{id}/messages.
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'package:flutter/material.dart';
 import '../widgets/session_name_dialog.dart';
@@ -25,7 +29,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../annotation/annotation_compose.dart' as annotation;
+import '../annotation/annotation_gateway_files.dart';
+import '../annotation/annotation_normal_gateway_port.dart';
+import '../annotation/annotation_reply_speech.dart';
+import '../annotation/annotation_voice_send.dart';
+import '../controllers/annotation_controller.dart';
 import '../controllers/voice_composer_controller.dart';
+import '../widgets/annotation_voice_tray.dart';
+import '../widgets/ink_overlay.dart';
 import '../controllers/delegated_task_controller.dart';
 import '../services/delegated_task_history.dart';
 import '../widgets/delegated_task_timeline.dart';
@@ -832,6 +844,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   /// unanswerable until the chat is re-entered.
   final Set<String> _selfAnsweredClarifyIdentities = {};
 
+  // Annotation uses this route's existing normal Gateway and reply speaker.
+  final AnnotationController _annotationInk = AnnotationController();
+  final GlobalKey _annotationCaptureKey = GlobalKey();
+  AnnotationVoiceSendController? _annotationSender;
+  AnnotationFinalReplyObserver? _annotationReplyObserver;
+  String? _annotationScopeSession;
+  String? _annotationScopeConnection;
+
   // Voice input / spoken replies
   final FlutterTts _flutterTts = FlutterTts();
   late final VoiceComposerController _voiceComposer;
@@ -915,6 +935,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         }
       },
     );
+    _annotationInk.addListener(_onAnnotationInkChanged);
     _textController.addListener(_onComposerChanged);
     if (widget.initialComposerText case final shared?) {
       _textController.text = shared;
@@ -1082,6 +1103,23 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       _normalChat!.invalidateDraftRecovery();
     }
     _normalSubscription = _normalChat!.subscribe(_applyNormalSnapshot);
+    _annotationReplyObserver?.dispose();
+    _annotationReplyObserver = AnnotationFinalReplyObserver(
+      chat: _normalChat!,
+      speechEnabled: _annotationSpeechAllowed,
+      speakReply: _speakAssistantText,
+    );
+    _annotationSender = AnnotationVoiceSendController(
+      store: PreferencesAnnotationPendingTurnStore(
+        'hermes_annotation_pending_${widget.connection.id}_${widget.session.id}',
+      ),
+      port: NormalGatewayAnnotationSendPort(
+        chat: _normalChat!,
+        preparePrompt: _annotationPreparePrompt,
+      ),
+    );
+    _annotationScopeSession = widget.session.id;
+    _annotationScopeConnection = widget.connection.id;
     final session = _normalSession!;
     unawaited(
       session.ready.then(
@@ -1668,6 +1706,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
     _manualAudioIntent++;
     _voiceBound = false;
+    _annotationReplyObserver?.dispose();
+    _annotationInk
+      ..removeListener(_onAnnotationInkChanged)
+      ..dispose();
     handsFreeRouteObserver.removeListener(_onVoiceRouteChanged);
     handsFreeEnabled.removeListener(_onHandsFreeEnabledChanged);
     ConnectionMutationBarrier.removeListener(_onVoiceAccountChanged);
@@ -6410,6 +6452,18 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           ),
         ),
         actions: [
+          if (_annotationWired || _annotationInk.active)
+            IconButton(
+              key: const Key('annotation-mode-toggle'),
+              tooltip: _annotationInk.active
+                  ? context.l10n.close
+                  : context.l10n.edit,
+              icon: Icon(
+                _annotationInk.active ? Icons.draw : Icons.draw_outlined,
+              ),
+              isSelected: _annotationInk.active,
+              onPressed: _annotationInk.toggle,
+            ),
           if (_archiving)
             const Padding(
               padding: EdgeInsets.only(right: 8),
@@ -6566,7 +6620,20 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                       Expanded(
                         child: Stack(
                           children: [
-                            Positioned.fill(child: _buildBody()),
+                            Positioned.fill(
+                              child: RepaintBoundary(
+                                key: _annotationCaptureKey,
+                                child: Stack(
+                                  children: [
+                                    Positioned.fill(child: _buildBody()),
+                                    if (_annotationWired && _annotationInk.active)
+                                      Positioned.fill(
+                                        child: InkOverlay(controller: _annotationInk),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
                             if (_endAffordanceController.isVisible ||
                                 _canFocusSavedRecovery)
                               Positioned(
@@ -6584,7 +6651,61 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           ],
                         ),
                       ),
-                      _buildInputBar(availableHeight: viewport.maxHeight),
+                      if (_annotationWired)
+                        Offstage(
+                          offstage: !_annotationInk.active,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    key: const Key('annotation-undo-stroke'),
+                                    tooltip: context.l10n.edit,
+                                    onPressed: _annotationInk.drawing.past.isEmpty
+                                        ? null
+                                        : _annotationInk.undoStroke,
+                                    icon: const Icon(Icons.undo),
+                                  ),
+                                  IconButton(
+                                    key: const Key('annotation-clear-strokes'),
+                                    tooltip: context.l10n.delete,
+                                    onPressed: _annotationInk.drawing.strokes.isEmpty
+                                        ? null
+                                        : _annotationInk.clearStrokes,
+                                    icon: const Icon(Icons.delete_outline),
+                                  ),
+                                ],
+                              ),
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxHeight: viewport.maxHeight * 0.52,
+                                ),
+                                child: SingleChildScrollView(
+                                  child: AnnotationVoiceTray(
+                                    key: ValueKey('annotation-tray-${widget.session.id}'),
+                                    active: _annotationInk.active,
+                                    conversationId: widget.session.id,
+                                    screen: _annotationScreenInfo(),
+                                    currentScreen: _annotationScreenInfo,
+                                    currentStrokes: _annotationStrokes,
+                                    sender: _annotationSender!,
+                                    beforeRecording: _beforeAnnotationRecording,
+                                    onConfirmed: _annotationConfirmed,
+                                    handsFreeSpeechEnabled: _annotationSpeechAllowed,
+                                    speakReply: _speakAssistantText,
+                                    onFinalTurn: (id) =>
+                                        _annotationReplyObserver?.watch(id),
+                                    localeId: _sttLocaleId,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (!_annotationInk.active || !_annotationWired)
+                        _buildInputBar(availableHeight: viewport.maxHeight),
                     ],
                   ),
                 ),
@@ -6593,6 +6714,173 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           ),
         ),
       ),
+    );
+  }
+
+
+  void _onAnnotationInkChanged() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _annotationWired =>
+      widget.active &&
+      _voiceElementActive &&
+      _desktopGateway != null &&
+      _normalChat != null &&
+      _annotationSender != null &&
+      _annotationScopeSession == widget.session.id &&
+      _annotationScopeConnection == widget.connection.id &&
+      _normalChat!.storedSessionId != null &&
+      !_legacyTransportFallback &&
+      _turnApplicationSession == null;
+
+  bool _annotationSpeechAllowed() =>
+      handsFreeEnabled.value &&
+      _voiceReplyEnabled &&
+      _voiceForeground &&
+      _voiceRouteCurrent;
+
+  annotation.ScreenInfo _annotationScreenInfo() {
+    final render = _annotationCaptureKey.currentContext?.findRenderObject();
+    final size = render is RenderRepaintBoundary && render.hasSize
+        ? render.size
+        : MediaQuery.sizeOf(context);
+    return annotation.ScreenInfo(
+      id: widget.session.id,
+      route: '/chat/${widget.session.id}',
+      width: size.width,
+      height: size.height,
+    );
+  }
+
+  List<annotation.Stroke> _annotationStrokes() => <annotation.Stroke>[
+    for (final stroke in _annotationInk.drawing.strokes)
+      annotation.Stroke(
+        id: stroke.id,
+        tool: stroke.tool.name,
+        color: stroke.color.name,
+        pointer: stroke.pointer.name,
+        points: [
+          for (final point in stroke.points)
+            annotation.StrokePoint(
+              x: point.x,
+              y: point.y,
+              p: point.p,
+              t: point.t,
+            ),
+        ],
+        startedAt: stroke.startedAt,
+        endedAt: stroke.endedAt,
+        targets: stroke.targets,
+      ),
+  ];
+
+  Future<void> _beforeAnnotationRecording() async {
+    if (!_annotationWired ||
+        !_annotationInk.active ||
+        !_voiceRouteCurrent ||
+        !_voiceForeground) {
+      throw StateError('Annotation recording requires the active chat.');
+    }
+    await _handsFree.stop(reason: HandsFreeStopReason.manualDictation);
+    await _voiceComposer.cancel();
+    await _voiceComposer.settle();
+    await _replySpeaker.stop();
+  }
+
+  Future<String> _captureAnnotationPng(AnnotationSendEnvelope envelope) async {
+    if (!_annotationWired ||
+        !_annotationInk.active ||
+        !_voiceRouteCurrent ||
+        !_voiceForeground ||
+        !mounted) {
+      throw StateError('Annotation screenshot is no longer on this chat.');
+    }
+    if (_annotationInk.live != null ||
+        annotationFingerprint(_annotationStrokes(), envelope.segments) !=
+            envelope.fingerprint) {
+      throw StateError('Finish the current stroke before capturing annotation.');
+    }
+    final render = _annotationCaptureKey.currentContext?.findRenderObject();
+    if (render is! RenderRepaintBoundary || !render.hasSize) {
+      throw StateError('Annotation screenshot is not laid out.');
+    }
+    if (render.debugNeedsPaint) {
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    if (!mounted ||
+        (render.size.width - envelope.screen.width.toDouble()).abs() > 1 ||
+        (render.size.height - envelope.screen.height.toDouble()).abs() > 1) {
+      throw StateError('Annotation screen changed during capture.');
+    }
+    final image = await render.toImage(pixelRatio: 1.0);
+    try {
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null || bytes.lengthInBytes == 0) {
+        throw StateError('Annotation screenshot was empty.');
+      }
+      if (annotationFingerprint(_annotationStrokes(), envelope.segments) !=
+          envelope.fingerprint) {
+        throw StateError('Annotation ink changed during screenshot capture.');
+      }
+      final directory = await getTemporaryDirectory();
+      final file = File(
+        '${directory.path}${Platform.pathSeparator}annotation-${const Uuid().v4()}.png',
+      );
+      await file.writeAsBytes(
+        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+        flush: true,
+      );
+      return file.path;
+    } finally {
+      image.dispose();
+    }
+  }
+
+  Future<String> _annotationPreparePrompt(AnnotationSendEnvelope envelope) async {
+    final gateway = _desktopGateway;
+    final sessionId = _normalChat?.storedSessionId;
+    if (!_annotationWired ||
+        gateway == null ||
+        sessionId == null ||
+        sessionId.isEmpty) {
+      throw StateError(
+        'Annotation attachments require an established Desktop Gateway chat.',
+      );
+    }
+    String? captured;
+    final files = AnnotationGatewayFiles(
+      draftService: _attachmentDraftService,
+      gateway: gateway,
+      sessionId: sessionId,
+      captureAnnotatedImage: (submitted) async {
+        final path = await _captureAnnotationPng(submitted);
+        captured = path;
+        return path;
+      },
+    );
+    try {
+      return await files.preparePrompt(envelope);
+    } finally {
+      final path = captured;
+      if (path != null) {
+        try {
+          final file = File(path);
+          if (await file.exists()) await file.delete();
+        } catch (_) {
+          // Temporary cleanup is not proof of a remote receipt.
+        }
+      }
+    }
+  }
+
+  Future<void> _annotationConfirmed(
+    AnnotationSendEnvelope submitted,
+    AnnotationSendOutcome _,
+  ) async {
+    // New ink has different IDs, so it survives the original delivery.
+    _annotationInk.removeSubmittedStrokeIds(
+      submitted.strokes.map((stroke) => stroke.id).toSet(),
     );
   }
 
