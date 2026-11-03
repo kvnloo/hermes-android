@@ -1003,6 +1003,36 @@ void main() {
       },
     );
 
+    for (final newline in ['\n', '\r\n']) {
+      final label = newline == '\n' ? 'LF' : 'CRLF';
+      for (final fragmentBytes in [1, 7]) {
+        test(
+          '$label fragmented $fragmentBytes byte refusal stays terminal',
+          () async {
+            final refusal = stockStreamRefusal().replaceAll('\n', newline);
+            final probe = await _run(
+              '${_token('partial 🐈', newline)}'
+              '$refusal'
+              '${_token('must be muted', newline)}'
+              '${_finish('stop', newline)}${_done(newline)}',
+              fragmentBytes: fragmentBytes,
+            );
+            expect(probe.tokens, ['partial 🐈']);
+            expect(probe.done, 0);
+            expect(probe.errors, hasLength(1));
+            expect(probe.errors.single, contains('permission_denied'));
+            expect(probe.errors.single, contains('does not prove'));
+            expect(probe.errors.single, contains('both Dashboard username'));
+            expect(probe.errors.single, contains('Do not automatically resend'));
+            expect(probe.events, [
+              'token:partial 🐈',
+              'error:${probe.errors.single}',
+            ]);
+          },
+        );
+      }
+    }
+
     test(
       'other RuntimeStoreError permission text stays verbatim',
       () async {
