@@ -858,6 +858,210 @@ void main() {
       },
     );
   });
+  group('API-server foreign-session ownership (#253)', () {
+    Future<_Probe> deniedReply({
+      required int status,
+      required String code,
+      required String message,
+    }) async {
+      final transport = _ControlledClient();
+      final response = transport.enqueue(status: status);
+      final probe = _Probe(transport);
+      final sending = probe.send();
+      await response.listening.future;
+      response.body.add(
+        utf8.encode(
+          jsonEncode({
+            'error': {
+              'message': message,
+              'type': 'invalid_request_error',
+              'param': null,
+              'code': code,
+            },
+          }),
+        ),
+      );
+      await response.body.close();
+      await sending;
+      await probe.gateway.whenStreamSettles();
+      expect(transport._next, 1, reason: 'Refused sends must not be retried.');
+      probe.api.close();
+      return probe;
+    }
+
+    test('409 permission_denied gives a conditional Dashboard route', () async {
+      final probe = await deniedReply(
+        status: 409,
+        code: 'permission_denied',
+        message: 'permission_denied',
+      );
+      expect(probe.done, 0);
+      expect(probe.tokens, isEmpty);
+      expect(probe.errors, hasLength(1));
+      expect(probe.errors.single, contains('permission_denied'));
+      expect(probe.errors.single, contains('does not prove'));
+      expect(probe.errors.single, contains('both Dashboard username'));
+      expect(probe.errors.single, contains('Dashboard / Proxy Settings'));
+      expect(probe.errors.single, isNot(contains('belongs to another')));
+    });
+
+    test('unrelated 409 preserves the gateway error', () async {
+      final probe = await deniedReply(
+        status: 409,
+        code: 'admission_conflict',
+        message: 'Admission already belongs to an active turn',
+      );
+      expect(probe.done, 0);
+      expect(probe.errors, ['Admission already belongs to an active turn']);
+    });
+
+    test('non-409 permission_denied is not misidentified', () async {
+      final probe = await deniedReply(
+        status: 403,
+        code: 'permission_denied',
+        message: 'permission_denied',
+      );
+      expect(probe.done, 0);
+      expect(probe.errors, ['permission_denied']);
+    });
+
+    // The app always streams. Stock v0.22.5 opens the SSE response (HTTP 200)
+    // before the API turn is admitted, so the ownership refusal arrives as the
+    // finish chunk, not as a 409. These are the exact bytes v0.22.5's
+    // APIServerAdapter wrote for `POST /v1/chat/completions` (stream=true,
+    // X-Hermes-Session-Id = a CLI/Desktop-owned session).
+    String stockStreamRefusal({
+      String message = 'permission_denied',
+      String type = 'RuntimeStoreError',
+    }) {
+      const id = 'chatcmpl-192e15a7bf4842ecb033a0534e367';
+      final role = {
+        'id': id,
+        'object': 'chat.completion.chunk',
+        'created': 1793608409,
+        'model': 'hermes-agent',
+        'choices': [
+          {
+            'index': 0,
+            'delta': {'role': 'assistant'},
+            'finish_reason': null,
+          },
+        ],
+      };
+      final finish = {
+        'id': id,
+        'object': 'chat.completion.chunk',
+        'created': 1793608409,
+        'model': 'hermes-agent',
+        'choices': [
+          {'index': 0, 'delta': <String, dynamic>{}, 'finish_reason': 'error'},
+        ],
+        'usage': {
+          'prompt_tokens': 0,
+          'completion_tokens': 0,
+          'total_tokens': 0,
+        },
+        'error': {'message': message, 'type': type},
+        'hermes': {
+          'completed': true,
+          'partial': false,
+          'failed': true,
+          'error': message,
+          'error_code': 'agent_error',
+        },
+      };
+      return 'data: ${jsonEncode(role)}\n\n'
+          'data: ${jsonEncode(finish)}\n\n'
+          'data: [DONE]\n\n';
+    }
+
+    test(
+      'stock v0.22.5 streamed refusal gives a conditional Dashboard route',
+      () async {
+        // Stock opens the SSE body with HTTP 200 before admitting the API
+        // turn; a permission refusal must be terminal, not success or retry.
+        final transport = _ControlledClient();
+        final response = transport.enqueue(status: 200);
+        final probe = _Probe(transport);
+        final sending = probe.send();
+        await response.listening.future;
+        response.body.add(utf8.encode(stockStreamRefusal()));
+        await response.body.close();
+        await sending;
+        await probe.gateway.whenStreamSettles();
+        expect(transport._next, 1, reason: 'A rejected turn must not retry.');
+        expect(probe.gateway.isStreaming, isFalse);
+        expect(probe.done, 0);
+        expect(probe.tokens, isEmpty);
+        expect(probe.errors, hasLength(1));
+        expect(probe.errors.single, contains('permission_denied'));
+        expect(probe.errors.single, contains('does not prove'));
+        expect(probe.errors.single, contains('both Dashboard username'));
+        expect(probe.errors.single, contains('Dashboard / Proxy Settings'));
+        expect(probe.errors.single, isNot(contains('belongs to another')));
+        probe.api.close();
+      },
+    );
+
+    for (final newline in ['\n', '\r\n']) {
+      final label = newline == '\n' ? 'LF' : 'CRLF';
+      for (final fragmentBytes in [1, 7]) {
+        test(
+          '$label fragmented $fragmentBytes byte refusal stays terminal',
+          () async {
+            final refusal = stockStreamRefusal().replaceAll('\n', newline);
+            final probe = await _run(
+              '${_token('partial 🐈', newline)}'
+              '$refusal'
+              '${_token('must be muted', newline)}'
+              '${_finish('stop', newline)}${_done(newline)}',
+              fragmentBytes: fragmentBytes,
+            );
+            expect(probe.tokens, ['partial 🐈']);
+            expect(probe.done, 0);
+            expect(probe.errors, hasLength(1));
+            expect(probe.errors.single, contains('permission_denied'));
+            expect(probe.errors.single, contains('does not prove'));
+            expect(probe.errors.single, contains('both Dashboard username'));
+            expect(probe.errors.single, contains('Do not automatically resend'));
+            expect(probe.events, [
+              'token:partial 🐈',
+              'error:${probe.errors.single}',
+            ]);
+          },
+        );
+      }
+    }
+
+    test(
+      'other RuntimeStoreError permission text stays verbatim',
+      () async {
+        const otherReason = 'permission_denied: tool scope restricted';
+        final probe = await _run(stockStreamRefusal(message: otherReason));
+        expect(probe.done, 0);
+        expect(probe.tokens, isEmpty);
+        expect(probe.errors, [otherReason]);
+      },
+    );
+
+    test('streamed provider permission errors keep their own text', () async {
+      const providerError = 'Error code: 403 - PERMISSION_DENIED: model access';
+      final probe = await _run(
+        stockStreamRefusal(message: providerError, type: 'agent_error'),
+      );
+      expect(probe.done, 0);
+      expect(probe.errors, [providerError]);
+    });
+
+    test(
+      'streamed permission_denied from another error type is kept',
+      () async {
+        final probe = await _run(stockStreamRefusal(type: 'agent_error'));
+        expect(probe.done, 0);
+        expect(probe.errors, ['permission_denied']);
+      },
+    );
+  });
 }
 
 Future<_Probe> _run(String wire, {int fragmentBytes = 4096}) async {

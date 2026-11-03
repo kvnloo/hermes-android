@@ -757,6 +757,30 @@ Chat/session features use port `8642`. Memory, Cron Jobs, Skills, and Settings u
 
 Check that the Android connection's API key matches `API_SERVER_KEY` from the Hermes machine (`~/.hermes/.env`).
 
+### Existing chats reject sends with `permission_denied`
+
+The API server can read sessions owned by the Desktop Gateway, TUI, CLI or
+another surface, while its session authority can refuse REST writes to those
+sessions. On stock Hermes v0.22.5, a non-streaming refusal can be HTTP 409 with
+`error.code: permission_denied`. Streaming requests may return HTTP 200
+`text/event-stream` with a terminal
+`error: {"message": "permission_denied", "type": "RuntimeStoreError"}`.
+**HTTP 200 with an error finish chunk is not a successful reply.** The bare
+error alone does not establish who owns the session or whether the turn ran;
+do not blindly resend an uncertain prompt.
+
+For password-protected Dashboard chats, enter **both Dashboard username and
+password** under **Dashboard / Proxy Settings** for the saved connection.
+With that configuration, the app selects the authenticated Desktop Gateway
+WebSocket (`/api/ws`) for chat; an API key for port `8642` alone does not.
+An explicit **Desktop Gateway URL** or supported proxy setup is a separate
+configuration path. If it still fails, collect redacted request paths, HTTP
+status and WebSocket method/error names; do not share API keys, cookies or
+WebSocket tickets.
+
+See [Hermes API-server session ownership](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/api-server.md#runs-api-streaming-friendly-alternative)
+for the server-side rule.
+
 ### The app cannot find the host
 
 - Verify phone and host are on the same Wi-Fi or same Tailscale tailnet.

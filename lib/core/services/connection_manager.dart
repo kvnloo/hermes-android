@@ -1825,7 +1825,11 @@ class GatewayChatClient {
       return const _SseFrame(error: 'Gateway sent a malformed SSE frame.');
     }
     if (parsed['error'] != null || parsed['type'] == 'error') {
-      return _SseFrame(error: _streamErrorMessage(parsed));
+      return _SseFrame(
+        error: _isStreamedRuntimePermissionDenied(parsed)
+            ? _permissionDeniedHint
+            : _streamErrorMessage(parsed),
+      );
     }
     // Current Hermes annotates failed/partial completions as well as emitting
     // non-stop finish reasons. Neither can be overridden by a later [DONE].
@@ -1900,6 +1904,33 @@ class GatewayChatClient {
     }
     return fallback;
   }
+
+  /// A structured non-streaming permission refusal can signal a session
+  /// authority mismatch. The code alone cannot establish ownership or
+  /// whether the turn executed.
+  static bool _isStructuredPermissionDenied(Object? payload) {
+    if (payload is! Map) return false;
+    final error = payload['error'];
+    return error is Map && error['code'] == 'permission_denied';
+  }
+
+  /// Stock Hermes v0.22.5 can return this error in an HTTP 200 SSE finish
+  /// chunk. Its signature merits a routing hint, but alone cannot establish
+  /// the chat owner or whether a turn executed.
+  static bool _isStreamedRuntimePermissionDenied(Object? payload) {
+    if (payload is! Map) return false;
+    final error = payload['error'];
+    return error is Map &&
+        error['type'] == 'RuntimeStoreError' &&
+        error['message'] == 'permission_denied';
+  }
+
+  static const _permissionDeniedHint =
+      'Hermes returned permission_denied. This error alone does not prove '
+      'who owns the chat or whether the turn executed. For a '
+      'password-protected Dashboard chat, enter both Dashboard username '
+      'and password in Dashboard / Proxy Settings to use Desktop Gateway '
+      'WebSocket. Do not automatically resend an uncertain turn.';
 
   /// Send a message and stream the assistant response token-by-token.
   ///
@@ -2082,10 +2113,13 @@ class GatewayChatClient {
                   // A proxy may return HTML/plain text rather than JSON.
                 }
                 finishBody(
-                  _streamErrorMessage(
-                    payload,
-                    fallback: 'HTTP ${response.statusCode}',
-                  ),
+                  response.statusCode == 409 &&
+                          _isStructuredPermissionDenied(payload)
+                      ? _permissionDeniedHint
+                      : _streamErrorMessage(
+                          payload,
+                          fallback: 'HTTP ${response.statusCode}',
+                        ),
                 );
               } else {
                 finishBody(
