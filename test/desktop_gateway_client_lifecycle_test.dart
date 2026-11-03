@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hermes_android/core/models/connection.dart';
 import 'package:hermes_android/core/models/session.dart';
@@ -15,16 +16,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/fake_voice_composer_adapter.dart';
 
-// These tests exercise a real loopback HTTP + WebSocket server. Flutter's
-// default widget-test binding substitutes HTTP 400 for every HttpClient call,
-// which makes ticket minting fail before any lifecycle assertion is reached.
-class _LoopbackTestWidgetsFlutterBinding extends AutomatedTestWidgetsFlutterBinding {
+// The loopback HTTP + WebSocket fixture needs real asynchronous I/O even when
+// ChatScreen starts its session during widget initialization. Automated widget
+// tests use FakeAsync and replace HTTP requests with synthetic 400 responses.
+class _LoopbackTestWidgetsFlutterBinding extends LiveTestWidgetsFlutterBinding {
   @override
   bool get overrideHttpClient => false;
 }
 
 void main() {
-  _LoopbackTestWidgetsFlutterBinding();
+  final binding = _LoopbackTestWidgetsFlutterBinding();
+  binding.framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.onlyPumps;
   test(
     'stock ready: reopened stored chat submits against resumed runtime id',
     () async {
@@ -98,10 +100,20 @@ void main() {
     'saved ChatScreen with Desktop gateway submits over WS, not REST',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
-      // Real loopback socket setup must run outside WidgetTester's fake clock.
-      final gateway = (await tester.runAsync(
-        () => _Gateway.start(stockReady: true),
-      ))!;
+      // Match the existing ChatScreen widget-test platform setup on main:
+      // no Android image-picker plugin is installed in flutter_test.
+      const imagePickerChannel = MethodChannel('plugins.flutter.io/image_picker');
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        imagePickerChannel,
+        (_) async => null,
+      );
+      addTearDown(() {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          imagePickerChannel,
+          null,
+        );
+      });
+      final gateway = await _Gateway.start(stockReady: true);
       final controller = GatewayTurnApplicationController();
       addTearDown(() async {
         await controller.close();
@@ -131,21 +143,17 @@ void main() {
       );
       // The real DesktopGatewayClient must bind the existing stored chat.
       // No testRemotePromptSubmit injection is used to mask routing errors.
-      final resume = await tester.runAsync(
-        () => gateway.take('session.resume'),
-      );
+      final resume = await gateway.take('session.resume');
       expect(resume, isNotNull);
-      expect(resume!.params['session_id'], 'stored-widget');
+      expect(resume.params['session_id'], 'stored-widget');
       await tester.pump();
       await tester.enterText(find.byType(TextField), 'Send via Desktop');
       await tester.tap(find.byTooltip('Send'));
       await tester.pump();
 
-      final submit = await tester.runAsync(
-        () => gateway.take('prompt.submit'),
-      );
+      final submit = await gateway.take('prompt.submit');
       expect(submit, isNotNull);
-      expect(submit!.params, {
+      expect(submit.params, {
         'session_id': 'runtime-stored-widget-1',
         'text': 'Send via Desktop',
       });
