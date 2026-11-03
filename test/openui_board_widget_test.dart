@@ -103,6 +103,7 @@ void main() {
     await tester.tap(find.byKey(const Key('openui-bar-1')));
     await tester.pump();
     expect(find.text('Deep · 12 turns'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('openui-category-1')).first);
     await tester.tap(find.byKey(const Key('openui-category-1')).first);
     await tester.pump();
     expect(find.textContaining('Tue · Fast 3 · Deep 4 turns'), findsOneWidget);
