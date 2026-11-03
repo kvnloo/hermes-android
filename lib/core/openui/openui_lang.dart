@@ -339,7 +339,7 @@ final class _Reader {
       _expect(_Kind.equal, '"="');
       final value = _value(0);
       if (result.containsKey(key.text)) {
-        throw _Fault('Duplicate assignment: ' + key.text,
+        throw _Fault('Duplicate assignment: ${key.text}',
             key.line, key.column);
       }
       result[key.text] = value;
@@ -400,7 +400,7 @@ final class _Reader {
           _take();
           _expect(_Kind.colon, '":"');
           if (fields.containsKey(key.text)) {
-            throw _Fault('Duplicate object key: ' + key.text,
+            throw _Fault('Duplicate object key: ${key.text}',
                 key.line, key.column);
           }
           fields[key.text] = _value(depth + 1);

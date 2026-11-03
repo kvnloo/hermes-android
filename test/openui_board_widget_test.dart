@@ -40,7 +40,7 @@ Widget _host(String code) => testAppWithL10n(
 void main() {
   test('only a closed fence becomes a markdown code-block widget', () {
     final fence = String.fromCharCodes([96, 96, 96]);
-    final complete = 'Before\n${fence}openui-v2\n$_treemap${fence}\nAfter';
+    final complete = 'Before\n${fence}openui-v2\n$_treemap$fence\nAfter';
     final parts = splitMarkdownCodeBlocks(complete);
     expect(parts.whereType<MarkdownCodeBlock>(), hasLength(1));
     expect((parts.whereType<MarkdownCodeBlock>().single).code, _treemap);

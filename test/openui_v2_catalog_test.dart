@@ -67,8 +67,8 @@ void main() {
       'root = Report("B", "", [], [], [], [])',
       'root = Board("B", "", [])',
       'root = Board("B", "", [Unknown("x")])',
-      _heat + '\ndata = Query("read_file", {})',
-      _heat + '\nm = Mutation("write_file", {})',
+      '$_heat\ndata = Query("read_file", {})',
+      '$_heat\nm = Mutation("write_file", {})',
       'root = Board("B", "", [Heatmap("H", "", ["Mon", "Tue"], ["0"], [[1]])])',
       'root = Board("B", "", [Heatmap("H", "", ["Mon"], ["0", "6"], [[1]])])',
       'root = Board("B", "", [Heatmap("H", "", ["Mon"], ["0"], [[-1]])])',
@@ -101,17 +101,15 @@ void main() {
   });
 
   test('all panel dimension and scalar bounds match catalog version 2', () {
-    final over8 = 'root = Board("B", "", [' +
-        List.filled(9, 'BarChart("A", "", [{label:"a",value:1}])')
-            .join(',') + '])';
+    final over8 =
+        'root = Board("B", "", [${List.filled(9, 'BarChart("A", "", [{label:"a",value:1}])').join(',')}])';
     expect(_status(over8), OpenUiCatalogStatus.invalid);
-    final exactly8 = 'root = Board("B", "", [' +
-        List.filled(8, 'BarChart("A", "", [{label:"a",value:1}])')
-            .join(',') + '])';
+    final exactly8 =
+        'root = Board("B", "", [${List.filled(8, 'BarChart("A", "", [{label:"a",value:1}])').join(',')}])';
     expect(_status(exactly8), OpenUiCatalogStatus.ready);
 
-    final overBars = 'root = Board("B", "", [BarChart("A", "", [' +
-        List.filled(31, '{label:"x",value:1}').join(',') + '])])';
+    final overBars =
+        'root = Board("B", "", [BarChart("A", "", [${List.filled(31, '{label:"x",value:1}').join(',')}])])';
     expect(_status(overBars), OpenUiCatalogStatus.invalid);
 
     final longTitle = List.filled(201, 'a').join();

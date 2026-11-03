@@ -149,9 +149,9 @@ second = BarChart("B", "", [{label:"b", value: 2}])
   test('64 KiB limit counts UTF-8 bytes, including multibyte characters', () {
     const prefix = 'root = Board("';
     const suffix = '", "", [BarChart("A", "", [{label:"x",value:1}])])';
-    final okay = prefix + List.filled(10000, '界').join() + suffix;
+    final okay = '$prefix${List.filled(10000, '界').join()}$suffix';
     expect(OpenUiLang.parse(okay).status, OpenUiParseStatus.ready);
-    final tooBig = prefix + List.filled(22000, '界').join() + suffix;
+    final tooBig = '$prefix${List.filled(22000, '界').join()}$suffix';
     final result = OpenUiLang.parse(tooBig);
     expect(result.status, OpenUiParseStatus.invalid);
     expect(result.problem!.message, contains('64 KiB'));
@@ -162,15 +162,13 @@ second = BarChart("B", "", [{label:"b", value: 2}])
   test('nesting and cyclic aliases are rejected without evaluating code', () {
     expect(OpenUiLang.parse('root = a\na = b\nb = a').status,
         OpenUiParseStatus.invalid);
-    final deeplyNested = 'root = ' +
-        List.filled(90, '[').join() +
-        '0' +
-        List.filled(90, ']').join();
+    final deeplyNested =
+        'root = ${List.filled(90, '[').join()}0${List.filled(90, ']').join()}';
     expect(OpenUiLang.parse(deeplyNested).status, OpenUiParseStatus.invalid);
 
     final deepRefs = [
       for (var i = 0; i < 100; i++)
-        'v' + i.toString() + ' = v' + (i + 1).toString(),
+        'v$i = v${i + 1}',
       'v100 = 1',
       'root = v0',
     ].join('\n');
