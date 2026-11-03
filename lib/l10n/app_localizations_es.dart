@@ -9,6 +9,30 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
+  String get turbo_section => 'Turbo';
+
+  @override
+  String get turbo_description_parallel => 'Parallel fast free model pool';
+
+  @override
+  String get turbo_description_quality => 'Quality-focused free models';
+
+  @override
+  String get turbo_description_reasoning => 'Free models for reasoning';
+
+  @override
+  String get turbo_description_verify => 'Free models for checking answers';
+
+  @override
+  String get turbo_description_longctx => 'Free models for long contexts';
+
+  @override
+  String get turbo_description_public => 'Public free model pool';
+
+  @override
+  String get turbo_description_other => 'Routed through vLLM Semantic Router';
+
+  @override
   String get cron_model_default => 'Seguir valor predeterminado';
 
   @override

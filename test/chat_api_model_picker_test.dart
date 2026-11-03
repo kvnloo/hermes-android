@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hermes_android/core/screens/chat_screen.dart';
 import 'package:hermes_android/core/services/connection_manager.dart';
+import 'package:hermes_android/core/services/chat_model_override_store.dart';
 import 'package:hermes_android/l10n/app_localizations.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -518,6 +519,158 @@ void main() {
     expect(lockBody, containsPair('provider', 'beta'));
     expect(lockBody, containsPair('model', 'shared-model'));
   });
+
+  testWidgets('Turbo section is hidden without a router route', (
+    tester,
+  ) async {
+    await _pumpSearchableModelChat(tester);
+    await _openModelPicker(tester);
+    expect(find.byKey(const Key('chat-turbo-section')), findsNothing);
+    expect(find.byKey(const Key('chat-turbo-chip')), findsNothing);
+    await tester.tap(find.text('Cancel'));
+    await tester.pump();
+  });
+
+  testWidgets('Turbo section sorts advertised models and persists a lock', (
+    tester,
+  ) async {
+    final writes = <Map<String, dynamic>>[];
+    final client = ApiClient(
+      baseUrl: 'http://api.fixture:8642',
+      apiKey: 'fixture-key',
+      httpClient: MockClient((request) async {
+        final path = request.url.path;
+        if (request.method == 'GET' && path.endsWith('/messages')) {
+          return http.Response('{"data":[]}', 200);
+        }
+        if (request.method == 'GET' && path == '/api/sessions/turbo-session') {
+          return http.Response(
+            '{"session":{"id":"turbo-session","model":"standard"}}',
+            200,
+          );
+        }
+        if (request.method == 'GET' && path == '/api/model/options') {
+          return http.Response(
+            jsonEncode({
+              'model': 'standard',
+              'provider': 'nous',
+              'providers': [
+                {'slug': 'nous', 'models': ['standard']},
+                {
+                  'slug': 'vllm-sr',
+                  'models': [
+                    'vllm-sr/free-longctx',
+                    'vllm-sr/free-verify',
+                    'vllm-sr/free-reasoning',
+                    'vllm-sr/free-quality',
+                    'vllm-sr/turbo',
+                  ],
+                },
+              ],
+            }),
+            200,
+          );
+        }
+        if (request.method == 'POST' &&
+            path == '/api/sessions/turbo-session/model') {
+          writes.add(jsonDecode(request.body) as Map<String, dynamic>);
+          return http.Response('{}', 200);
+        }
+        return http.Response('not found', 404);
+      }),
+    );
+    const chat = Session(
+      id: 'turbo-session',
+      title: 'Turbo chat',
+      model: 'standard',
+      source: 'api_server',
+      messageCount: 0,
+      isActive: true,
+      preview: '',
+      startedAt: 1,
+    );
+    await _pumpApiOnlyChat(tester, client, chat);
+    expect(find.byKey(const Key('chat-turbo-chip')), findsNothing);
+    await _openModelPicker(tester);
+
+    expect(find.byKey(const Key('chat-turbo-section')), findsOneWidget);
+    expect(find.text('Parallel fast free model pool'), findsOneWidget);
+    expect(find.text('Quality-focused free models'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('vllm-sr/turbo')).dy,
+      lessThan(tester.getTopLeft(find.text('vllm-sr/free-quality')).dy),
+    );
+    await tester.tap(find.text('vllm-sr/turbo'));
+    await tester.tap(find.text('Apply to this chat'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(writes, <Map<String, dynamic>>[
+      {
+        'provider': 'vllm-sr',
+        'model': 'vllm-sr/turbo',
+        'require_model_lock': true,
+      },
+    ]);
+    expect(find.byKey(const Key('chat-turbo-chip')), findsOneWidget);
+    final store = await ChatModelOverrideStore.open();
+    final override = store.read(
+      connectionIdentity: 'http://api.fixture:8642||',
+      sessionId: 'turbo-session',
+    );
+    expect(override?.provider, 'vllm-sr');
+    expect(override?.model, 'vllm-sr/turbo');
+
+    // A new ChatScreen restores the per-chat override without re-selecting.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    await _pumpApiOnlyChat(tester, client, chat);
+    expect(find.byKey(const Key('chat-turbo-chip')), findsOneWidget);
+  });
+
+  testWidgets('provider-only inventory advertises documented Turbo routes', (
+    tester,
+  ) async {
+    final client = ApiClient(
+      baseUrl: 'http://api.fixture:8642',
+      apiKey: 'fixture-key',
+      httpClient: MockClient((request) async {
+        final path = request.url.path;
+        if (path.endsWith('/messages')) {
+          return http.Response('{"data":[]}', 200);
+        }
+        if (path == '/api/sessions/provider-only') {
+          return http.Response('{"session":{"model":"standard"}}', 200);
+        }
+        if (path == '/api/model/options') {
+          return http.Response(
+            '{"model":"standard","provider":"nous","providers":'
+            '[{"slug":"nous","models":["standard"]},{"slug":"vllm-sr"}]}',
+            200,
+          );
+        }
+        return http.Response('not found', 404);
+      }),
+    );
+    await _pumpApiOnlyChat(
+      tester,
+      client,
+      const Session(
+        id: 'provider-only',
+        title: 'Router provider chat',
+        model: 'standard',
+        source: 'api_server',
+        messageCount: 0,
+        isActive: true,
+        preview: '',
+        startedAt: 1,
+      ),
+    );
+    await _openModelPicker(tester);
+    expect(find.byKey(const Key('chat-turbo-section')), findsOneWidget);
+    expect(find.text('vllm-sr/turbo'), findsOneWidget);
+  });
+
 }
 
 Future<void> _openModelPicker(WidgetTester tester) async {
