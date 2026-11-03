@@ -39,27 +39,27 @@ enum HermesMaterialKind { pack, water, quartz }
 /// Natural materials from elemental-ui, drawn as a translucent pane.
 /// Persist [name], never [index].
 enum HermesMaterial {
-  none(HermesMaterialKind.pack, null, Color(0x00000000), 0, 0),
-  water(HermesMaterialKind.water, null, Color(0xFF1F6F78), 0.14, 1.6),
-  quartz(HermesMaterialKind.quartz, null, Color(0xFFE8EEF2), 0.08, 0.8),
+  none(HermesMaterialKind.pack, null, HermesGlassInk.none, 0, 0),
+  water(HermesMaterialKind.water, null, HermesGlassInk.water, 0.14, 1.6),
+  quartz(HermesMaterialKind.quartz, null, HermesGlassInk.quartz, 0.08, 0.8),
   slate(
     HermesMaterialKind.pack,
     'geo.slate.layered.v1',
-    Color(0xFF3B4148),
+    HermesGlassInk.slate,
     0.22,
     0.55,
   ),
   basalt(
     HermesMaterialKind.pack,
     'geo.basalt.vesicular.v1',
-    Color(0xFF2E2C2B),
+    HermesGlassInk.basalt,
     0.20,
     0.6,
   ),
   limestone(
     HermesMaterialKind.pack,
     'geo.limestone.porous.v1',
-    Color(0xFFCFC6B4),
+    HermesGlassInk.limestone,
     0.16,
     0.5,
   );
@@ -259,7 +259,7 @@ class HermesSurface extends ThemeExtension<HermesSurface> {
     minTintFor(
       text: tokens.muted,
       tint: tokens.surface,
-      wallpaper: const Color(0xFF808080),
+      wallpaper: HermesGlassInk.probeMid,
     ),
   );
 
@@ -268,8 +268,8 @@ class HermesSurface extends ThemeExtension<HermesSurface> {
     text: tokens.onSurface,
     tint: tokens.surface,
     wallpaper: tokens.brightness == Brightness.dark
-        ? const Color(0xFFFFFFFF)
-        : const Color(0xFF000000),
+        ? HermesGlassInk.probeWhite
+        : HermesGlassInk.probeBlack,
   );
 
   static const double tintMax = 0.95;
@@ -309,7 +309,7 @@ class HermesSurface extends ThemeExtension<HermesSurface> {
       (requested + (blurOn ? 0 : noBlurBoost)).clamp(floor, tintMax).toDouble(),
     );
     // Glass catches light: raised panels add a veil of light, never more dark.
-    const light = Colors.white;
+    const light = HermesGlassInk.light;
     final panel = light.withValues(alpha: dark ? 0.07 : 0.42);
     final chrome = Color.alphaBlend(
       light.withValues(alpha: dark ? 0.10 : 0.30),

@@ -36,6 +36,31 @@ enum HermesPalette {
   final Color seedColor;
 }
 
+/// Fixed inks for Glass surfaces: wallpaper probes for contrast checks, the
+/// light that glass catches, and the bodies of Elemental materials. These are
+/// physical properties of glass and stone, not branding, so they do not
+/// rotate with the palette.
+abstract final class HermesGlassInk {
+  static const Color light = Color(0xFFFFFFFF);
+  static const Color clearLight = Color(0x00FFFFFF);
+  static const Color probeMid = Color(0xFF808080);
+  static const Color probeWhite = Color(0xFFFFFFFF);
+  static const Color probeBlack = Color(0xFF000000);
+  static const Color none = Color(0x00000000);
+  static const Color water = Color(0xFF1F6F78);
+  static const Color quartz = Color(0xFFE8EEF2);
+  static const Color slate = Color(0xFF3B4148);
+  static const Color basalt = Color(0xFF2E2C2B);
+  static const Color limestone = Color(0xFFCFC6B4);
+
+  /// A dusk wallpaper stand-in behind material swatches.
+  static const List<Color> dusk = [
+    Color(0xFF2B4C5A),
+    Color(0xFF6E5A7A),
+    Color(0xFFC98E5B),
+  ];
+}
+
 /// The 4dp spacing grid shared by every Hermes surface.
 abstract final class HermesSpacing {
   static const double xs = 4;

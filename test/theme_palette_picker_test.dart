@@ -73,7 +73,7 @@ void main() {
         );
         expect(selected, findsOneWidget);
       }
-      expect(changes, 10);
+      expect(changes, HermesPalette.values.length);
       semantics.dispose();
     },
   );

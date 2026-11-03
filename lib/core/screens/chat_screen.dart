@@ -74,6 +74,7 @@ import '../utils/chat_history_scroll.dart';
 import '../utils/message_content.dart';
 import '../utils/responsive.dart';
 import '../utils/turn_recovery_fallback.dart';
+import '../theme/hermes_surface.dart';
 import '../theme/hermes_theme.dart';
 import 'files_screen.dart';
 import '../widgets/background_report_card.dart';
@@ -6689,21 +6690,31 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         : (availableHeight * 0.85)
               .clamp(minimumControlsHeight, availableHeight)
               .toDouble();
+    final glassSurface = HermesSurface.of(context);
     return Container(
       key: const Key('chat-input-bar'),
       // Leave some transcript visible when space permits. At very small
       // heights, the fixed controls take priority and extras scroll away.
       constraints: BoxConstraints(maxHeight: composerMaxHeight),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 4,
-            color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
-          ),
-        ],
-      ),
+      decoration: glassSurface.glass
+          // Glass: the composer is a pane of the same glass as the chrome,
+          // lit along its top edge, never an opaque shelf over the wallpaper.
+          ? BoxDecoration(
+              color: glassSurface.chrome,
+              border: Border(top: BorderSide(color: glassSurface.rim)),
+            )
+          : BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              boxShadow: [
+                BoxShadow(
+                  blurRadius: 4,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.shadow.withValues(alpha: 0.1),
+                ),
+              ],
+            ),
       child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

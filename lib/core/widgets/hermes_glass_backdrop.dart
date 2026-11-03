@@ -139,8 +139,8 @@ class _RimPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.center,
         colors: [
-          const Color(0xFFFFFFFF).withValues(alpha: dark ? 0.07 : 0.18),
-          const Color(0x00FFFFFF),
+          HermesGlassInk.light.withValues(alpha: dark ? 0.07 : 0.18),
+          HermesGlassInk.clearLight,
         ],
       ).createShader(rect);
     canvas.drawRRect(rrect, sheen);

@@ -388,11 +388,7 @@ class _MaterialSwatch extends StatelessWidget {
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF2B4C5A),
-                        Color(0xFF6E5A7A),
-                        Color(0xFFC98E5B),
-                      ],
+                      colors: HermesGlassInk.dusk,
                     ),
                   ),
                   child: material.visible
