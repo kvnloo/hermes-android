@@ -592,7 +592,9 @@ void main() {
           f.expectChat(tester, null);
           if (revoke) await tester.runAsync(f.push.disable);
           push.complete();
-          await _until(tester, () => f.server.listReplies == 2);
+          // A live push lookup also scans offset 50 for continuations. That
+          // reply can arrive before a pump observes the transient count of 2.
+          await _until(tester, () => f.server.listReplies >= 2);
           await _until(tester, () => f.settledNavigations >= 2);
           await _drain(tester);
           f.expectChat(tester, revoke ? null : 'shared');
