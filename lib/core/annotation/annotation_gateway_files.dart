@@ -44,12 +44,9 @@ class AnnotationGatewayFiles {
       );
 
       final temp = await getTemporaryDirectory();
+      final documentId = const Uuid().v4();
       documentSource = File(
-        temp.path +
-            Platform.pathSeparator +
-            'annotation-document-' +
-            const Uuid().v4() +
-            '.json',
+        '${temp.path}${Platform.pathSeparator}annotation-document-$documentId.json',
       );
       await documentSource.writeAsString(
         jsonEncode(envelope.document),

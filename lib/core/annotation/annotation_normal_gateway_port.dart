@@ -138,7 +138,7 @@ class NormalGatewayAnnotationSendPort implements AnnotationSendPort {
     });
     return completed.future.whenComplete(() {
       deadline?.cancel();
-      if (subscription != null) chat.unsubscribe(subscription!);
+      if (subscription != null) chat.unsubscribe(subscription);
     });
   }
 }

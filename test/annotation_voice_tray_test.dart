@@ -139,7 +139,7 @@ void main() {
               port: _ImmediatePort(),
             ),
             beforeRecording: () async {},
-            onConfirmed: (_, __) async {},
+            onConfirmed: (_, _) async {},
             handsFreeSpeechEnabled: () => false,
             speakReply: (_) async {},
             voiceAdapter: fakeVoice,

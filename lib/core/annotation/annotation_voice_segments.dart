@@ -53,7 +53,7 @@ class AnnotationVoiceSegments {
       if (words.isEmpty) return null;
       final end = _clock();
       final segment = Segment(
-        id: 'mic-' + start.toString() + '-' + (_sequence++).toString(),
+        id: 'mic-$start-${_sequence++}',
         text: words,
         start: start,
         end: end < start ? start : end,
