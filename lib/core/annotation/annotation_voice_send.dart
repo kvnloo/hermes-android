@@ -169,9 +169,11 @@ final class AnnotationSendReservation {
   const AnnotationSendReservation({
     required this.turnId,
     required this.submitOnce,
+    this.cancelUnsent,
   });
   final String turnId;
   final Future<AnnotationReceipt> Function() submitOnce;
+  final void Function()? cancelUnsent;
 }
 
 /// Implemented using the existing chat owner's reservation/steer and durable
@@ -261,18 +263,25 @@ class AnnotationVoiceSendController {
         mode: mode,
       );
       // Durable write-ahead MUST complete before invoking the wire callback.
-      await store.write(pending);
+      // A failed write proves we never attempted the wire: release only the
+      // local reservation so the original chat is not stuck preparing.
+      try {
+        await store.write(pending);
+      } catch (_) {
+        prepared.cancelUnsent?.call();
+        rethrow;
+      }
 
       // A normal Hermes submit may await an entire streamed response. Observe
       // its receipt concurrently; never mistake Future completion for an ack.
-      final submit = prepared.submitOnce().then((result) async {
-        if (result.kind == AnnotationReceiptKind.pending) {
-          return Completer<AnnotationReceipt>().future;
-        }
-        return result;
-      }, onError: (Object _) => const AnnotationReceipt(
-        AnnotationReceiptKind.failed,
-      ));
+      final Future<AnnotationReceipt> submit =
+          prepared.submitOnce().then<AnnotationReceipt>(
+        (result) => result.kind == AnnotationReceiptKind.pending
+            ? Completer<AnnotationReceipt>().future
+            : result,
+        onError: (Object _) =>
+            const AnnotationReceipt(AnnotationReceiptKind.failed),
+      );
       final observation = _receipt(pending);
       final received = await Future.any<AnnotationReceipt>([
         submit,
