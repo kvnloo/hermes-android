@@ -44,16 +44,28 @@ final class AnnotationSendEnvelope {
 /// Includes every stroke coordinate, tool, pressure and time, plus original
 /// timestamped segment data. Excludes snapshot creation time and unrelated UI.
 String annotationFingerprint(List<Stroke> strokes, List<Segment> segments) {
-  final document = annotationDoc(
-    strokes: strokes,
-    segments: segments,
-    screen: const ScreenInfo(id: '', route: '', width: 1, height: 1),
-    createdAt: 0,
-  );
-  return sha256.convert(utf8.encode(jsonEncode([
-    document['strokes'],
-    document['transcript'],
-  ]))).toString();
+  // Hash the raw samples, not the display-oriented rounded wire document:
+  // even a tiny edit to ink pressure/coordinates must invalidate the receipt.
+  final raw = <Object?>[
+    [
+      for (final stroke in strokes)
+        <String, Object?>{
+          'id': stroke.id,
+          'tool': stroke.tool,
+          'color': stroke.color,
+          'pointer': stroke.pointer,
+          'startedAt': stroke.startedAt,
+          'endedAt': stroke.endedAt,
+          'targets': stroke.targets,
+          'points': [
+            for (final point in stroke.points)
+              [point.x, point.y, point.p, point.t],
+          ],
+        },
+    ],
+    [for (final segment in segments) segment.toJson()],
+  ];
+  return sha256.convert(utf8.encode(jsonEncode(raw))).toString();
 }
 
 final class AnnotationPendingTurn {
