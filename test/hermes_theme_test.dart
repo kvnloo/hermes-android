@@ -103,7 +103,7 @@ void main() {
   });
 
   group('HermesPalette', () {
-    test('has exactly ten stable storage IDs in the agreed order', () {
+    test('has exactly eleven stable storage IDs in the agreed order', () {
       expect(HermesPalette.values.map((palette) => palette.name), [
         'gold',
         'purple',
@@ -115,10 +115,11 @@ void main() {
         'pink',
         'indigo',
         'cyan',
+        'mono',
       ]);
       expect(
         HermesPalette.values.map((palette) => palette.seedColor).toSet(),
-        hasLength(10),
+        hasLength(11),
       );
       for (final palette in HermesPalette.values) {
         expect(palette.displayName, isNotEmpty);
@@ -147,7 +148,10 @@ void main() {
           (scheme) => scheme.surfaceContainerLow,
           (scheme) => scheme.surfaceContainerHighest,
         ]) {
-          expect(schemes.map(role).toSet(), hasLength(10));
+          expect(
+            schemes.map(role).toSet(),
+            hasLength(HermesPalette.values.length),
+          );
         }
       }
     });
