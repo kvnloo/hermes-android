@@ -16,13 +16,38 @@ import 'package:hermes_android/core/l10n/l10n.dart';
 /// builder (which leaves its internal inline state unbalanced).
 List<Object> splitMarkdownCodeBlocks(String content) {
   final result = <Object>[];
+  // Preserve main's splitting semantics for all ordinary fenced code.
   final regex = RegExp(
-    r'^[ ]{0,3}```([\w+-]*)[ \t]*\r?\n([\s\S]*?)^[ ]{0,3}```[ \t]*(?=\r?\n|$)',
+    r'```([\w+-]*)[ \t]*\r?\n([\s\S]*?)```',
+    multiLine: true,
+  );
+  // OpenUI alone must close on its own line before rendering a board.
+  final openUiRegex = RegExp(
+    r'```openui-v2[ \t]*\r?\n([\s\S]*?)^[ ]{0,3}```[ \t]*(?=\r?\n|$)',
     multiLine: true,
   );
   var cursor = 0;
 
   for (final match in regex.allMatches(content)) {
+    if (match.start < cursor) continue;
+
+    if (match.group(1) == 'openui-v2') {
+      final completed = openUiRegex.matchAsPrefix(content, match.start);
+      // An inline triple-backtick inside an unfinished board is not a close.
+      if (completed == null) break;
+      if (match.start > cursor) {
+        result.add(content.substring(cursor, match.start));
+      }
+      result.add(
+        MarkdownCodeBlock(
+          code: completed.group(1)!,
+          language: 'openui-v2',
+        ),
+      );
+      cursor = completed.end;
+      continue;
+    }
+
     if (match.start > cursor) {
       result.add(content.substring(cursor, match.start));
     }
