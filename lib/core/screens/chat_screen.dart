@@ -6452,6 +6452,18 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           ),
         ),
         actions: [
+          if (_annotationWired || _annotationInk.active)
+            IconButton(
+              key: const Key('annotation-mode-toggle'),
+              tooltip: _annotationInk.active
+                  ? context.l10n.close
+                  : context.l10n.edit,
+              icon: Icon(
+                _annotationInk.active ? Icons.draw : Icons.draw_outlined,
+              ),
+              isSelected: _annotationInk.active,
+              onPressed: _annotationInk.toggle,
+            ),
           if (_archiving)
             const Padding(
               padding: EdgeInsets.only(right: 8),
@@ -6608,7 +6620,20 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                       Expanded(
                         child: Stack(
                           children: [
-                            Positioned.fill(child: _buildBody()),
+                            Positioned.fill(
+                              child: RepaintBoundary(
+                                key: _annotationCaptureKey,
+                                child: Stack(
+                                  children: [
+                                    Positioned.fill(child: _buildBody()),
+                                    if (_annotationInk.active)
+                                      Positioned.fill(
+                                        child: InkOverlay(controller: _annotationInk),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
                             if (_endAffordanceController.isVisible ||
                                 _canFocusSavedRecovery)
                               Positioned(
@@ -6626,7 +6651,61 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           ],
                         ),
                       ),
-                      _buildInputBar(availableHeight: viewport.maxHeight),
+                      if (_annotationWired)
+                        Offstage(
+                          offstage: !_annotationInk.active,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    key: const Key('annotation-undo-stroke'),
+                                    tooltip: context.l10n.edit,
+                                    onPressed: _annotationInk.drawing.past.isEmpty
+                                        ? null
+                                        : _annotationInk.undoStroke,
+                                    icon: const Icon(Icons.undo),
+                                  ),
+                                  IconButton(
+                                    key: const Key('annotation-clear-strokes'),
+                                    tooltip: context.l10n.delete,
+                                    onPressed: _annotationInk.drawing.strokes.isEmpty
+                                        ? null
+                                        : _annotationInk.clearStrokes,
+                                    icon: const Icon(Icons.delete_outline),
+                                  ),
+                                ],
+                              ),
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxHeight: viewport.maxHeight * 0.52,
+                                ),
+                                child: SingleChildScrollView(
+                                  child: AnnotationVoiceTray(
+                                    key: ValueKey('annotation-tray-${widget.session.id}'),
+                                    active: _annotationInk.active,
+                                    conversationId: widget.session.id,
+                                    screen: _annotationScreenInfo(),
+                                    currentScreen: _annotationScreenInfo,
+                                    currentStrokes: _annotationStrokes,
+                                    sender: _annotationSender!,
+                                    beforeRecording: _beforeAnnotationRecording,
+                                    onConfirmed: _annotationConfirmed,
+                                    handsFreeSpeechEnabled: _annotationSpeechAllowed,
+                                    speakReply: _speakAssistantText,
+                                    onFinalTurn: (id) =>
+                                        _annotationReplyObserver?.watch(id),
+                                    localeId: _sttLocaleId,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (!_annotationInk.active || !_annotationWired)
+                        _buildInputBar(availableHeight: viewport.maxHeight),
                     ],
                   ),
                 ),
