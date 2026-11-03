@@ -53,7 +53,8 @@ class AnnotationChatShell extends StatelessWidget {
     super.key,
   });
 
-  final AnnotationController controller;
+  /// The chat/voice route owns this controller. Null means no annotation owner.
+  final AnnotationController? controller;
   final GlobalKey boundaryKey;
   final VoidCallback onCapture;
   final bool capturing;
@@ -63,17 +64,19 @@ class AnnotationChatShell extends StatelessWidget {
     if (event.kind != PointerDeviceKind.stylus) return;
     final pressed =
         (event.buttons & (kPrimaryStylusButton | kSecondaryStylusButton)) != 0;
-    controller.stylusButton(pressed);
+    controller?.stylusButton(pressed);
   }
 
   void _releaseStylus(PointerEvent event) {
     if (event.kind == PointerDeviceKind.stylus) {
-      controller.stylusButton(false);
+      controller?.stylusButton(false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final ink = controller;
+    if (ink == null) return child;
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerHover: _observeStylus,
@@ -86,15 +89,15 @@ class AnnotationChatShell extends StatelessWidget {
         children: <Widget>[
           RepaintBoundary(key: boundaryKey, child: child),
           AnimatedBuilder(
-            animation: controller,
+            animation: ink,
             builder: (context, _) {
-              if (!controller.active) return const SizedBox.shrink();
+              if (!ink.active) return const SizedBox.shrink();
               final colors = Theme.of(context).colorScheme;
               final l10n = context.l10n;
               return Stack(
                 fit: StackFit.expand,
                 children: <Widget>[
-                  Positioned.fill(child: InkOverlay(controller: controller)),
+                  Positioned.fill(child: InkOverlay(controller: ink)),
                   Positioned(
                     top: 8,
                     right: 8,
@@ -108,19 +111,19 @@ class AnnotationChatShell extends StatelessWidget {
                           IconButton(
                             key: const Key('annotation-undo'),
                             tooltip: l10n.annotation_undo,
-                            onPressed: controller.drawing.past.isEmpty &&
-                                    controller.live == null
+                            onPressed: ink.drawing.past.isEmpty &&
+                                    ink.live == null
                                 ? null
-                                : controller.undoStroke,
+                                : ink.undoStroke,
                             icon: const Icon(Icons.undo),
                           ),
                           IconButton(
                             key: const Key('annotation-clear'),
                             tooltip: l10n.annotation_clear,
-                            onPressed: controller.drawing.strokes.isEmpty &&
-                                    controller.live == null
+                            onPressed: ink.drawing.strokes.isEmpty &&
+                                    ink.live == null
                                 ? null
-                                : controller.clearStrokes,
+                                : ink.clearStrokes,
                             icon: const Icon(Icons.layers_clear_outlined),
                           ),
                           IconButton(
@@ -139,7 +142,7 @@ class AnnotationChatShell extends StatelessWidget {
                           IconButton(
                             key: const Key('annotation-exit'),
                             tooltip: l10n.annotation_exit,
-                            onPressed: capturing ? null : controller.toggle,
+                            onPressed: capturing ? null : ink.toggle,
                             icon: const Icon(Icons.close),
                           ),
                         ],
