@@ -1000,5 +1000,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "openui_show_source": "Mostrar código fuente",
+  "openui_hide_source": "Ocultar código fuente",
+  "openui_board_unavailable": "No se pudo mostrar este panel. El código fuente aparece abajo.",
+  "openui_board_incomplete": "Este panel está incompleto. El código fuente aparece abajo.",
+  "openui_board_unsupported": "Este panel contiene un elemento que Android aún no admite. El código fuente aparece abajo.",
+  "openui_read_only": "Solo lectura · los toques consultan valores locales"
 }
