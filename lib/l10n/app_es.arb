@@ -1000,5 +1000,10 @@
         "type": "String"
       }
     }
-  }
+  },
+  "annotation_mode": "Anotar pantalla",
+  "annotation_undo": "Deshacer anotación",
+  "annotation_clear": "Borrar marcas",
+  "annotation_snapshot": "Adjuntar captura anotada",
+  "annotation_exit": "Salir del modo de anotación"
 }

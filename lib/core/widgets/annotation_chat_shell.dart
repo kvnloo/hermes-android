@@ -1,0 +1,123 @@
+import 'dart:ui' show PointerDeviceKind;
+
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+
+import '../controllers/annotation_controller.dart';
+import '../l10n/l10n.dart';
+import 'ink_overlay.dart';
+
+/// A chat-only drawing layer; the RepaintBoundary is strictly below the ink.
+/// It never changes the chat/composer geometry while a capture is in flight.
+class AnnotationChatShell extends StatelessWidget {
+  const AnnotationChatShell({
+    required this.controller,
+    required this.boundaryKey,
+    required this.onCapture,
+    required this.capturing,
+    required this.child,
+    super.key,
+  });
+
+  final AnnotationController controller;
+  final GlobalKey boundaryKey;
+  final VoidCallback onCapture;
+  final bool capturing;
+  final Widget child;
+
+  void _observeStylus(PointerEvent event) {
+    if (event.kind != PointerDeviceKind.stylus) return;
+    final pressed =
+        (event.buttons & (kPrimaryStylusButton | kSecondaryStylusButton)) != 0;
+    controller.stylusButton(pressed);
+  }
+
+  void _releaseStylus(PointerEvent event) {
+    if (event.kind == PointerDeviceKind.stylus) {
+      controller.stylusButton(false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerHover: _observeStylus,
+      onPointerDown: _observeStylus,
+      onPointerMove: _observeStylus,
+      onPointerUp: _releaseStylus,
+      onPointerCancel: _releaseStylus,
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          RepaintBoundary(key: boundaryKey, child: child),
+          AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) {
+              if (!controller.active) return const SizedBox.shrink();
+              final colors = Theme.of(context).colorScheme;
+              final l10n = context.l10n;
+              return Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  Positioned.fill(child: InkOverlay(controller: controller)),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Material(
+                      elevation: 2,
+                      color: colors.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          IconButton(
+                            key: const Key('annotation-undo'),
+                            tooltip: l10n.annotation_undo,
+                            onPressed: controller.drawing.past.isEmpty &&
+                                    controller.live == null
+                                ? null
+                                : controller.undoStroke,
+                            icon: const Icon(Icons.undo),
+                          ),
+                          IconButton(
+                            key: const Key('annotation-clear'),
+                            tooltip: l10n.annotation_clear,
+                            onPressed: controller.drawing.strokes.isEmpty &&
+                                    controller.live == null
+                                ? null
+                                : controller.clearStrokes,
+                            icon: const Icon(Icons.layers_clear_outlined),
+                          ),
+                          IconButton(
+                            key: const Key('annotation-snapshot'),
+                            tooltip: l10n.annotation_snapshot,
+                            onPressed: capturing ? null : onCapture,
+                            icon: capturing
+                                ? const SizedBox.square(
+                                    dimension: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.add_photo_alternate_outlined),
+                          ),
+                          IconButton(
+                            key: const Key('annotation-exit'),
+                            tooltip: l10n.annotation_exit,
+                            onPressed: capturing ? null : controller.toggle,
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}

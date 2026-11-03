@@ -1144,5 +1144,10 @@
         "type": "String"
       }
     }
-  }
+  },
+  "annotation_mode": "Annotate screen",
+  "annotation_undo": "Undo annotation",
+  "annotation_clear": "Clear markings",
+  "annotation_snapshot": "Attach annotated screenshot",
+  "annotation_exit": "Exit annotation mode"
 }

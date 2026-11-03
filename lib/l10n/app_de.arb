@@ -1000,5 +1000,10 @@
         "type": "String"
       }
     }
-  }
+  },
+  "annotation_mode": "Bildschirm annotieren",
+  "annotation_undo": "Anmerkung rückgängig",
+  "annotation_clear": "Markierungen löschen",
+  "annotation_snapshot": "Markierten Screenshot anhängen",
+  "annotation_exit": "Anmerkungsmodus beenden"
 }

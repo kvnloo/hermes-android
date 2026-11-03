@@ -1000,5 +1000,10 @@
         "type": "String"
       }
     }
-  }
+  },
+  "annotation_mode": "화면에 주석 달기",
+  "annotation_undo": "주석 실행 취소",
+  "annotation_clear": "표시 지우기",
+  "annotation_snapshot": "주석이 있는 스크린샷 첨부",
+  "annotation_exit": "주석 모드 종료"
 }

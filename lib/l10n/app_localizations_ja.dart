@@ -3496,4 +3496,19 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get provider_oauth_account_status_unknown => 'ホストのアカウント状態を取得できません。';
+
+  @override
+  String get annotation_mode => '画面に書き込む';
+
+  @override
+  String get annotation_undo => '注釈を元に戻す';
+
+  @override
+  String get annotation_clear => '書き込みを消去';
+
+  @override
+  String get annotation_snapshot => '注釈付きスクリーンショットを添付';
+
+  @override
+  String get annotation_exit => '注釈モードを終了';
 }

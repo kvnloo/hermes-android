@@ -1000,5 +1000,10 @@
         "type": "String"
       }
     }
-  }
+  },
+  "annotation_mode": "Аннотировать экран",
+  "annotation_undo": "Отменить аннотацию",
+  "annotation_clear": "Очистить пометки",
+  "annotation_snapshot": "Прикрепить снимок с пометками",
+  "annotation_exit": "Выйти из режима аннотаций"
 }

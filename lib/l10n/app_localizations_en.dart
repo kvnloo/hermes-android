@@ -3568,4 +3568,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get provider_oauth_account_status_unknown =>
       'Host account status unavailable.';
+
+  @override
+  String get annotation_mode => 'Annotate screen';
+
+  @override
+  String get annotation_undo => 'Undo annotation';
+
+  @override
+  String get annotation_clear => 'Clear markings';
+
+  @override
+  String get annotation_snapshot => 'Attach annotated screenshot';
+
+  @override
+  String get annotation_exit => 'Exit annotation mode';
 }

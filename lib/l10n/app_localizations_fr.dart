@@ -3604,4 +3604,19 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get provider_oauth_account_status_unknown =>
       'État du compte sur le serveur indisponible.';
+
+  @override
+  String get annotation_mode => 'Annoter l’écran';
+
+  @override
+  String get annotation_undo => 'Annuler l’annotation';
+
+  @override
+  String get annotation_clear => 'Effacer les marques';
+
+  @override
+  String get annotation_snapshot => 'Joindre la capture annotée';
+
+  @override
+  String get annotation_exit => 'Quitter le mode annotation';
 }

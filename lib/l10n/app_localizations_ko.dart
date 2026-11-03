@@ -3497,4 +3497,19 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get provider_oauth_account_status_unknown => '호스트 계정 상태를 확인할 수 없습니다.';
+  @override
+  String get annotation_mode => '화면에 주석 달기';
+
+  @override
+  String get annotation_undo => '주석 실행 취소';
+
+  @override
+  String get annotation_clear => '표시 지우기';
+
+  @override
+  String get annotation_snapshot => '주석이 있는 스크린샷 첨부';
+
+  @override
+  String get annotation_exit => '주석 모드 종료';
+
 }

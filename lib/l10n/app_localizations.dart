@@ -6039,6 +6039,21 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Host account status unavailable.'**
   String get provider_oauth_account_status_unknown;
+
+  /// Annotate screen
+  String get annotation_mode;
+
+  /// Undo annotation
+  String get annotation_undo;
+
+  /// Clear markings
+  String get annotation_clear;
+
+  /// Attach annotated screenshot
+  String get annotation_snapshot;
+
+  /// Exit annotation mode
+  String get annotation_exit;
 }
 
 class _AppLocalizationsDelegate

@@ -25,12 +25,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../controllers/annotation_controller.dart';
 import '../controllers/voice_composer_controller.dart';
 import '../controllers/delegated_task_controller.dart';
 import '../services/delegated_task_history.dart';
 import '../widgets/delegated_task_timeline.dart';
 import '../widgets/delegated_task_labels.dart';
 import '../services/connection_manager.dart';
+import '../services/annotation_snapshot.dart';
 import '../services/attachment_draft_service.dart';
 import '../services/chat_presentation_state.dart';
 import '../services/chat_model_override_store.dart';
@@ -82,6 +84,7 @@ import '../widgets/chat_context_header.dart';
 import '../widgets/chat_activity_bar.dart';
 import '../widgets/markdown_code_block.dart';
 import '../widgets/markdown_link_handler.dart';
+import '../widgets/annotation_chat_shell.dart';
 import '../widgets/attachment_draft_tile.dart';
 import '../widgets/chat_end_affordance.dart';
 import '../widgets/received_recovery_inspector.dart';
@@ -537,6 +540,9 @@ class ChatScreen extends StatefulWidget {
   final AttachmentDraftService? testAttachmentDraftService;
 
   @visibleForTesting
+  final AnnotationSnapshotCapture? testAnnotationSnapshotCapture;
+
+  @visibleForTesting
   final TestRemotePromptSubmit? testRemotePromptSubmit;
 
   @visibleForTesting
@@ -620,6 +626,7 @@ class ChatScreen extends StatefulWidget {
     this.testTurnApplicationSession,
     this.testApiClient,
     this.testAttachmentDraftService,
+    this.testAnnotationSnapshotCapture,
     this.testRemotePromptSubmit,
     this.testNormalResume,
     this.testServerFilePicker,
@@ -721,6 +728,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   late final ApiClient _client;
   late final GatewayChatClient _gateway;
   late final AttachmentDraftService _attachmentDraftService;
+  late final AnnotationSnapshotCapture _annotationSnapshotCapture;
+  final AnnotationController _annotationController = AnnotationController();
+  final GlobalKey _annotationBoundaryKey = GlobalKey();
+  bool _annotationSnapshotInProgress = false;
+  bool _annotationMenuActive = false;
   late final AttachmentDraftSendCoordinator _attachmentSendCoordinator;
   late final Future<ChatModelOverrideStore> _chatModelStore;
   late final Future<void> _sessionModelRestore;
@@ -884,6 +896,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _annotationController.addListener(_onAnnotationModeChanged);
+    _annotationSnapshotCapture =
+        widget.testAnnotationSnapshotCapture ?? const AnnotationSnapshotCapture();
     _notificationApprovalOrigin = NotificationApprovalAuthority.origin(
       widget.connection,
     );
@@ -1662,6 +1677,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _annotationController
+      ..removeListener(_onAnnotationModeChanged)
+      ..dispose();
     final pendingSubmission = _recoverableSubmissionState;
     if (pendingSubmission != null && !pendingSubmission.isCompleted) {
       pendingSubmission.complete();
@@ -3546,6 +3564,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         (_turnApplicationSession != null && !_legacyTransportFallback);
     if (!remote ||
         _preparingPaste ||
+        _annotationSnapshotInProgress ||
         _sending ||
         _streaming ||
         _preparingSend ||
@@ -3604,7 +3623,107 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
   }
 
+  void _onAnnotationModeChanged() {
+    final active = _annotationController.active;
+    if (mounted && _annotationMenuActive != active) {
+      setState(() => _annotationMenuActive = active);
+    }
+  }
+
+  /// Reserve capacity before capture without inserting a tile (which would
+  /// move the very conversation under the marks). Commit the tile afterward.
+  /// No turn is sent; failed capture/preparation never discards the drawing.
+  Future<void> _attachAnnotationSnapshot() async {
+    if (!mounted ||
+        !_annotationController.active ||
+        _annotationSnapshotInProgress ||
+        _preparingPaste ||
+        _preparingSend ||
+        _sending ||
+        _streaming ||
+        _pendingReattachResync ||
+        _transcriptLoadBlocksComposer) {
+      return;
+    }
+    final remote =
+        (_turnApplicationSession != null && !_legacyTransportFallback) ||
+        _desktopGateway != null ||
+        widget.testRemotePromptSubmit != null;
+    if (remote && _attachmentDrafts.length >= maxRemoteAttachmentDrafts) {
+      _showAttachmentError(
+        context.l10n.you_can_attach_up_to_items(maxRemoteAttachmentDrafts),
+      );
+      return;
+    }
+    if (!remote && _attachmentDrafts.isNotEmpty) {
+      _showAttachmentError(
+        context.l10n.unable_to_prepare_this_image_try_another_one,
+      );
+      return;
+    }
+    _annotationController.finishStroke();
+    final drawing = _annotationController.drawing;
+    final scheme = Theme.of(context).colorScheme;
+    final ratio = MediaQuery.devicePixelRatioOf(context);
+    final timestamp = DateTime.now().toUtc().toIso8601String()
+        .replaceAll(RegExp(r'[:.]'), '-');
+    final existing = List<AttachmentDraft>.of(_attachmentDrafts);
+    setState(() => _annotationSnapshotInProgress = true);
+    AttachmentDraft? prepared;
+    try {
+      // Allow the slot reservation to settle without changing the composer.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final png = await _annotationSnapshotCapture.capture(
+        boundaryKey: _annotationBoundaryKey,
+        drawing: drawing,
+        accent: scheme.primary,
+        red: scheme.error,
+        eraserColor: scheme.onSurface,
+        pixelRatio: ratio,
+      );
+      prepared = await _attachmentDraftService.prepareCapturedPng(
+        pngBytes: png,
+        displayName: 'annotation-$timestamp.png',
+        existingDrafts: existing,
+        mode: remote
+            ? AttachmentDraftMode.remoteGateway
+            : AttachmentDraftMode.rest,
+      );
+      if (!mounted) return;
+      // Another picker may have completed while the boundary was encoding.
+      // Revalidate before changing any composer geometry or attachments.
+      if (remote) {
+        _attachmentDraftService.validateRemoteDrafts([
+          ..._attachmentDrafts,
+          prepared,
+        ]);
+      } else if (_attachmentDrafts.isNotEmpty) {
+        throw const AttachmentDraftException(
+          'The existing attachment must be removed before a screenshot.',
+        );
+      }
+      final ready = prepared;
+      setState(() => _attachmentDrafts.add(ready!));
+      prepared = null;
+    } on AttachmentDraftException catch (error) {
+      _showAttachmentError(error.message);
+    } catch (_) {
+      if (mounted) {
+        _showAttachmentError(
+          context.l10n.unable_to_prepare_this_image_try_another_one,
+        );
+      }
+    } finally {
+      if (prepared != null) {
+        await _attachmentDraftService.removeCachedFile(prepared);
+      }
+      if (mounted) setState(() => _annotationSnapshotInProgress = false);
+    }
+  }
+
   Future<void> _showAttachmentPicker() async {
+    if (_annotationSnapshotInProgress) return;
     await _handsFree.stop(reason: HandsFreeStopReason.attachmentAction);
     if (!mounted) return;
     if (_transcriptLoadBlocksComposer ||
@@ -4218,6 +4337,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
     if (_voiceComposer.listening ||
         _startingVoiceInput ||
+        _annotationSnapshotInProgress ||
         _preparingPaste ||
         _preparingSend ||
         _archiving ||
@@ -6463,6 +6583,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   _fetchMessages(focusSavedHistory: true);
                 }
                 if (action == 'export') _exportConversation();
+                if (action == 'annotation-mode') _annotationController.toggle();
                 if (action == 'received-output-info') {
                   unawaited(_showReceivedOutputDetails());
                 }
@@ -6473,6 +6594,16 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 }
               },
               itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'annotation-mode',
+                  child: ListTile(
+                    leading: Icon(Icons.draw_outlined),
+                    title: Text(context.l10n.annotation_mode),
+                    trailing: _annotationMenuActive
+                        ? const Icon(Icons.check)
+                        : null,
+                  ),
+                ),
                 PopupMenuItem(
                   value: 'rename',
                   enabled: _canRename,
@@ -6525,8 +6656,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           ],
         ],
       ),
-      body: Center(
-        child: ConstrainedBox(
+      body: AnnotationChatShell(
+        controller: _annotationController,
+        boundaryKey: _annotationBoundaryKey,
+        onCapture: () => unawaited(_attachAnnotationSnapshot()),
+        capturing: _annotationSnapshotInProgress,
+        child: Center(
+          child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: Responsive.isTablet(context) ? 800 : double.infinity,
           ),
@@ -6591,6 +6727,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -6666,6 +6803,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
     final sendEnabled =
         !_transcriptLoadBlocksComposer &&
+        !_annotationSnapshotInProgress &&
         !_preparingPaste &&
         !_startingVoiceInput &&
         !_archiving &&
