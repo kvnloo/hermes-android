@@ -21,13 +21,13 @@ heat = Heatmap("Activity (UTC)", "turns", ["Mon", "Tue", "Wed"], ["00:00", "06:0
 
 void main() {
   test('all three real source-demo fences resolve into typed board panels', () {
-    final cases = <(String, String, List<String>, int)>[
-      (_treemap, 'Repository size and churn', ['Treemap', 'BarChart'], 4),
-      (_stacked, 'Turns by model', ['StackedArea'], 3),
-      (_heatmap, 'Activity by day and hour', ['Heatmap'], 3),
+    final cases = <(String, String, List<String>)>[
+      (_treemap, 'Repository size and churn', ['Treemap', 'BarChart']),
+      (_stacked, 'Turns by model', ['StackedArea']),
+      (_heatmap, 'Activity by day and hour', ['Heatmap']),
     ];
 
-    for (final (source, title, types, _) in cases) {
+    for (final (source, title, types) in cases) {
       final parsed = OpenUiLang.parse(source);
       expect(parsed.status, OpenUiParseStatus.ready, reason: title);
       expect(parsed.problem, isNull);
@@ -167,5 +167,15 @@ second = BarChart("B", "", [{label:"b", value: 2}])
         '0' +
         List.filled(90, ']').join();
     expect(OpenUiLang.parse(deeplyNested).status, OpenUiParseStatus.invalid);
+
+    final deepRefs = [
+      for (var i = 0; i < 100; i++)
+        'v' + i.toString() + ' = v' + (i + 1).toString(),
+      'v100 = 1',
+      'root = v0',
+    ].join('\n');
+    final result = OpenUiLang.parse(deepRefs);
+    expect(result.status, OpenUiParseStatus.invalid);
+    expect(result.problem!.message, contains('Reference depth'));
   });
 }
