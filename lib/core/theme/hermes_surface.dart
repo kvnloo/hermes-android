@@ -256,10 +256,20 @@ class HermesSurface extends ThemeExtension<HermesSurface> {
   /// blurred average). Below this, secondary text fails on mid tones.
   static double tintFloor(HermesTokens tokens) => math.min(
     tintMax,
-    minTintFor(
-      text: tokens.muted,
-      tint: tokens.surface,
-      wallpaper: HermesGlassInk.probeMid,
+    math.max(
+      minTintFor(
+        text: tokens.muted,
+        tint: tokens.surface,
+        wallpaper: HermesGlassInk.probeMid,
+      ),
+      // Body text also survives a bright region (sky, water highlights).
+      minTintFor(
+        text: tokens.onSurface,
+        tint: tokens.surface,
+        wallpaper: tokens.brightness == Brightness.dark
+            ? HermesGlassInk.probeBright
+            : HermesGlassInk.probeDim,
+      ),
     ),
   );
 

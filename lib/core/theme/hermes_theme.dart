@@ -44,6 +44,10 @@ abstract final class HermesGlassInk {
   static const Color light = Color(0xFFFFFFFF);
   static const Color clearLight = Color(0x00FFFFFF);
   static const Color probeMid = Color(0xFF808080);
+  static const Color probeBright = Color(0xFFB3B3B3);
+  static const Color probeDim = Color(0xFF4D4D4D);
+  static const Color textHalo = Color(0x73000000);
+  static const Color textGlow = Color(0x8CFFFFFF);
   static const Color probeWhite = Color(0xFFFFFFFF);
   static const Color probeBlack = Color(0xFF000000);
   static const Color none = Color(0x00000000);
@@ -465,10 +469,10 @@ ThemeData hermesTheme(
     scaffoldBackgroundColor: tokens.surface,
     canvasColor: tokens.surface,
     disabledColor: tokens.muted,
-    textTheme: tokens.typography.applyTo(
-      base.textTheme,
-      tokens.onSurface,
-      tokens.muted,
+    textTheme: _withGlassHalo(
+      tokens.typography.applyTo(base.textTheme, tokens.onSurface, tokens.muted),
+      glass.glass,
+      brightness,
     ),
     // Keep the base IconTheme: globally replacing its color overrides the
     // correct onPrimary/onSecondaryContainer defaults of filled IconButtons.
@@ -772,6 +776,39 @@ ThemeData hermesTheme(
           )
         : null,
     extensions: <ThemeExtension<dynamic>>[tokens, glass],
+  );
+}
+
+/// Glass text sits on a live wallpaper: a soft halo (dark under light text,
+/// glow under dark text) keeps letterforms legible over bright highlights
+/// without darkening the whole pane.
+TextTheme _withGlassHalo(TextTheme theme, bool glass, Brightness brightness) {
+  if (!glass) return theme;
+  final halo = [
+    Shadow(
+      color: brightness == Brightness.dark
+          ? HermesGlassInk.textHalo
+          : HermesGlassInk.textGlow,
+      blurRadius: 6,
+    ),
+  ];
+  TextStyle? lift(TextStyle? style) => style?.copyWith(shadows: halo);
+  return theme.copyWith(
+    displayLarge: lift(theme.displayLarge),
+    displayMedium: lift(theme.displayMedium),
+    displaySmall: lift(theme.displaySmall),
+    headlineLarge: lift(theme.headlineLarge),
+    headlineMedium: lift(theme.headlineMedium),
+    headlineSmall: lift(theme.headlineSmall),
+    titleLarge: lift(theme.titleLarge),
+    titleMedium: lift(theme.titleMedium),
+    titleSmall: lift(theme.titleSmall),
+    bodyLarge: lift(theme.bodyLarge),
+    bodyMedium: lift(theme.bodyMedium),
+    bodySmall: lift(theme.bodySmall),
+    labelLarge: lift(theme.labelLarge),
+    labelMedium: lift(theme.labelMedium),
+    labelSmall: lift(theme.labelSmall),
   );
 }
 

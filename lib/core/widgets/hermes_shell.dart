@@ -252,7 +252,12 @@ class _HermesShellState extends State<HermesShell> {
       child: NavigationBar(
         backgroundColor: surface.glass ? Colors.transparent : tokens.raised,
         indicatorColor: tokens.accentContainer,
-        height: surface.glass && surface.quietChrome ? 60 : null,
+        height: surface.quietChrome ? 60 : null,
+        // The local NavigationBarTheme replaces the inherited one, so quiet
+        // chrome must be applied here, not only in hermesTheme.
+        labelBehavior: surface.quietChrome
+            ? NavigationDestinationLabelBehavior.alwaysHide
+            : null,
         selectedIndex: _current.index,
         onDestinationSelected: (index) =>
             _select(HermesDestination.values[index]),
