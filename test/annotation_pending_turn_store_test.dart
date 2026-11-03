@@ -46,11 +46,13 @@ class _LostAckPort implements AnnotationSendPort {
   }
 }
 
-AnnotationSendEnvelope _envelope({String typed = 'Explain this screenshot'}) =>
-    AnnotationSendEnvelope(
+AnnotationSendEnvelope _envelope({
+  List<Segment> segments = const [],
+  String typed = 'Explain this screenshot',
+}) => AnnotationSendEnvelope(
       conversationId: 'chat-1',
       strokes: const [],
-      segments: const [],
+      segments: segments,
       screen: _screen,
       createdAt: 1000,
       typed: typed,
@@ -108,12 +110,23 @@ void main() {
     expect((await store.read())?.turnId, first.turn.turnId);
   });
 
-  test('changed draft cannot bypass an uncertain saved turn', () async {
+  test('changed speech cannot bypass an uncertain saved turn', () async {
     final store = PreferencesAnnotationPendingTurnStore('annotation-test');
     final port = _LostAckPort();
     await AnnotationVoiceSendController(store: store, port: port).send(_envelope());
     final sender = AnnotationVoiceSendController(store: store, port: port);
-    await expectLater(sender.send(_envelope(typed: 'changed')), throwsStateError);
+    await expectLater(
+      sender.send(_envelope(segments: const [
+        Segment(
+          id: 'spoken-after-send',
+          text: 'Changed voice',
+          start: 1,
+          end: 2,
+          source: 'mic',
+        ),
+      ])),
+      throwsStateError,
+    );
     expect(port.dispatches, 1);
   });
 
