@@ -102,7 +102,9 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       // Match the existing ChatScreen widget-test platform setup on main:
       // no Android image-picker plugin is installed in flutter_test.
-      const imagePickerChannel = MethodChannel('plugins.flutter.io/image_picker');
+      const imagePickerChannel = MethodChannel(
+        'plugins.flutter.io/image_picker',
+      );
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         imagePickerChannel,
         (_) async => null,
