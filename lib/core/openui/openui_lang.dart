@@ -178,8 +178,10 @@ final class _Scanner {
   _Scanner(this.source);
   final String source;
   static final _number =
-      RegExp(r'^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?');
-  static final _name = RegExp(r'^[A-Za-z_][A-Za-z_0-9]*');
+      RegExp(r'-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?');
+  static final _name = RegExp(r'[A-Za-z_][A-Za-z_0-9]*');
+  static final _nameStart = RegExp(r'[A-Za-z_]');
+  static final _numberStart = RegExp(r'[0-9-]');
   int _index = 0;
   int _line = 1;
   int _column = 1;
@@ -228,16 +230,16 @@ final class _Scanner {
         tokens.add(_Token(punctuation[c]!, _advance(), line, col));
         continue;
       }
-      if (RegExp(r'[A-Za-z_]').hasMatch(c)) {
-        final word = _name.firstMatch(source.substring(_index))!.group(0)!;
+      if (_nameStart.hasMatch(c)) {
+        final word = _name.matchAsPrefix(source, _index)!.group(0)!;
         for (var i = 0; i < word.length; i++) {
           _advance();
         }
         tokens.add(_Token(_Kind.name, word, line, col));
         continue;
       }
-      if (RegExp(r'[0-9-]').hasMatch(c)) {
-        final number = _number.firstMatch(source.substring(_index))?.group(0);
+      if (_numberStart.hasMatch(c)) {
+        final number = _number.matchAsPrefix(source, _index)?.group(0);
         if (number == null) throw _Fault('Invalid number.', line, col);
         for (var i = 0; i < number.length; i++) {
           _advance();
