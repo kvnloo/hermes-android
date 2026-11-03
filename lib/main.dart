@@ -28,6 +28,7 @@ import 'core/services/notification_prefs.dart';
 import 'core/services/hands_free_preference.dart';
 import 'core/services/lan_discovery_service.dart';
 import 'core/services/text_size_preference.dart';
+import 'core/services/glass_window_service.dart';
 import 'core/services/theme_preference.dart';
 import 'core/services/turn_notification_service.dart';
 import 'core/screens/chat_screen.dart';
@@ -43,6 +44,8 @@ import 'package:hermes_android/core/l10n/l10n.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // Fire-and-forget: Solid renders until the window reports it is glass.
+  unawaited(GlassWindowService.shared.init());
   // Remove any private key left behind by a cancelled connection import.
   unawaited(ClientCertificateService().cleanupStaging());
   runApp(const StartupApp());
@@ -172,10 +175,14 @@ class _StartupRecoveryApp extends StatelessWidget {
       theme: hermesTheme(
         Brightness.light,
         palette: ThemePreferenceStore(prefs).readPalette(),
+        surface: ThemePreferenceStore(prefs).readSurface(),
+        window: GlassWindowService.shared.capabilities,
       ),
       darkTheme: hermesTheme(
         Brightness.dark,
         palette: ThemePreferenceStore(prefs).readPalette(),
+        surface: ThemePreferenceStore(prefs).readSurface(),
+        window: GlassWindowService.shared.capabilities,
       ),
       builder: (context, child) => HermesSystemUi(child: child!),
       home: Builder(
@@ -416,6 +423,11 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
     );
     notificationPrefs.addListener(_syncOngoingChats);
     _mobilePush.addListener(_onMobilePushChanged);
+    GlassWindowService.shared.addListener(_onGlassWindowChanged);
+    // main() may have asked before the activity window finished configuring.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(GlassWindowService.shared.init()),
+    );
     notificationResponseHandler = _notificationHandler;
     ConnectionMutationBarrier.addListener(_pruneApprovalActions);
     // A notification that launched a terminated app carries its tap/action in
@@ -479,6 +491,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _background = false;
+      unawaited(GlassWindowService.shared.init());
       _restoreNormalSessions();
       if (_rootFrameReady) {
         if (!_backgroundPolicyReady) unawaited(_loadBackgroundPolicy());
@@ -1168,6 +1181,17 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
     }
   }
 
+  void _onGlassWindowChanged() {
+    final window = GlassWindowService.shared;
+    // Re-send the saved blur once the native window has reported in.
+    unawaited(
+      window.applyStyle(
+        ThemePreferenceStore(widget.connManager.prefs).readSurface(),
+      ),
+    );
+    refreshAppearancePreferences();
+  }
+
   /// Re-read preferences after a backup import without replacing the Navigator.
   void refreshAppearancePreferences() {
     if (mounted) setState(() {});
@@ -1186,10 +1210,14 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
       theme: hermesTheme(
         Brightness.light,
         palette: HermesApp.getThemePalette(widget.connManager.prefs),
+        surface: ThemePreferenceStore(widget.connManager.prefs).readSurface(),
+        window: GlassWindowService.shared.capabilities,
       ),
       darkTheme: hermesTheme(
         Brightness.dark,
         palette: HermesApp.getThemePalette(widget.connManager.prefs),
+        surface: ThemePreferenceStore(widget.connManager.prefs).readSurface(),
+        window: GlassWindowService.shared.capabilities,
       ),
       builder: (context, child) {
         final systemMediaQuery = MediaQuery.of(context);
@@ -1227,6 +1255,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
     _notificationChatRoutes.clear();
     ++_notificationGeneration;
     _mobilePush.removeListener(_onMobilePushChanged);
+    GlassWindowService.shared.removeListener(_onGlassWindowChanged);
     // Do not dispose MobilePushService.shared: a root remount must still work.
     notificationPrefs.removeListener(_syncOngoingChats);
     if (identical(notificationResponseHandler, _notificationHandler)) {

@@ -1000,5 +1000,30 @@
         "type": "String"
       }
     }
-  }
+  },
+  "theme_palette_mono": "Моно",
+  "theme_surface": "Поверхность",
+  "theme_surface_solid": "Сплошная",
+  "theme_surface_glass": "Стекло",
+  "theme_surface_glass_hint": "Обои просвечивают сквозь Hermes — размытые и затонированные, чтобы текст оставался читаемым.",
+  "theme_glass_clear": "Прозрачное",
+  "theme_glass_frost": "Иней",
+  "theme_glass_deep": "Глубокое",
+  "theme_glass_tint": "Тон",
+  "theme_glass_blur": "Размытие",
+  "theme_glass_blur_off": "Размытие сейчас выключено (энергосбережение или настройка устройства), поэтому тон усилен.",
+  "theme_material": "Материал",
+  "theme_material_none": "Нет",
+  "theme_material_water": "Вода",
+  "theme_material_quartz": "Кварц",
+  "theme_material_slate": "Сланец",
+  "theme_material_basalt": "Базальт",
+  "theme_material_limestone": "Известняк",
+  "theme_quiet_chrome": "Тихий интерфейс",
+  "theme_quiet_chrome_hint": "Скрыть подписи навигации и контуры карточек.",
+  "theme_liquid_chrome": "Жидкая навигация",
+  "theme_liquid_chrome_hint": "Стекло навигации преломляет то, что прокручивается под ним.",
+  "theme_surface_reload_title": "Перерисовать окно?",
+  "theme_surface_reload_body": "Hermes перезапустит окно, чтобы сменить поверхность. Чаты и черновики сохранятся.",
+  "theme_surface_reload_action": "Перерисовать"
 }

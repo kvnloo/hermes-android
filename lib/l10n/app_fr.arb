@@ -1000,5 +1000,30 @@
         "type": "String"
       }
     }
-  }
+  },
+  "theme_palette_mono": "Mono",
+  "theme_surface": "Surface",
+  "theme_surface_solid": "Opaque",
+  "theme_surface_glass": "Verre",
+  "theme_surface_glass_hint": "Votre fond d'écran transparaît derrière Hermes, flouté et teinté pour garder le texte lisible.",
+  "theme_glass_clear": "Clair",
+  "theme_glass_frost": "Givre",
+  "theme_glass_deep": "Profond",
+  "theme_glass_tint": "Teinte",
+  "theme_glass_blur": "Flou",
+  "theme_glass_blur_off": "Le flou est désactivé (économiseur de batterie ou réglage de l'appareil), la teinte est donc renforcée.",
+  "theme_material": "Matière",
+  "theme_material_none": "Aucune",
+  "theme_material_water": "Eau",
+  "theme_material_quartz": "Quartz",
+  "theme_material_slate": "Ardoise",
+  "theme_material_basalt": "Basalte",
+  "theme_material_limestone": "Calcaire",
+  "theme_quiet_chrome": "Interface discrète",
+  "theme_quiet_chrome_hint": "Masquer les libellés de navigation et les contours des cartes.",
+  "theme_liquid_chrome": "Navigation liquide",
+  "theme_liquid_chrome_hint": "Le verre de navigation courbe ce qui défile dessous.",
+  "theme_surface_reload_title": "Redessiner la fenêtre ?",
+  "theme_surface_reload_body": "Hermes redémarre sa fenêtre pour changer de surface. Les discussions et brouillons sont conservés.",
+  "theme_surface_reload_action": "Redessiner"
 }

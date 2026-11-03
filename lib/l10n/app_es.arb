@@ -1000,5 +1000,30 @@
         "type": "String"
       }
     }
-  }
+  },
+  "theme_palette_mono": "Mono",
+  "theme_surface": "Superficie",
+  "theme_surface_solid": "Sólida",
+  "theme_surface_glass": "Cristal",
+  "theme_surface_glass_hint": "Tu fondo de pantalla se ve a través de Hermes, desenfocado y teñido para que el texto siga legible.",
+  "theme_glass_clear": "Claro",
+  "theme_glass_frost": "Escarcha",
+  "theme_glass_deep": "Profundo",
+  "theme_glass_tint": "Tinte",
+  "theme_glass_blur": "Desenfoque",
+  "theme_glass_blur_off": "El desenfoque está desactivado (ahorro de batería o ajuste del dispositivo), así que el tinte sube.",
+  "theme_material": "Material",
+  "theme_material_none": "Ninguno",
+  "theme_material_water": "Agua",
+  "theme_material_quartz": "Cuarzo",
+  "theme_material_slate": "Pizarra",
+  "theme_material_basalt": "Basalto",
+  "theme_material_limestone": "Caliza",
+  "theme_quiet_chrome": "Interfaz discreta",
+  "theme_quiet_chrome_hint": "Oculta las etiquetas de navegación y los bordes de las tarjetas.",
+  "theme_liquid_chrome": "Navegación líquida",
+  "theme_liquid_chrome_hint": "El cristal de navegación curva lo que se desplaza debajo.",
+  "theme_surface_reload_title": "¿Redibujar la ventana?",
+  "theme_surface_reload_body": "Hermes reinicia su ventana para cambiar de superficie. Se conservan los chats y borradores.",
+  "theme_surface_reload_action": "Redibujar"
 }

@@ -3595,4 +3595,84 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get provider_oauth_account_status_unknown =>
       'Статус аккаунта на хосте недоступен.';
+
+  @override
+  String get theme_palette_mono => 'Моно';
+
+  @override
+  String get theme_surface => 'Поверхность';
+
+  @override
+  String get theme_surface_solid => 'Сплошная';
+
+  @override
+  String get theme_surface_glass => 'Стекло';
+
+  @override
+  String get theme_surface_glass_hint =>
+      'Обои просвечивают сквозь Hermes — размытые и затонированные, чтобы текст оставался читаемым.';
+
+  @override
+  String get theme_glass_clear => 'Прозрачное';
+
+  @override
+  String get theme_glass_frost => 'Иней';
+
+  @override
+  String get theme_glass_deep => 'Глубокое';
+
+  @override
+  String get theme_glass_tint => 'Тон';
+
+  @override
+  String get theme_glass_blur => 'Размытие';
+
+  @override
+  String get theme_glass_blur_off =>
+      'Размытие сейчас выключено (энергосбережение или настройка устройства), поэтому тон усилен.';
+
+  @override
+  String get theme_material => 'Материал';
+
+  @override
+  String get theme_material_none => 'Нет';
+
+  @override
+  String get theme_material_water => 'Вода';
+
+  @override
+  String get theme_material_quartz => 'Кварц';
+
+  @override
+  String get theme_material_slate => 'Сланец';
+
+  @override
+  String get theme_material_basalt => 'Базальт';
+
+  @override
+  String get theme_material_limestone => 'Известняк';
+
+  @override
+  String get theme_quiet_chrome => 'Тихий интерфейс';
+
+  @override
+  String get theme_quiet_chrome_hint =>
+      'Скрыть подписи навигации и контуры карточек.';
+
+  @override
+  String get theme_liquid_chrome => 'Жидкая навигация';
+
+  @override
+  String get theme_liquid_chrome_hint =>
+      'Стекло навигации преломляет то, что прокручивается под ним.';
+
+  @override
+  String get theme_surface_reload_title => 'Перерисовать окно?';
+
+  @override
+  String get theme_surface_reload_body =>
+      'Hermes перезапустит окно, чтобы сменить поверхность. Чаты и черновики сохранятся.';
+
+  @override
+  String get theme_surface_reload_action => 'Перерисовать';
 }

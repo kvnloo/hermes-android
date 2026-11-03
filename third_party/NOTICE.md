@@ -147,3 +147,15 @@ The embedded Library remains subject to
 Those complete existing MIT/OFL/LGPL texts and copyright notices are unchanged.
 This inventory is scoped to the identified copied source/build materials; it is
 not an exhaustive SBOM or a replacement for other dependencies' licences.
+
+## Elemental materials (fork-only Glass surfaces)
+
+`assets/elemental/*` (basecolor, normal and roughness maps for the
+`geo.basalt.vesicular.v1`, `geo.limestone.porous.v1` and `geo.slate.layered.v1`
+packs) and the lighting model ported into `shaders/elemental_glass.frag` come
+from [elemental-ui](https://github.com/kvnloo/elemental-ui) at commit
+`dc3ff76eb40d1676d66e922c414877ec9ebe3b03`, Copyright © 2026 Kevin Rajan, under
+GPL-3.0-only ([elemental-ui/LICENSE](elemental-ui/LICENSE)). They are
+experimental procedural drafts, not calibrated scans. Because GPL-3.0-only is
+not MIT-compatible, these files stay on the kvnloo fork until their copyright
+holder relicenses them for upstream use.

@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterActivityLaunchConfigs.BackgroundMode
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
@@ -25,11 +26,24 @@ class MainActivity : FlutterActivity() {
     private var initialLaunchAction: String? = null
     private var attachmentPdfPreview: AttachmentPdfPreview? = null
     private var handsFreeVoice: HandsFreeVoicePlugin? = null
+    private var glassWindow: GlassWindowPlugin? = null
+
+    private fun glass(): GlassWindowPlugin =
+        glassWindow ?: GlassWindowPlugin.create(this).also { glassWindow = it }
+
+    /** Glass surfaces need a transparent Flutter view; Solid keeps the opaque SurfaceView. */
+    override fun getBackgroundMode(): BackgroundMode =
+        if (GlassWindow.wantsGlass(this)) BackgroundMode.transparent else BackgroundMode.opaque
 
     override fun onCreate(savedInstanceState: Bundle?) {
         initialShareIntent = intent.takeIf(::isShareIntent)
         initialLaunchAction = launchActionFor(intent)
+        // Before Flutter attaches: the first frame must already show the wallpaper.
+        glass().configureWindow()
         super.onCreate(savedInstanceState)
+        // Again after: switching from LaunchTheme to NormalTheme reinstates the
+        // theme's opaque window background.
+        glass().configureWindow()
         runCatching { MobilePushBridge.captureTap(this, intent) }
     }
 
@@ -40,6 +54,7 @@ class MainActivity : FlutterActivity() {
         BackgroundWorkPlatform.install(this, flutterEngine.dartExecutor.binaryMessenger)
         MobilePushPlugin.install(flutterEngine)
         handsFreeVoice = HandsFreeVoicePlugin.install(flutterEngine)
+        glass().attach(flutterEngine)
         shareChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, shareChannelName).apply {
             setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -91,6 +106,7 @@ class MainActivity : FlutterActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         handsFreeVoice?.setForeground(false)
         handsFreeVoice = null
+        glassWindow?.detach()
         super.cleanUpFlutterEngine(flutterEngine)
     }
 

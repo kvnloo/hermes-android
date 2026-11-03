@@ -6039,6 +6039,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Host account status unavailable.'**
   String get provider_oauth_account_status_unknown;
+
+  /// No description provided for @theme_palette_mono.
+  ///
+  /// In en, this message translates to:
+  /// **'Mono'**
+  String get theme_palette_mono;
+
+  /// No description provided for @theme_surface.
+  ///
+  /// In en, this message translates to:
+  /// **'Surface'**
+  String get theme_surface;
+
+  /// No description provided for @theme_surface_solid.
+  ///
+  /// In en, this message translates to:
+  /// **'Solid'**
+  String get theme_surface_solid;
+
+  /// No description provided for @theme_surface_glass.
+  ///
+  /// In en, this message translates to:
+  /// **'Glass'**
+  String get theme_surface_glass;
+
+  /// No description provided for @theme_surface_glass_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your wallpaper shows through Hermes, blurred and tinted so text stays readable.'**
+  String get theme_surface_glass_hint;
+
+  /// No description provided for @theme_glass_clear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get theme_glass_clear;
+
+  /// No description provided for @theme_glass_frost.
+  ///
+  /// In en, this message translates to:
+  /// **'Frost'**
+  String get theme_glass_frost;
+
+  /// No description provided for @theme_glass_deep.
+  ///
+  /// In en, this message translates to:
+  /// **'Deep'**
+  String get theme_glass_deep;
+
+  /// No description provided for @theme_glass_tint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tint'**
+  String get theme_glass_tint;
+
+  /// No description provided for @theme_glass_blur.
+  ///
+  /// In en, this message translates to:
+  /// **'Blur'**
+  String get theme_glass_blur;
+
+  /// No description provided for @theme_glass_blur_off.
+  ///
+  /// In en, this message translates to:
+  /// **'Blur is off on this phone right now (battery saver or no device support), so the tint is raised.'**
+  String get theme_glass_blur_off;
+
+  /// No description provided for @theme_material.
+  ///
+  /// In en, this message translates to:
+  /// **'Material'**
+  String get theme_material;
+
+  /// No description provided for @theme_material_none.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get theme_material_none;
+
+  /// No description provided for @theme_material_water.
+  ///
+  /// In en, this message translates to:
+  /// **'Water'**
+  String get theme_material_water;
+
+  /// No description provided for @theme_material_quartz.
+  ///
+  /// In en, this message translates to:
+  /// **'Quartz'**
+  String get theme_material_quartz;
+
+  /// No description provided for @theme_material_slate.
+  ///
+  /// In en, this message translates to:
+  /// **'Slate'**
+  String get theme_material_slate;
+
+  /// No description provided for @theme_material_basalt.
+  ///
+  /// In en, this message translates to:
+  /// **'Basalt'**
+  String get theme_material_basalt;
+
+  /// No description provided for @theme_material_limestone.
+  ///
+  /// In en, this message translates to:
+  /// **'Limestone'**
+  String get theme_material_limestone;
+
+  /// No description provided for @theme_quiet_chrome.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiet chrome'**
+  String get theme_quiet_chrome;
+
+  /// No description provided for @theme_quiet_chrome_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide navigation labels and card outlines.'**
+  String get theme_quiet_chrome_hint;
+
+  /// No description provided for @theme_liquid_chrome.
+  ///
+  /// In en, this message translates to:
+  /// **'Liquid navigation'**
+  String get theme_liquid_chrome;
+
+  /// No description provided for @theme_liquid_chrome_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigation glass bends what scrolls beneath it.'**
+  String get theme_liquid_chrome_hint;
+
+  /// No description provided for @theme_surface_reload_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Redraw the window?'**
+  String get theme_surface_reload_title;
+
+  /// No description provided for @theme_surface_reload_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes restarts its window to switch surfaces. Chats and drafts are kept.'**
+  String get theme_surface_reload_body;
+
+  /// No description provided for @theme_surface_reload_action.
+  ///
+  /// In en, this message translates to:
+  /// **'Redraw'**
+  String get theme_surface_reload_action;
 }
 
 class _AppLocalizationsDelegate

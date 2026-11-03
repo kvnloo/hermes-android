@@ -38,6 +38,18 @@ android {
    }
 
    signingConfigs {
+       // Fork-only: a committed throwaway debug key so CI-built debug/profile
+       // APKs of the Glass branch install over each other on test phones.
+       // Public, non-secret (password "android"); never used for releases.
+       getByName("debug") {
+           val glassDebug = file("glass-debug.keystore")
+           if (glassDebug.exists()) {
+               storeFile = glassDebug
+               storePassword = "android"
+               keyAlias = "androiddebugkey"
+               keyPassword = "android"
+           }
+       }
        create("release") {
            if (keystoreProperties.containsKey("storeFile")) {
                storeFile = file(keystoreProperties["storeFile"] as String)

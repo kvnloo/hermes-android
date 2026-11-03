@@ -37,14 +37,14 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
 
   testWidgets(
-    'all ten labeled swatches select, announce selection and persist',
+    'all eleven labeled swatches select, announce selection and persist',
     (tester) async {
       final prefs = await SharedPreferences.getInstance();
       var changes = 0;
       final semantics = tester.ensureSemantics();
       await tester.pumpWidget(_pickerApp(prefs, onChanged: () => changes++));
       await tester.pumpAndSettle();
-      expect(HermesPalette.values, hasLength(10));
+      expect(HermesPalette.values, hasLength(11));
 
       for (final palette in HermesPalette.values) {
         final target = find.byKey(Key('theme_palette_${palette.name}'));
@@ -73,7 +73,7 @@ void main() {
         );
         expect(selected, findsOneWidget);
       }
-      expect(changes, 10);
+      expect(changes, HermesPalette.values.length);
       semantics.dispose();
     },
   );

@@ -11,6 +11,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'hermes_surface.dart';
+
 /// Complete palettes, not accent-only overrides. Persist [name], never [index].
 /// Seeds identify the palette; accessible foregrounds use brightness-aware tones.
 enum HermesPalette {
@@ -23,12 +25,44 @@ enum HermesPalette {
   teal('Teal', Color(0xFF14B8A6)),
   pink('Pink', Color(0xFFEC4899)),
   indigo('Indigo', Color(0xFF6366F1)),
-  cyan('Cyan', Color(0xFF06B6D4));
+  cyan('Cyan', Color(0xFF06B6D4)),
+
+  /// Minimal: neutral greys with a white (dark) or ink (light) accent.
+  mono('Mono', Color(0xFF8E9196));
 
   const HermesPalette(this.displayName, this.seedColor);
 
   final String displayName;
   final Color seedColor;
+}
+
+/// Fixed inks for Glass surfaces: wallpaper probes for contrast checks, the
+/// light that glass catches, and the bodies of Elemental materials. These are
+/// physical properties of glass and stone, not branding, so they do not
+/// rotate with the palette.
+abstract final class HermesGlassInk {
+  static const Color light = Color(0xFFFFFFFF);
+  static const Color clearLight = Color(0x00FFFFFF);
+  static const Color probeMid = Color(0xFF808080);
+  static const Color probeBright = Color(0xFFB3B3B3);
+  static const Color probeDim = Color(0xFF4D4D4D);
+  static const Color textHalo = Color(0x73000000);
+  static const Color textGlow = Color(0x8CFFFFFF);
+  static const Color probeWhite = Color(0xFFFFFFFF);
+  static const Color probeBlack = Color(0xFF000000);
+  static const Color none = Color(0x00000000);
+  static const Color water = Color(0xFF1F6F78);
+  static const Color quartz = Color(0xFFE8EEF2);
+  static const Color slate = Color(0xFF3B4148);
+  static const Color basalt = Color(0xFF2E2C2B);
+  static const Color limestone = Color(0xFFCFC6B4);
+
+  /// A dusk wallpaper stand-in behind material swatches.
+  static const List<Color> dusk = [
+    Color(0xFF2B4C5A),
+    Color(0xFF6E5A7A),
+    Color(0xFFC98E5B),
+  ];
 }
 
 /// The 4dp spacing grid shared by every Hermes surface.
@@ -329,13 +363,21 @@ ColorScheme _hermesColorScheme(Brightness brightness, HermesPalette palette) {
   // inverse surfaces, outlines, and their foregrounds share the chosen hue.
   // Medium contrast also leaves headroom for the app's 8–18% selected tints
   // and for normal-size muted labels, rather than only testing large text.
+  final mono = palette == HermesPalette.mono;
   final generated = ColorScheme.fromSeed(
     seedColor: palette.seedColor,
     brightness: brightness,
     contrastLevel: 0.5,
+    dynamicSchemeVariant: mono
+        ? DynamicSchemeVariant.monochrome
+        : DynamicSchemeVariant.tonalSpot,
   );
   final accent = brightness == Brightness.dark && palette == HermesPalette.gold
       ? HermesTokens.hermesGold
+      : mono
+      ? (brightness == Brightness.dark
+            ? const Color(0xFFEDEDED)
+            : const Color(0xFF1B1B1D))
       : generated.primary;
   return generated.copyWith(
     primary: accent,
@@ -345,12 +387,34 @@ ColorScheme _hermesColorScheme(Brightness brightness, HermesPalette palette) {
 }
 
 /// Builds a complete Hermes [ThemeData], with matching tokens attached.
+///
+/// [surface] adds the Glass surface on top of the palette: the window shows
+/// the wallpaper, so app surfaces become a tint and light veils. [window]
+/// reports whether the activity really is transparent; Glass renders only
+/// when it is, so an opaque window can never paint a see-through app.
 ThemeData hermesTheme(
   Brightness brightness, {
   HermesPalette palette = HermesPalette.gold,
+  HermesSurfaceStyle surface = HermesSurfaceStyle.solid,
+  HermesWindowCapabilities window = HermesWindowCapabilities.unknown,
 }) {
   final scheme = _hermesColorScheme(brightness, palette);
-  final tokens = HermesTokens._fromScheme(scheme, palette);
+  final solidTokens = HermesTokens._fromScheme(scheme, palette);
+  final glass = HermesSurface.resolve(surface, solidTokens, window: window);
+  // Glass: the scene tint is painted once at the root (HermesSystemUi), so
+  // every route and pane is transparent and raised surfaces are light veils.
+  final tokens = glass.glass
+      ? solidTokens.copyWith(
+          surface: Colors.transparent,
+          raised: glass.panel,
+          border: glass.rim,
+        )
+      : solidTokens;
+  final quiet = glass.quietChrome;
+  final cardSide = quiet
+      ? BorderSide.none
+      : BorderSide(color: tokens.border, width: glass.glass ? 0.6 : 1);
+  final sheetColor = glass.glass ? glass.sheet : tokens.raised;
   final base = ThemeData(
     colorScheme: scheme,
     brightness: brightness,
@@ -364,7 +428,9 @@ ThemeData hermesTheme(
     return states.contains(WidgetState.selected) ? tokens.accent : tokens.muted;
   });
   final menuStyle = MenuStyle(
-    backgroundColor: WidgetStatePropertyAll(tokens.raised),
+    backgroundColor: WidgetStatePropertyAll(
+      glass.glass ? glass.sheet : tokens.raised,
+    ),
     surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
   );
   final inputTheme = InputDecorationThemeData(
@@ -403,10 +469,10 @@ ThemeData hermesTheme(
     scaffoldBackgroundColor: tokens.surface,
     canvasColor: tokens.surface,
     disabledColor: tokens.muted,
-    textTheme: tokens.typography.applyTo(
-      base.textTheme,
-      tokens.onSurface,
-      tokens.muted,
+    textTheme: _withGlassHalo(
+      tokens.typography.applyTo(base.textTheme, tokens.onSurface, tokens.muted),
+      glass.glass,
+      brightness,
     ),
     // Keep the base IconTheme: globally replacing its color overrides the
     // correct onPrimary/onSecondaryContainer defaults of filled IconButtons.
@@ -426,11 +492,11 @@ ThemeData hermesTheme(
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: HermesRadius.card,
-        side: BorderSide(color: tokens.border),
+        side: cardSide,
       ),
     ),
     dividerTheme: DividerThemeData(
-      color: tokens.border,
+      color: quiet ? tokens.border.withValues(alpha: 0.35) : tokens.border,
       space: 1,
       thickness: 1,
     ),
@@ -557,14 +623,14 @@ ThemeData hermesTheme(
       dividerColor: tokens.border,
     ),
     bottomSheetTheme: BottomSheetThemeData(
-      backgroundColor: tokens.raised,
-      modalBackgroundColor: tokens.raised,
+      backgroundColor: sheetColor,
+      modalBackgroundColor: sheetColor,
       surfaceTintColor: Colors.transparent,
       dragHandleColor: tokens.muted,
       shape: const RoundedRectangleBorder(borderRadius: HermesRadius.sheet),
     ),
     dialogTheme: DialogThemeData(
-      backgroundColor: tokens.raised,
+      backgroundColor: sheetColor,
       surfaceTintColor: Colors.transparent,
       titleTextStyle: tokens.typography.title.copyWith(color: tokens.onSurface),
       contentTextStyle: tokens.typography.body.copyWith(
@@ -572,7 +638,7 @@ ThemeData hermesTheme(
       ),
     ),
     popupMenuTheme: PopupMenuThemeData(
-      color: tokens.raised,
+      color: sheetColor,
       surfaceTintColor: Colors.transparent,
       textStyle: TextStyle(color: tokens.onSurface),
       labelTextStyle: WidgetStatePropertyAll(
@@ -611,7 +677,7 @@ ThemeData hermesTheme(
       ),
     ),
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: tokens.raised,
+      backgroundColor: sheetColor,
       contentTextStyle: tokens.typography.body.copyWith(
         color: tokens.onSurface,
       ),
@@ -651,11 +717,11 @@ ThemeData hermesTheme(
       side: BorderSide(color: tokens.border),
     ),
     drawerTheme: DrawerThemeData(
-      backgroundColor: tokens.raised,
+      backgroundColor: sheetColor,
       surfaceTintColor: Colors.transparent,
     ),
     navigationDrawerTheme: NavigationDrawerThemeData(
-      backgroundColor: tokens.raised,
+      backgroundColor: sheetColor,
       surfaceTintColor: Colors.transparent,
       indicatorColor: selectedSurface,
       iconTheme: WidgetStateProperty.resolveWith((states) {
@@ -682,7 +748,10 @@ ThemeData hermesTheme(
     // The bar must keep every label on one line. 11sp with no tracking fits
     // the widest shipped labels; the shell further adapts for narrow phones.
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: tokens.raised,
+      backgroundColor: glass.glass ? Colors.transparent : tokens.raised,
+      labelBehavior: quiet
+          ? NavigationDestinationLabelBehavior.alwaysHide
+          : NavigationDestinationLabelBehavior.alwaysShow,
       surfaceTintColor: Colors.transparent,
       indicatorColor: selectedSurface,
       iconTheme: WidgetStateProperty.resolveWith((states) {
@@ -697,7 +766,49 @@ ThemeData hermesTheme(
         );
       }),
     ),
-    extensions: <ThemeExtension<dynamic>>[tokens],
+    pageTransitionsTheme: glass.glass
+        // Transparent routes overlap while they animate; a short fade reads
+        // as one pane of glass changing instead of two stacked panes.
+        ? const PageTransitionsTheme(
+            builders: {
+              TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+            },
+          )
+        : null,
+    extensions: <ThemeExtension<dynamic>>[tokens, glass],
+  );
+}
+
+/// Glass text sits on a live wallpaper: a soft halo (dark under light text,
+/// glow under dark text) keeps letterforms legible over bright highlights
+/// without darkening the whole pane.
+TextTheme _withGlassHalo(TextTheme theme, bool glass, Brightness brightness) {
+  if (!glass) return theme;
+  final halo = [
+    Shadow(
+      color: brightness == Brightness.dark
+          ? HermesGlassInk.textHalo
+          : HermesGlassInk.textGlow,
+      blurRadius: 6,
+    ),
+  ];
+  TextStyle? lift(TextStyle? style) => style?.copyWith(shadows: halo);
+  return theme.copyWith(
+    displayLarge: lift(theme.displayLarge),
+    displayMedium: lift(theme.displayMedium),
+    displaySmall: lift(theme.displaySmall),
+    headlineLarge: lift(theme.headlineLarge),
+    headlineMedium: lift(theme.headlineMedium),
+    headlineSmall: lift(theme.headlineSmall),
+    titleLarge: lift(theme.titleLarge),
+    titleMedium: lift(theme.titleMedium),
+    titleSmall: lift(theme.titleSmall),
+    bodyLarge: lift(theme.bodyLarge),
+    bodyMedium: lift(theme.bodyMedium),
+    bodySmall: lift(theme.bodySmall),
+    labelLarge: lift(theme.labelLarge),
+    labelMedium: lift(theme.labelMedium),
+    labelSmall: lift(theme.labelSmall),
   );
 }
 

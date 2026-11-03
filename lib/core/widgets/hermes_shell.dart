@@ -10,7 +10,9 @@ import 'package:flutter/material.dart';
 
 import 'package:hermes_android/core/l10n/l10n.dart';
 
+import '../theme/hermes_surface.dart';
 import '../theme/hermes_theme.dart';
+import 'hermes_glass_backdrop.dart';
 
 /// A top-level destination of the Hermes app.
 enum HermesDestination {
@@ -230,42 +232,68 @@ class _HermesShellState extends State<HermesShell> {
       );
     }
 
+    final surface = HermesSurface.of(context);
+    // Label sizes are the worst-case bases: the NavigationBar clamps its
+    // label text scaling at 1.3x internally (Flutter keeps the visual
+    // hierarchy), so 9sp fits every shipped label on a 320dp phone even at
+    // the clamp, and 10sp covers 360dp and wider. The app's 1.15x/1.30x
+    // text-size preference still scales the labels within that clamp.
+    final navigation = NavigationBarTheme(
+      data: NavigationBarThemeData(
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final base = Theme.of(
+            context,
+          ).navigationBarTheme.labelTextStyle?.resolve(states);
+          return (base ?? const TextStyle()).copyWith(
+            fontSize: MediaQuery.sizeOf(context).width < 360 ? 9 : 10,
+          );
+        }),
+      ),
+      child: NavigationBar(
+        backgroundColor: surface.glass ? Colors.transparent : tokens.raised,
+        indicatorColor: tokens.accentContainer,
+        height: surface.quietChrome ? 60 : null,
+        // The local NavigationBarTheme replaces the inherited one, so quiet
+        // chrome must be applied here, not only in hermesTheme.
+        labelBehavior: surface.quietChrome
+            ? NavigationDestinationLabelBehavior.alwaysHide
+            : null,
+        selectedIndex: _current.index,
+        onDestinationSelected: (index) =>
+            _select(HermesDestination.values[index]),
+        destinations: [
+          for (final destination in HermesDestination.values)
+            NavigationDestination(
+              icon: _icon(destination, selected: false),
+              selectedIcon: _icon(destination, selected: true),
+              label: destination.label(context.l10n),
+            ),
+        ],
+      ),
+    );
+
+    if (surface.glass) {
+      // Glass: a floating pill over the content, which scrolls beneath it
+      // (liquid chrome refracts it). The wallpaper scene sits behind all.
+      return Scaffold(
+        key: const Key('hermes_shell_glass'),
+        backgroundColor: Colors.transparent,
+        extendBody: true,
+        body: pane,
+        floatingActionButton: widget.floatingActionButton,
+        bottomNavigationBar: SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+          child: HermesGlassPanel(radius: 30, child: navigation),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: tokens.surface,
       body: pane,
       floatingActionButton: widget.floatingActionButton,
-      // Label sizes are the worst-case bases: the NavigationBar clamps its
-      // label text scaling at 1.3x internally (Flutter keeps the visual
-      // hierarchy), so 9sp fits every shipped label on a 320dp phone even at
-      // the clamp, and 10sp covers 360dp and wider. The app's 1.15x/1.30x
-      // text-size preference still scales the labels within that clamp.
-      bottomNavigationBar: NavigationBarTheme(
-        data: NavigationBarThemeData(
-          labelTextStyle: WidgetStateProperty.resolveWith((states) {
-            final base = Theme.of(
-              context,
-            ).navigationBarTheme.labelTextStyle?.resolve(states);
-            return (base ?? const TextStyle()).copyWith(
-              fontSize: MediaQuery.sizeOf(context).width < 360 ? 9 : 10,
-            );
-          }),
-        ),
-        child: NavigationBar(
-          backgroundColor: tokens.raised,
-          indicatorColor: tokens.accentContainer,
-          selectedIndex: _current.index,
-          onDestinationSelected: (index) =>
-              _select(HermesDestination.values[index]),
-          destinations: [
-            for (final destination in HermesDestination.values)
-              NavigationDestination(
-                icon: _icon(destination, selected: false),
-                selectedIcon: _icon(destination, selected: true),
-                label: destination.label(context.l10n),
-              ),
-          ],
-        ),
-      ),
+      bottomNavigationBar: navigation,
     );
   }
 }

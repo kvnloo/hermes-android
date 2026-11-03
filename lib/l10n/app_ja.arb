@@ -1000,5 +1000,30 @@
         "type": "String"
       }
     }
-  }
+  },
+  "theme_palette_mono": "モノ",
+  "theme_surface": "サーフェス",
+  "theme_surface_solid": "ソリッド",
+  "theme_surface_glass": "ガラス",
+  "theme_surface_glass_hint": "壁紙が Hermes の背後に透けて見えます。文字が読めるようにぼかしと色調を加えます。",
+  "theme_glass_clear": "クリア",
+  "theme_glass_frost": "フロスト",
+  "theme_glass_deep": "ディープ",
+  "theme_glass_tint": "色調",
+  "theme_glass_blur": "ぼかし",
+  "theme_glass_blur_off": "現在ぼかしはオフです（省電力または端末設定）。そのため色調を強めています。",
+  "theme_material": "マテリアル",
+  "theme_material_none": "なし",
+  "theme_material_water": "水",
+  "theme_material_quartz": "水晶",
+  "theme_material_slate": "スレート",
+  "theme_material_basalt": "玄武岩",
+  "theme_material_limestone": "石灰岩",
+  "theme_quiet_chrome": "静かなクローム",
+  "theme_quiet_chrome_hint": "ナビゲーションのラベルとカードの枠線を隠します。",
+  "theme_liquid_chrome": "リキッドナビゲーション",
+  "theme_liquid_chrome_hint": "ナビゲーションのガラスが下をスクロールする内容を屈折させます。",
+  "theme_surface_reload_title": "ウィンドウを再描画しますか？",
+  "theme_surface_reload_body": "サーフェスを切り替えるため Hermes のウィンドウを再起動します。チャットと下書きは保持されます。",
+  "theme_surface_reload_action": "再描画"
 }

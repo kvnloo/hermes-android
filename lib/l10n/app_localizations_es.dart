@@ -3596,4 +3596,84 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get provider_oauth_account_status_unknown =>
       'Estado de la cuenta del servidor no disponible.';
+
+  @override
+  String get theme_palette_mono => 'Mono';
+
+  @override
+  String get theme_surface => 'Superficie';
+
+  @override
+  String get theme_surface_solid => 'Sólida';
+
+  @override
+  String get theme_surface_glass => 'Cristal';
+
+  @override
+  String get theme_surface_glass_hint =>
+      'Tu fondo de pantalla se ve a través de Hermes, desenfocado y teñido para que el texto siga legible.';
+
+  @override
+  String get theme_glass_clear => 'Claro';
+
+  @override
+  String get theme_glass_frost => 'Escarcha';
+
+  @override
+  String get theme_glass_deep => 'Profundo';
+
+  @override
+  String get theme_glass_tint => 'Tinte';
+
+  @override
+  String get theme_glass_blur => 'Desenfoque';
+
+  @override
+  String get theme_glass_blur_off =>
+      'El desenfoque está desactivado (ahorro de batería o ajuste del dispositivo), así que el tinte sube.';
+
+  @override
+  String get theme_material => 'Material';
+
+  @override
+  String get theme_material_none => 'Ninguno';
+
+  @override
+  String get theme_material_water => 'Agua';
+
+  @override
+  String get theme_material_quartz => 'Cuarzo';
+
+  @override
+  String get theme_material_slate => 'Pizarra';
+
+  @override
+  String get theme_material_basalt => 'Basalto';
+
+  @override
+  String get theme_material_limestone => 'Caliza';
+
+  @override
+  String get theme_quiet_chrome => 'Interfaz discreta';
+
+  @override
+  String get theme_quiet_chrome_hint =>
+      'Oculta las etiquetas de navegación y los bordes de las tarjetas.';
+
+  @override
+  String get theme_liquid_chrome => 'Navegación líquida';
+
+  @override
+  String get theme_liquid_chrome_hint =>
+      'El cristal de navegación curva lo que se desplaza debajo.';
+
+  @override
+  String get theme_surface_reload_title => '¿Redibujar la ventana?';
+
+  @override
+  String get theme_surface_reload_body =>
+      'Hermes reinicia su ventana para cambiar de superficie. Se conservan los chats y borradores.';
+
+  @override
+  String get theme_surface_reload_action => 'Redibujar';
 }
