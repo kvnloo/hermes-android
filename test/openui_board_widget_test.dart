@@ -32,9 +32,11 @@ table = Table("Suites", ["Suite","Result"], [["Parser","pass"],["Widgets",12]])
 ''';
 
 Widget _host(String code) => testAppWithL10n(
-  Scaffold(body: SingleChildScrollView(
-    child: MarkdownCodeBlock(code: code, language: 'openui-v2'),
-  )),
+  Scaffold(
+    body: SingleChildScrollView(
+      child: MarkdownCodeBlock(code: code, language: 'openui-v2'),
+    ),
+  ),
 );
 
 void main() {
@@ -45,15 +47,19 @@ void main() {
     expect(parts.whereType<MarkdownCodeBlock>(), hasLength(1));
     expect((parts.whereType<MarkdownCodeBlock>().single).code, _treemap);
     final partial = splitMarkdownCodeBlocks(
-        'Before\n${fence}openui-v2\nroot = Board(');
+      'Before\n${fence}openui-v2\nroot = Board(',
+    );
     expect(partial.whereType<MarkdownCodeBlock>(), isEmpty);
     expect(partial.single, contains('root = Board('));
     final inlineCloser = splitMarkdownCodeBlocks(
-        '${fence}openui-v2\nroot = Board($fence');
+      '${fence}openui-v2\nroot = Board($fence',
+    );
     expect(inlineCloser.whereType<MarkdownCodeBlock>(), isEmpty);
   });
 
-  testWidgets('all three real parser fixture boards paint natively', (tester) async {
+  testWidgets('all three real parser fixture boards paint natively', (
+    tester,
+  ) async {
     final cases = <(String, String, String)>[
       (_treemap, 'Repository size and churn', 'openui-treemap-paint'),
       (_stacked, 'Turns by model', 'openui-series-paint'),
@@ -62,7 +68,11 @@ void main() {
     for (final (source, title, painterKey) in cases) {
       await tester.pumpWidget(_host(source));
       await tester.pump();
-      expect(find.byKey(const Key('openui-board')), findsOneWidget, reason: title);
+      expect(
+        find.byKey(const Key('openui-board')),
+        findsOneWidget,
+        reason: title,
+      );
       expect(find.text(title), findsWidgets);
       expect(find.byKey(Key(painterKey)), findsOneWidget);
       expect(find.byType(CustomPaint), findsWidgets);
@@ -70,10 +80,18 @@ void main() {
     }
   });
 
-  testWidgets('five native panel types render and never require network', (tester) async {
+  testWidgets('five native panel types render and never require network', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(_native));
     await tester.pump();
-    for (final kind in ['stat', 'barchart', 'stackedbar', 'linechart', 'table']) {
+    for (final kind in [
+      'stat',
+      'barchart',
+      'stackedbar',
+      'linechart',
+      'table',
+    ]) {
       expect(find.byKey(Key('openui-panel-$kind')), findsOneWidget);
     }
     expect(find.byKey(const Key('openui-table')), findsOneWidget);
@@ -89,8 +107,11 @@ void main() {
     expect(find.text('Hide source'), findsOneWidget);
     expect(find.byKey(const Key('openui-original-source')), findsOneWidget);
     final selectable = tester.widget<SelectableText>(
-        find.descendant(of: find.byKey(const Key('openui-original-source')),
-            matching: find.byType(SelectableText)));
+      find.descendant(
+        of: find.byKey(const Key('openui-original-source')),
+        matching: find.byType(SelectableText),
+      ),
+    );
     expect(selectable.data, _stacked);
     await tester.tap(find.byKey(const Key('openui-source-toggle')));
     await tester.pump();
@@ -102,7 +123,9 @@ void main() {
     await tester.tap(find.byKey(const Key('openui-bar-1')));
     await tester.pump();
     expect(find.text('Deep · 12 turns'), findsOneWidget);
-    await tester.ensureVisible(find.byKey(const Key('openui-category-1')).first);
+    await tester.ensureVisible(
+      find.byKey(const Key('openui-category-1')).first,
+    );
     await tester.tap(find.byKey(const Key('openui-category-1')).first);
     await tester.pump();
     expect(find.textContaining('Tue · Fast 3 · Deep 4 turns'), findsOneWidget);
@@ -117,23 +140,28 @@ void main() {
     expect(find.byKey(const Key('openui-board')), findsOneWidget);
   });
 
-  testWidgets('malformed and closed-but-incomplete source get notice and source', (tester) async {
-    for (final source in [
-      'root = Board("B", "", [Table("T", ["A","B"], [["one"]])])',
-      'root = Board(',
-      '$_native\nextra = Mutation("send", {})',
-      'root = Board("Travel", "", [RideOptions("uber", "A", "B", '
-          '[{name:"X",minutes:2,price:"10",seats:4}])])',
-    ]) {
-      await tester.pumpWidget(_host(source));
-      await tester.pump();
-      expect(find.byKey(const Key('openui-board-notice')), findsOneWidget);
-      expect(find.byKey(const Key('openui-original-source')), findsOneWidget);
-      expect(find.byKey(const Key('openui-board')), findsNothing);
-    }
-  });
+  testWidgets(
+    'malformed and closed-but-incomplete source get notice and source',
+    (tester) async {
+      for (final source in [
+        'root = Board("B", "", [Table("T", ["A","B"], [["one"]])])',
+        'root = Board(',
+        '$_native\nextra = Mutation("send", {})',
+        'root = Board("Travel", "", [RideOptions("uber", "A", "B", '
+            '[{name:"X",minutes:2,price:"10",seats:4}])])',
+      ]) {
+        await tester.pumpWidget(_host(source));
+        await tester.pump();
+        expect(find.byKey(const Key('openui-board-notice')), findsOneWidget);
+        expect(find.byKey(const Key('openui-original-source')), findsOneWidget);
+        expect(find.byKey(const Key('openui-board')), findsNothing);
+      }
+    },
+  );
 
-  testWidgets('source update clears selection and source expansion', (tester) async {
+  testWidgets('source update clears selection and source expansion', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(_stacked));
     await tester.tap(find.byKey(const Key('openui-category-1')));
     await tester.pump();
@@ -146,15 +174,21 @@ void main() {
     expect(find.byKey(const Key('openui-original-source')), findsNothing);
   });
 
-  testWidgets('the active Hermes dark palette styles every chart', (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      theme: hermesTheme(Brightness.dark),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: SingleChildScrollView(
-        child: const OpenUiBoard(source: _native),
-      )),
-    ));
+  testWidgets('the active Hermes dark palette styles every chart', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: hermesTheme(Brightness.dark),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: const OpenUiBoard(source: _native),
+          ),
+        ),
+      ),
+    );
     expect(find.byKey(const Key('openui-board')), findsOneWidget);
     expect(find.byKey(const Key('openui-bar-paint')), findsNWidgets(2));
     expect(find.byKey(const Key('openui-series-paint')), findsNWidgets(2));

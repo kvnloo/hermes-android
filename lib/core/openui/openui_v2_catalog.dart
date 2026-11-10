@@ -35,9 +35,18 @@ final class OpenUiV2Catalog {
   static const maxBytes = OpenUiLang.maxSourceBytes;
   static const maxValue = 1e12;
   static const panelTypes = <String>{
-    'Treemap', 'BarChart', 'StackedArea', 'Heatmap',
-    'Stat', 'StackedBar', 'LineChart', 'Table',
-    'RideOptions', 'MailList', 'Route', 'PullRequest',
+    'Treemap',
+    'BarChart',
+    'StackedArea',
+    'Heatmap',
+    'Stat',
+    'StackedBar',
+    'LineChart',
+    'Table',
+    'RideOptions',
+    'MailList',
+    'Route',
+    'PullRequest',
   };
 
   static OpenUiCatalogResult inspect(String source) =>
@@ -62,8 +71,12 @@ final class OpenUiV2Catalog {
       check.arity(root, 3);
       final title = check.string(root.args[0], 'Board title', max: 200);
       final summary = check.string(root.args[1], 'Board summary', max: 4000);
-      final nodes = check.array(root.args[2], 'Board panels',
-          min: 1, max: maxPanels);
+      final nodes = check.array(
+        root.args[2],
+        'Board panels',
+        min: 1,
+        max: maxPanels,
+      );
       final panels = <OpenUiChartPanel>[];
       for (final node in nodes) {
         if (node is! OpenUiCall) {
@@ -74,8 +87,11 @@ final class OpenUiV2Catalog {
       }
       return OpenUiCatalogResult(
         OpenUiCatalogStatus.ready,
-        board: OpenUiChartBoard(title, summary,
-            List<OpenUiChartPanel>.unmodifiable(panels)),
+        board: OpenUiChartBoard(
+          title,
+          summary,
+          List<OpenUiChartPanel>.unmodifiable(panels),
+        ),
       );
     } on _CatalogFailure catch (e) {
       return OpenUiCatalogResult(
@@ -87,12 +103,16 @@ final class OpenUiV2Catalog {
 
   /// Shared v1 table invariant; tables are not a v2 panel.
   static OpenUiProblem? tableShapeProblem(
-      OpenUiArray columns, OpenUiArray rows) {
+    OpenUiArray columns,
+    OpenUiArray rows,
+  ) {
     for (final row in rows.items) {
       if (row is! OpenUiArray || row.items.length != columns.items.length) {
         return OpenUiProblem(
-            'Table rows must match the declared columns.',
-            row.line, row.column);
+          'Table rows must match the declared columns.',
+          row.line,
+          row.column,
+        );
       }
     }
     return null;
@@ -146,20 +166,31 @@ final class _Check {
     }
   }
 
-  String string(OpenUiValue node, String label,
-      {int min = 0, required int max}) {
+  String string(
+    OpenUiValue node,
+    String label, {
+    int min = 0,
+    required int max,
+  }) {
     if (node is! OpenUiString ||
-        node.value.length < min || node.value.length > max) {
+        node.value.length < min ||
+        node.value.length > max) {
       bad(node, '$label must be a string of $min–$max characters.');
     }
     return node.value;
   }
 
-  double number(OpenUiValue node, String label,
-      {double min = 0, double max = OpenUiV2Catalog.maxValue,
-      bool integer = false}) {
-    if (node is! OpenUiNumber || !node.value.isFinite ||
-        node.value < min || node.value > max ||
+  double number(
+    OpenUiValue node,
+    String label, {
+    double min = 0,
+    double max = OpenUiV2Catalog.maxValue,
+    bool integer = false,
+  }) {
+    if (node is! OpenUiNumber ||
+        !node.value.isFinite ||
+        node.value < min ||
+        node.value > max ||
         (integer && node.value.truncateToDouble() != node.value)) {
       bad(node, '$label is out of range.');
     }
@@ -170,10 +201,15 @@ final class _Check {
     if (node is! OpenUiBoolean) bad(node, '$label must be boolean.');
   }
 
-  List<OpenUiValue> array(OpenUiValue node, String label,
-      {int min = 0, required int max}) {
+  List<OpenUiValue> array(
+    OpenUiValue node,
+    String label, {
+    int min = 0,
+    required int max,
+  }) {
     if (node is! OpenUiArray ||
-        node.items.length < min || node.items.length > max) {
+        node.items.length < min ||
+        node.items.length > max) {
       bad(node, '$label has an invalid length.');
     }
     return node.items;
@@ -184,22 +220,38 @@ final class _Check {
     return node.fields;
   }
 
-  OpenUiValue field(Map<String, OpenUiValue> obj, String name,
-      OpenUiValue parent) {
+  OpenUiValue field(
+    Map<String, OpenUiValue> obj,
+    String name,
+    OpenUiValue parent,
+  ) {
     final value = obj[name];
     if (value == null) bad(parent, 'Missing field: $name.');
     return value;
   }
 
-  String textField(Map<String, OpenUiValue> obj, String key,
-      OpenUiValue parent, {int min = 0, int max = 200}) =>
-      string(field(obj, key, parent), key, min: min, max: max);
+  String textField(
+    Map<String, OpenUiValue> obj,
+    String key,
+    OpenUiValue parent, {
+    int min = 0,
+    int max = 200,
+  }) => string(field(obj, key, parent), key, min: min, max: max);
 
-  double numberField(Map<String, OpenUiValue> obj, String key,
-      OpenUiValue parent, {double min = 0,
-      double max = OpenUiV2Catalog.maxValue, bool integer = false}) =>
-      number(field(obj, key, parent), key,
-          min: min, max: max, integer: integer);
+  double numberField(
+    Map<String, OpenUiValue> obj,
+    String key,
+    OpenUiValue parent, {
+    double min = 0,
+    double max = OpenUiV2Catalog.maxValue,
+    bool integer = false,
+  }) => number(
+    field(obj, key, parent),
+    key,
+    min: min,
+    max: max,
+    integer: integer,
+  );
 
   void optionalText(Map<String, OpenUiValue> obj, String key, int max) {
     final val = obj[key];
@@ -258,8 +310,12 @@ final class _Check {
         string(node.args[1], 'sizeLabel', min: 1, max: 100);
         string(node.args[2], 'colorLabel', min: 1, max: 100);
         final paths = <String>{};
-        for (final entry in array(node.args[3], 'Treemap rows',
-            min: 1, max: 500)) {
+        for (final entry in array(
+          node.args[3],
+          'Treemap rows',
+          min: 1,
+          max: 500,
+        )) {
           final row = object(entry, 'Treemap row');
           final raw = textField(row, 'path', entry, min: 1, max: 500);
           numberField(row, 'size', entry);
@@ -279,8 +335,7 @@ final class _Check {
         arity(node, 3);
         string(node.args[0], 'title', max: 200);
         string(node.args[1], 'unit', max: 40);
-        for (final entry in array(node.args[2], 'bars',
-            min: 1, max: 30)) {
+        for (final entry in array(node.args[2], 'bars', min: 1, max: 30)) {
           final bar = object(entry, 'bar');
           textField(bar, 'label', entry, min: 1, max: 100);
           numberField(bar, 'value', entry);
@@ -291,19 +346,19 @@ final class _Check {
         arity(node, 4);
         string(node.args[0], 'title', max: 200);
         string(node.args[1], 'unit', max: 40);
-        final categories = array(node.args[2], 'categories',
-            min: 2, max: 60);
+        final categories = array(node.args[2], 'categories', min: 2, max: 60);
         for (final category in categories) {
           string(category, 'category', min: 1, max: 100);
         }
-        for (final entry in array(node.args[3], 'series',
-            min: 1, max: 8)) {
+        for (final entry in array(node.args[3], 'series', min: 1, max: 8)) {
           final row = object(entry, 'series');
           final name = textField(row, 'name', entry, min: 1, max: 100);
-          final values = array(field(row, 'values', entry),
-              'values', max: 60);
+          final values = array(field(row, 'values', entry), 'values', max: 60);
           if (values.length != categories.length) {
-            bad(entry, '${node.name} series "$name" needs ${categories.length} values.');
+            bad(
+              entry,
+              '${node.name} series "$name" needs ${categories.length} values.',
+            );
           }
           for (final value in values) {
             number(value, 'value');
@@ -329,7 +384,10 @@ final class _Check {
           final cells = array(counts[i], 'count row', max: 48);
           if (cells.length != columns.length) {
             final label = (rows[i] as OpenUiString).value;
-            bad(counts[i], 'Heatmap row "$label" needs ${columns.length} counts.');
+            bad(
+              counts[i],
+              'Heatmap row "$label" needs ${columns.length} counts.',
+            );
           }
           for (final cell in cells) {
             number(cell, 'count');
@@ -341,14 +399,17 @@ final class _Check {
         string(node.args[1], 'pickup', min: 1, max: 200);
         string(node.args[2], 'dropoff', min: 1, max: 200);
         final seen = <String>{};
-        for (final entry in array(node.args[3], 'ride options',
-            min: 1, max: 8)) {
+        for (final entry in array(
+          node.args[3],
+          'ride options',
+          min: 1,
+          max: 8,
+        )) {
           final row = object(entry, 'ride');
           final name = textField(row, 'name', entry, min: 1);
           numberField(row, 'minutes', entry, max: 100000);
           textField(row, 'price', entry, min: 1, max: 24);
-          numberField(row, 'seats', entry,
-              min: 1, max: 20, integer: true);
+          numberField(row, 'seats', entry, min: 1, max: 20, integer: true);
           optionalText(row, 'arrival', 200);
           if (!seen.add(name)) {
             bad(entry, 'RideOptions lists the same option twice.');
@@ -389,16 +450,19 @@ final class _Check {
         }
         if (node.args.length > 8) {
           final map = object(node.args[8], 'map');
-          final url = textField(map, 'image', node.args[8],
-              min: 1, max: 2000);
+          final url = textField(map, 'image', node.args[8], min: 1, max: 2000);
           final uri = Uri.tryParse(url);
           if (uri == null ||
               !(uri.scheme == 'https' || uri.scheme == 'http') ||
               uri.host.isEmpty) {
             bad(node.args[8], 'Map image must be an HTTP(S) URL.');
           }
-          final bounds = array(field(map, 'bounds', node.args[8]),
-              'bounds', min: 4, max: 4);
+          final bounds = array(
+            field(map, 'bounds', node.args[8]),
+            'bounds',
+            min: 4,
+            max: 4,
+          );
           number(bounds[0], 'south', min: -90, max: 90);
           number(bounds[1], 'west', min: -180, max: 180);
           number(bounds[2], 'north', min: -90, max: 90);
@@ -406,11 +470,21 @@ final class _Check {
         }
       case 'PullRequest':
         arity(node, 7, 8);
-        number(node.args[0], 'PR number',
-            min: 1, max: double.maxFinite, integer: true);
+        number(
+          node.args[0],
+          'PR number',
+          min: 1,
+          max: double.maxFinite,
+          integer: true,
+        );
         string(node.args[1], 'title', min: 1, max: 200);
-        choice(node.args[2], 'state',
-            {'open', 'conflict', 'ready', 'merged', 'closed'});
+        choice(node.args[2], 'state', {
+          'open',
+          'conflict',
+          'ready',
+          'merged',
+          'closed',
+        });
         string(node.args[3], 'head', min: 1, max: 200);
         string(node.args[4], 'base', min: 1, max: 200);
         var pending = false;
@@ -426,8 +500,12 @@ final class _Check {
           optionalNumber(check, 'started', 6000000);
           optionalNumber(check, 'seconds', 6000000);
         }
-        final conflicts = number(node.args[6], 'conflicts',
-            max: 10000, integer: true);
+        final conflicts = number(
+          node.args[6],
+          'conflicts',
+          max: 10000,
+          integer: true,
+        );
         final state = (node.args[2] as OpenUiString).value;
         if (state == 'conflict' && conflicts < 1) {
           bad(node, 'PullRequest in conflict needs a conflict count.');

@@ -42,10 +42,7 @@ List<Object> splitMarkdownCodeBlocks(String content) {
         result.add(content.substring(cursor, match.start));
       }
       result.add(
-        MarkdownCodeBlock(
-          code: completed.group(1)!,
-          language: 'openui-v2',
-        ),
+        MarkdownCodeBlock(code: completed.group(1)!, language: 'openui-v2'),
       );
       cursor = completed.end;
       continue;
@@ -89,7 +86,10 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
 
   List<syntax.Node>? _parseCode() {
     final language = widget.language;
-    if (language == null || language == 'openui-v2' || widget.code.length > 60000) return null;
+    if (language == null ||
+        language == 'openui-v2' ||
+        widget.code.length > 60000)
+      return null;
     try {
       return syntax.highlight.parse(widget.code, language: language).nodes;
     } catch (_) {
