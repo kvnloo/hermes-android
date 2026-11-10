@@ -1000,5 +1000,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "openui_show_source": "ソースを表示",
+  "openui_hide_source": "ソースを隠す",
+  "openui_board_unavailable": "このボードを表示できません。元のソースを以下に表示します。",
+  "openui_board_incomplete": "このボードは未完成です。元のソースを以下に表示します。",
+  "openui_board_unsupported": "このボードには Android で未対応のパネルがあります。元のソースを以下に表示します。",
+  "openui_read_only": "読み取り専用 · タップによる選択は端末内のみ"
 }

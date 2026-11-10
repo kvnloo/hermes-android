@@ -748,6 +748,25 @@ class AppLocalizationsJa extends AppLocalizations {
   String get code_copied => 'コードをコピーしました';
 
   @override
+  String get openui_show_source => 'ソースを表示';
+
+  @override
+  String get openui_hide_source => 'ソースを隠す';
+
+  @override
+  String get openui_board_unavailable => 'このボードを表示できません。元のソースを以下に表示します。';
+
+  @override
+  String get openui_board_incomplete => 'このボードは未完成です。元のソースを以下に表示します。';
+
+  @override
+  String get openui_board_unsupported => 'このボードには Android で未対応のパネルがあります。元のソースを以下に表示します。';
+
+  @override
+  String get openui_read_only => '読み取り専用 · タップによる選択は端末内のみ';
+
+
+  @override
   String get code_format => 'Code';
 
   @override

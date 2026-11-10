@@ -763,6 +763,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get code_copied => 'Code copied';
 
   @override
+  String get openui_show_source => 'Show source';
+
+  @override
+  String get openui_hide_source => 'Hide source';
+
+  @override
+  String get openui_board_unavailable => 'This board could not be displayed. Original source is below.';
+
+  @override
+  String get openui_board_incomplete => 'This board is incomplete. Original source is below.';
+
+  @override
+  String get openui_board_unsupported => 'This board includes a panel not yet supported on Android. Original source is below.';
+
+  @override
+  String get openui_read_only => 'Read-only · taps inspect values locally';
+
+
+  @override
   String get code_format => 'Code';
 
   @override

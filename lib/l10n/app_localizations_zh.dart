@@ -730,6 +730,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get code_copied => '代码已复制';
 
   @override
+  String get openui_show_source => '显示源代码';
+
+  @override
+  String get openui_hide_source => '隐藏源代码';
+
+  @override
+  String get openui_board_unavailable => '无法显示此面板。原始源代码如下。';
+
+  @override
+  String get openui_board_incomplete => '此面板尚未完成。原始源代码如下。';
+
+  @override
+  String get openui_board_unsupported => '此面板包含 Android 暂不支持的组件。原始源代码如下。';
+
+  @override
+  String get openui_read_only => '只读 · 点按选择仅保留在本机';
+
+
+  @override
   String get code_format => 'Code';
 
   @override
@@ -4134,6 +4153,25 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get code_copied => '代码已复制';
+
+  @override
+  String get openui_show_source => '显示源代码';
+
+  @override
+  String get openui_hide_source => '隐藏源代码';
+
+  @override
+  String get openui_board_unavailable => '无法显示此面板。原始源代码如下。';
+
+  @override
+  String get openui_board_incomplete => '此面板尚未完成。原始源代码如下。';
+
+  @override
+  String get openui_board_unsupported => '此面板包含 Android 暂不支持的组件。原始源代码如下。';
+
+  @override
+  String get openui_read_only => '只读 · 点按选择仅保留在本机';
+
 
   @override
   String get coming_next => '敬请期待';

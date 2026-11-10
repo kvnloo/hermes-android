@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:highlight/highlight.dart' as syntax;
 
 import '../theme/hermes_theme.dart';
+import 'openui_board.dart';
 
 import 'package:hermes_android/core/l10n/l10n.dart';
 
@@ -15,13 +16,38 @@ import 'package:hermes_android/core/l10n/l10n.dart';
 /// builder (which leaves its internal inline state unbalanced).
 List<Object> splitMarkdownCodeBlocks(String content) {
   final result = <Object>[];
+  // Preserve main's splitting semantics for all ordinary fenced code.
   final regex = RegExp(
     r'```([\w+-]*)[ \t]*\r?\n([\s\S]*?)```',
     multiLine: true,
   );
+  // OpenUI alone must close on its own line before rendering a board.
+  final openUiRegex = RegExp(
+    r'```openui-v2[ \t]*\r?\n([\s\S]*?)^[ ]{0,3}```[ \t]*(?=\r?\n|$)',
+    multiLine: true,
+  );
   var cursor = 0;
 
-  for (final match in regex.allMatches(content)) {
+  while (cursor < content.length) {
+    // Rescan after an OpenUI match, which may span an inline ``` token.
+    final matches = regex.allMatches(content, cursor).iterator;
+    if (!matches.moveNext()) break;
+    final match = matches.current;
+
+    if (match.group(1) == 'openui-v2') {
+      final completed = openUiRegex.matchAsPrefix(content, match.start);
+      // An inline triple-backtick inside an unfinished board is not a close.
+      if (completed == null) break;
+      if (match.start > cursor) {
+        result.add(content.substring(cursor, match.start));
+      }
+      result.add(
+        MarkdownCodeBlock(code: completed.group(1)!, language: 'openui-v2'),
+      );
+      cursor = completed.end;
+      continue;
+    }
+
     if (match.start > cursor) {
       result.add(content.substring(cursor, match.start));
     }
@@ -60,7 +86,10 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
 
   List<syntax.Node>? _parseCode() {
     final language = widget.language;
-    if (language == null || widget.code.length > 60000) return null;
+    if (language == null ||
+        language == 'openui-v2' ||
+        widget.code.length > 60000)
+      return null;
     try {
       return syntax.highlight.parse(widget.code, language: language).nodes;
     } catch (_) {
@@ -125,6 +154,9 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.language == 'openui-v2') {
+      return OpenUiBoard(source: widget.code);
+    }
     final tokens = HermesTokens.of(context);
     final scheme = Theme.of(context).colorScheme;
     final code = SelectableText.rich(

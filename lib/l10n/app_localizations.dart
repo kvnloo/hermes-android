@@ -1416,6 +1416,24 @@ abstract class AppLocalizations {
   /// **'Code copied'**
   String get code_copied;
 
+  /// Native read-only chart-board text.
+  String get openui_show_source;
+
+  /// Native read-only chart-board text.
+  String get openui_hide_source;
+
+  /// Native read-only chart-board text.
+  String get openui_board_unavailable;
+
+  /// Native read-only chart-board text.
+  String get openui_board_incomplete;
+
+  /// Native read-only chart-board text.
+  String get openui_board_unsupported;
+
+  /// Native read-only chart-board text.
+  String get openui_read_only;
+
   /// No description provided for @code_format.
   ///
   /// In en, this message translates to:

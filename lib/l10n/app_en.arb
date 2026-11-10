@@ -1144,5 +1144,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "openui_show_source": "Show source",
+  "openui_hide_source": "Hide source",
+  "openui_board_unavailable": "This board could not be displayed. Original source is below.",
+  "openui_board_incomplete": "This board is incomplete. Original source is below.",
+  "openui_board_unsupported": "This board includes a panel not yet supported on Android. Original source is below.",
+  "openui_read_only": "Read-only · taps inspect values locally"
 }
