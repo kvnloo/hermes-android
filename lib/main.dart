@@ -261,6 +261,11 @@ class HermesApp extends StatefulWidget {
   @visibleForTesting
   final Future<Session?> Function(SavedConnection, String)?
   testNotificationSessionLookup;
+
+  /// Test-only signal after the navigation finalizer and the next route frame.
+  @visibleForTesting
+  final void Function()? testNotificationNavigationSettled;
+
   const HermesApp({
     required this.connManager,
     this.shareIntents,
@@ -271,6 +276,7 @@ class HermesApp extends StatefulWidget {
     this.loadBackgroundPolicy,
     this.notificationClientFactory,
     this.testNotificationSessionLookup,
+    this.testNotificationNavigationSettled,
     super.key,
   });
 
@@ -1143,6 +1149,12 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
       }
       if (deferred && mounted && !_closingTurnOwner && !_background) {
         _resumeNotificationNavigation();
+      }
+      // Pushing a route schedules its widget tree for the next frame. The
+      // finalizer is not itself proof that the new ChatScreen has rendered.
+      final settled = widget.testNotificationNavigationSettled;
+      if (settled != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => settled());
       }
     }
   }
