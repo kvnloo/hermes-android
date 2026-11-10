@@ -449,7 +449,9 @@ void main() {
       }
       expect(f.server.listRequests, 1);
       held.complete();
-      await _until(tester, () => f.server.listReplies == 1);
+      // The continuation page can finish before the next pump observes reply 1.
+      // Wait for progress, then use settlement and offsets as completion proof.
+      await _until(tester, () => f.server.listReplies >= 1);
       await _until(tester, () => f.settledNavigations >= 1);
       await _drain(tester);
       f.expectChat(tester, 'shared');
@@ -485,10 +487,13 @@ void main() {
       expect(f.server.listRequests, 2);
       f.expectChat(tester, null);
       newer.complete();
-      await _until(tester, () => f.server.listReplies == 2);
+      // The newer ordinary lookup also reads its continuation page, so reply 2
+      // is transient even though no extra ordinary navigation was started.
+      await _until(tester, () => f.server.listReplies >= 2);
       await _until(tester, () => f.settledNavigations >= 2);
       await _drain(tester);
       f.expectChat(tester, 'shared');
+      expect(f.server.listOffsets, [0, 0, 50]);
     } finally {
       old.complete();
       newer?.complete();
