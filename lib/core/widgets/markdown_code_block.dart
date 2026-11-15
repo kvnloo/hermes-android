@@ -88,8 +88,9 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
     final language = widget.language;
     if (language == null ||
         language == 'openui-v2' ||
-        widget.code.length > 60000)
+        widget.code.length > 60000) {
       return null;
+    }
     try {
       return syntax.highlight.parse(widget.code, language: language).nodes;
     } catch (_) {
