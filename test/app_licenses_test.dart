@@ -67,7 +67,7 @@ void main() {
     expect(entries.first.packages, ['test_dependency']);
     expect(bundle.requests, _noticeAssets);
     expect(entries.skip(1).map((entry) => entry.packages.single), [
-      'Ares app (formerly Hermes Android)',
+      'z0 Agent, based on Ares by Sam Russell (MIT)',
       'Cinzel',
       'Geist and Geist Mono',
       'Kyllene (NextGen design and connection model, source material)',

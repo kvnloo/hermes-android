@@ -1,0 +1,46 @@
+name: Play AAB (z0 Agent)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [z0/play-release]
+
+jobs:
+  aab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          cache: true
+      - run: flutter pub get
+      - run: flutter gen-l10n
+      - run: flutter test test/ng_theme_spec_test.dart test/nextgen_test.dart
+      - name: Upload key
+        env:
+          KS: ${{ secrets.Z0_KEYSTORE_BASE64 }}
+          PW: ${{ secrets.Z0_KEYSTORE_PASSWORD }}
+        run: |
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=upload\nkeyPassword=%s\n' \
+            "$RUNNER_TEMP/upload.jks" "$PW" "$PW" > key.properties
+      - name: Build AAB
+        env:
+          ARES_PLAY_BUILD: 'true'
+        run: flutter build appbundle --release --dart-define=ARES_PLAY_BUILD=true --split-debug-info=symbols-play
+      - name: Check signer and package
+        run: |
+          aab=build/app/outputs/bundle/release/app-release.aab
+          keytool -printcert -jarfile "$aab" | grep -E 'Owner|SHA256:'
+          grep -q 'io.github.kvnloo.z0agent' build/app/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: z0-agent-aab
+          path: |
+            build/app/outputs/bundle/release/app-release.aab
+            symbols-play

@@ -2,7 +2,7 @@
 
 **Effective: 15 November 2026**
 
-z0 Agent (an independent fork of the MIT-licensed z0 Agent app by Sam Russell) is a free, open-source client for a Hermes Agent server chosen by you or your organisation. The app developer does not operate that server and does not receive your chats by default.
+z0 Agent (an independent fork of the MIT-licensed Ares app by Sam Russell) is a free, open-source client for a Hermes Agent server chosen by you or your organisation. The app developer does not operate that server and does not receive your chats by default.
 
 For privacy questions or requests, open an issue at <https://github.com/kvnloo/hermes-android/issues>. Do not post passwords, access tokens, private chats or other sensitive material in a public issue.
 

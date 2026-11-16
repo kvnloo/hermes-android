@@ -129,7 +129,7 @@ void main() {
       TurnNotificationService.recentAttempts.value
           .take(2)
           .map((a) => a.detail),
-      ['the turn was stopped', 'Ares was on screen'],
+      ['the turn was stopped', 'z0 Agent was on screen'],
     );
     await unmount(tester);
   });

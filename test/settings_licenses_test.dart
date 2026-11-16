@@ -169,7 +169,7 @@ void main() {
     expect(find.text('3.0.0-rc.1+3000'), findsOneWidget);
 
     const packages = <String, List<String>>{
-      'Ares app (formerly Hermes Android)': ['LICENSE'],
+      'z0 Agent, based on Ares by Sam Russell (MIT)': ['LICENSE'],
       'Cinzel': ['assets/fonts/OFL.txt'],
       'embedded-fcm-distributor (3.1.0)': [
         'third_party/embedded-push-notice.md',

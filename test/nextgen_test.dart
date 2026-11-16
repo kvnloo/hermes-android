@@ -296,11 +296,11 @@ void main() {
     addTearDown(() => nextGenEnabled.value = false);
     await tester.pumpWidget(HermesApp(connManager: ConnectionManager(prefs)));
     await tester.pumpAndSettle();
-    expect(find.text('Welcome to Ares'), findsNothing);
+    expect(find.text('Welcome to z0 Agent'), findsNothing);
     expect(find.byKey(const Key('setup-interface-choice')), findsOneWidget);
     expect(
       find.textContaining(
-        'The original Ares workspace, with full connection controls and every Classic setting.',
+        'The original z0 Agent workspace, with full connection controls and every Classic setting.',
       ),
       findsOneWidget,
     );
@@ -309,7 +309,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(nextGenEnabled.value, isTrue);
     expect(prefs.getBool(NextGenPreferences.enabledKey), isTrue);
-    expect(find.text('Welcome to Ares'), findsOneWidget);
+    expect(find.text('Welcome to z0 Agent'), findsOneWidget);
     expect(find.text('Dashboard address'), findsOneWidget);
     expect(find.text('Find on my network'), findsOneWidget);
     expect(
@@ -322,7 +322,7 @@ void main() {
     await tester.tap(find.byKey(const Key('setup-interface-classic')));
     await tester.pumpAndSettle();
     expect(nextGenEnabled.value, isFalse);
-    expect(find.text('Welcome to Ares'), findsNothing);
+    expect(find.text('Welcome to z0 Agent'), findsNothing);
     expect(prefs.getBool(NextGenPreferences.enabledKey), isFalse);
   });
 
