@@ -15,6 +15,7 @@ import 'package:hermes_android/nextgen/theme/nextgen_theme.dart';
 import 'package:hermes_android/nextgen/theme/ng_theme_spec.dart';
 import 'package:hermes_android/nextgen/ui/chat_view.dart';
 import 'package:hermes_android/nextgen/ui/nextgen_scope.dart';
+import 'package:hermes_android/nextgen/ui/settings_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> _font(String family, List<String> files) async {
@@ -44,13 +45,14 @@ void main() {
     await _font('GeistMono', files('GeistMono'));
   });
 
-  for (final themeId in ['onyx', 'dash']) {
+  for (final themeId in ['onyx', 'dash', 'settings']) {
     testWidgets('store chat $themeId', (tester) async {
       tester.view.physicalSize = const Size(1080, 2340);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.reset);
       final prefs = await SharedPreferences.getInstance();
-      final look = NextGenLook.instance..themeId = themeId;
+      final look = NextGenLook.instance
+        ..themeId = themeId == 'settings' ? 'onyx' : themeId;
       final conn = SavedConnection(
         id: 'c1',
         label: 'Home',
@@ -101,7 +103,9 @@ void main() {
               signOut: (_) async {},
               reload: () async {},
               signInAgain: () async {},
-              child: Scaffold(
+              child: themeId == 'settings'
+                  ? const NgSettingsPage()
+                  : Scaffold(
                 body: NgChatView(
                   chat: chat,
                   onOpenSidebar: () {},
@@ -113,7 +117,10 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 500));
-      expect(ngPresetById(themeId).id, themeId);
+      if (themeId == 'settings') {
+        await tester.scrollUntilVisible(find.text('Look'), 300, scrollable: find.byType(Scrollable).first);
+        await tester.pump(const Duration(milliseconds: 300));
+      }
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/store/chat_$themeId.png'),

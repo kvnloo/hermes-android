@@ -528,7 +528,7 @@ ThemeData nextGenTheme(Brightness brightness, NextGenLook look) {
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected) ? Colors.white : c.text3,
+        (s) => s.contains(WidgetState.selected) ? c.onAccent : c.text3,
       ),
       trackColor: WidgetStateProperty.resolveWith(
         (s) => s.contains(WidgetState.selected) ? c.accent : c.surface3,
