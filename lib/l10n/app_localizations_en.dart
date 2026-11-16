@@ -1642,7 +1642,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get message => 'Message';
 
   @override
-  String get message_hermes => 'Message Hermes…';
+  String get message_hermes => 'Message your agent…';
 
   @override
   String get message_actions => 'Message actions';
@@ -4476,7 +4476,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ng_steer_or_queue_a_message => 'Steer or queue a message';
 
   @override
-  String get ng_message_hermes => 'Message Hermes';
+  String get ng_message_hermes => 'Message your agent';
 
   @override
   String get ng_attach => 'Attach';

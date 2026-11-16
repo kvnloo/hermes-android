@@ -2877,7 +2877,7 @@ abstract class AppLocalizations {
   /// No description provided for @message_hermes.
   ///
   /// In en, this message translates to:
-  /// **'Message Hermes…'**
+  /// **'Message your agent…'**
   String get message_hermes;
 
   /// No description provided for @message_actions.
@@ -7527,7 +7527,7 @@ abstract class AppLocalizations {
   /// No description provided for @ng_message_hermes.
   ///
   /// In en, this message translates to:
-  /// **'Message Hermes'**
+  /// **'Message your agent'**
   String get ng_message_hermes;
 
   /// No description provided for @ng_attach.
