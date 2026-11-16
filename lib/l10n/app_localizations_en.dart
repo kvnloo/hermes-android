@@ -176,7 +176,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get setup_interface_classic_description =>
-      'The original Ares workspace, with full connection controls and every Classic setting.';
+      'The original z0 Agent workspace, with full connection controls and every Classic setting.';
 
   @override
   String get setup_interface_nextgen_description =>
@@ -1449,10 +1449,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get go_to_end => 'Go to end';
 
   @override
-  String get hermes_agent => 'Ares - formerly Hermes Android';
+  String get hermes_agent => 'z0 Agent';
 
   @override
-  String get hermes_agent_for_android => 'Ares - formerly Hermes Android';
+  String get hermes_agent_for_android => 'z0 Agent';
 
   @override
   String get hermes_could_not_accept_the_answer_please_try_again =>
@@ -1474,7 +1474,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hermes_keeps_android_accessibility_text_scaling_active =>
-      'Ares keeps Android accessibility text scaling active.';
+      'z0 Agent keeps Android accessibility text scaling active.';
 
   @override
   String get hermes_needs_your_input => 'Hermes needs your input';
@@ -3189,7 +3189,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get a_newer_hermes_android_build_is_available_on_github =>
-      'A newer Ares build is available on GitHub.';
+      'A newer z0 Agent build is available on GitHub.';
 
   @override
   String get release_notes => 'Release notes';
@@ -4587,7 +4587,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Too many attempts. Wait a moment and try again.';
 
   @override
-  String get ng_welcome_to_hermes => 'Welcome to Ares';
+  String get ng_welcome_to_hermes => 'Welcome to z0 Agent';
 
   @override
   String get ng_add_a_gateway => 'Add a gateway';
@@ -5681,7 +5681,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ng_notifications_hint =>
-      'Replies and requests while Ares is in the background';
+      'Replies and requests while z0 Agent is in the background';
 
   @override
   String get ng_notify_replies => 'Replies';
@@ -5709,13 +5709,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ng_battery_settings_hint =>
-      'Let Ares run in the background so notifications arrive on time';
+      'Let z0 Agent run in the background so notifications arrive on time';
 
   @override
   String get ng_send_test_notification => 'Send a test notification';
 
   @override
-  String get ng_test_notification_title => 'Ares notifications work';
+  String get ng_test_notification_title => 'z0 Agent notifications work';
 
   @override
   String get ng_test_notification_body =>
@@ -5730,7 +5730,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ng_notifications_off_hint =>
-      'Notifications are off, so nothing is posted while Ares is in the background.';
+      'Notifications are off, so nothing is posted while z0 Agent is in the background.';
 
   @override
   String get ng_insights_building =>
@@ -5799,7 +5799,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ng_recent_notifications_hint =>
-      'What Ares tried to post and whether Android showed it';
+      'What z0 Agent tried to post and whether Android showed it';
 
   @override
   String get ng_recent_notifications_empty =>
@@ -5816,4 +5816,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ng_notify_master_off => 'Notifications off';
+
+  @override
+  String get ng_look => 'Look';
+
+  @override
+  String get ng_import_theme => 'Import theme';
+
+  @override
+  String get ng_copy_theme => 'Copy theme JSON';
+
+  @override
+  String get ng_paste_theme_json => 'Paste a theme\'s JSON';
+
+  @override
+  String get ng_theme_applied => 'Theme applied';
+
+  @override
+  String get ng_apply => 'Apply';
 }

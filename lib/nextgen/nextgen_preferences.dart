@@ -6,6 +6,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'theme/ng_theme_spec.dart';
+
 /// Whether the app runs the NextGen interface. Toggled from Settings in either
 /// interface; the root rebuilds when it changes.
 final ValueNotifier<bool> nextGenEnabled = ValueNotifier(false);
@@ -79,6 +81,16 @@ class NextGenLook extends ChangeNotifier {
   /// Soft coloured light behind the top of each screen.
   bool glow = true;
 
+  /// The selected theme: a preset id, or 'custom' for [customTheme].
+  String themeId = ngThemePresets.first.id;
+
+  /// The theme the user imported, if any.
+  NgThemeSpec? customTheme;
+
+  NgThemeSpec get theme => themeId == 'custom' && customTheme != null
+      ? customTheme!
+      : ngPresetById(themeId);
+
   void _apply(void Function() change) {
     change();
     notifyListeners();
@@ -92,6 +104,8 @@ abstract final class NextGenPreferences {
   static const accentKey = 'nextgen_accent';
   static const pureBlackKey = 'nextgen_pure_black';
   static const glowKey = 'nextgen_glow';
+  static const themeKey = 'nextgen_theme';
+  static const customThemeKey = 'nextgen_custom_theme';
   static const starredModelsKey = 'nextgen_starred_models';
   static const recentModelsKey = 'nextgen_recent_models';
   static const lastSessionKeyPrefix = 'nextgen_last_session.';
@@ -99,7 +113,8 @@ abstract final class NextGenPreferences {
   /// Reads every NextGen preference into memory. Synchronous: the shared
   /// [SharedPreferences] instance is already loaded at startup.
   static void load(SharedPreferences prefs) {
-    nextGenEnabled.value = prefs.getBool(enabledKey) ?? false;
+    // This build ships NextGen as the interface; Classic stays one switch away.
+    nextGenEnabled.value = prefs.getBool(enabledKey) ?? true;
     final look = NextGenLook.instance;
     look.themeMode = switch (prefs.getString(themeModeKey)) {
       'light' => ThemeMode.light,
@@ -112,6 +127,45 @@ abstract final class NextGenPreferences {
     );
     look.pureBlack = prefs.getBool(pureBlackKey) ?? false;
     look.glow = prefs.getBool(glowKey) ?? true;
+    look.customTheme = _readCustom(prefs.getString(customThemeKey));
+    look.themeId = prefs.getString(themeKey) ?? ngThemePresets.first.id;
+  }
+
+  static NgThemeSpec? _readCustom(String? source) {
+    if (source == null) return null;
+    try {
+      return NgThemeSpec.parse(source);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static Future<void> setTheme(SharedPreferences prefs, String id) async {
+    NextGenLook.instance._apply(() => NextGenLook.instance.themeId = id);
+    await prefs.setString(themeKey, id);
+  }
+
+  /// Validates [source] and selects it. Throws [FormatException] untouched,
+  /// so a bad import changes nothing.
+  static Future<NgThemeSpec> importTheme(
+    SharedPreferences prefs,
+    String source,
+  ) async {
+    final parsed = NgThemeSpec.parse(source);
+    final spec = NgThemeSpec(
+      id: 'custom',
+      name: parsed.name,
+      dark: parsed.dark,
+      light: parsed.light,
+      glow: parsed.glow,
+    );
+    await prefs.setString(customThemeKey, spec.encode());
+    NextGenLook.instance._apply(() {
+      NextGenLook.instance.customTheme = spec;
+      NextGenLook.instance.themeId = 'custom';
+    });
+    await prefs.setString(themeKey, 'custom');
+    return spec;
   }
 
   static Future<void> setEnabled(SharedPreferences prefs, bool enabled) async {

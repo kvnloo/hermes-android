@@ -251,7 +251,7 @@ class PluginTurnNotificationSink implements TurnNotificationSink {
 /// One app-wide sink owns terminal/attention channels and optional ongoing
 /// per-chat status entries. Initialization is headless-safe; only foreground
 /// callers explicitly opt in to requesting notification permission.
-/// One notification Ares tried to post, kept for Settings' "Recent
+/// One notification z0 Agent tried to post, kept for Settings' "Recent
 /// notifications" so a missing one can be explained on the phone itself.
 @immutable
 class NotificationAttempt {
@@ -320,7 +320,7 @@ class TurnNotificationService {
 
   static const turnChannel = TurnNotificationChannel(
     id: 'hermes_turn_notifications',
-    name: 'Ares Turns',
+    name: 'z0 Agent Turns',
     description: 'Notifications for completed background turns',
   );
 
@@ -328,21 +328,21 @@ class TurnNotificationService {
   /// input requests can surface as heads-up cards while the app is away.
   static const attentionChannel = TurnNotificationChannel(
     id: 'hermes_attention',
-    name: 'Ares Attention',
+    name: 'z0 Agent Attention',
     description: 'Approvals and input requests that need you',
   );
 
   /// Finished background work: quiet by design.
   static const backgroundChannel = TurnNotificationChannel(
     id: 'hermes_background',
-    name: 'Ares Background',
+    name: 'z0 Agent Background',
     description: 'Background task completions',
   );
 
   /// Gateway notices: credits and plugin messages.
   static const noticesChannel = TurnNotificationChannel(
     id: 'hermes_notices',
-    name: 'Ares Notices',
+    name: 'z0 Agent Notices',
     description: 'Credit and plugin notices',
   );
 

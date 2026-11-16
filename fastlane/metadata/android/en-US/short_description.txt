@@ -1,1 +1,1 @@
-Chat with your Hermes AI agent from your phone
+A fast, minimal chat client for your own Hermes Agent server.

@@ -1,2 +1,0 @@
-Kept bottom navigation labels on one line across all supported languages and text sizes.
-Added concise Russian navigation labels without shortening pane titles.

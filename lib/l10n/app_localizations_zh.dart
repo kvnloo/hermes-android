@@ -166,7 +166,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get setup_interface_classic_description =>
-      '原有的 Ares 工作区，提供完整的连接控制和所有 Classic 设置。';
+      '原有的 z0 Agent 工作区，提供完整的连接控制和所有 Classic 设置。';
 
   @override
   String get setup_interface_nextgen_description =>
@@ -1395,10 +1395,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get go_to_end => '转到末尾';
 
   @override
-  String get hermes_agent => 'Ares - formerly Hermes Android';
+  String get hermes_agent => 'z0 Agent';
 
   @override
-  String get hermes_agent_for_android => 'Ares - formerly Hermes Android';
+  String get hermes_agent_for_android => 'z0 Agent';
 
   @override
   String get hermes_could_not_accept_the_answer_please_try_again =>
@@ -1420,7 +1420,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get hermes_keeps_android_accessibility_text_scaling_active =>
-      'Ares 保持 Android 辅助功能文字缩放处于活动状态。';
+      'z0 Agent 保持 Android 辅助功能文字缩放处于活动状态。';
 
   @override
   String get hermes_needs_your_input => 'Hermes 需要你的输入';
@@ -3088,7 +3088,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get a_newer_hermes_android_build_is_available_on_github =>
-      'GitHub 上已有更新的 Ares 版本。';
+      'GitHub 上已有更新的 z0 Agent 版本。';
 
   @override
   String get release_notes => '发行说明';
@@ -4426,7 +4426,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ng_too_many_attempts_wait_a_moment => '尝试次数过多，请稍等片刻再试。';
 
   @override
-  String get ng_welcome_to_hermes => '欢迎使用 Ares';
+  String get ng_welcome_to_hermes => '欢迎使用 z0 Agent';
 
   @override
   String get ng_add_a_gateway => '添加网关';
@@ -5488,7 +5488,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ng_notifications => '通知';
 
   @override
-  String get ng_notifications_hint => 'Ares 在背景執行時收到回覆和請求通知';
+  String get ng_notifications_hint => 'z0 Agent 在背景執行時收到回覆和請求通知';
 
   @override
   String get ng_notify_replies => '回覆';
@@ -5512,13 +5512,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ng_battery_settings => '電池最佳化';
 
   @override
-  String get ng_battery_settings_hint => '允許 Ares 在背景執行，讓通知準時送達';
+  String get ng_battery_settings_hint => '允許 z0 Agent 在背景執行，讓通知準時送達';
 
   @override
   String get ng_send_test_notification => '傳送測試通知';
 
   @override
-  String get ng_test_notification_title => 'Ares 通知運作正常';
+  String get ng_test_notification_title => 'z0 Agent 通知運作正常';
 
   @override
   String get ng_test_notification_body => '回覆和請求通知會以這種方式顯示。';
@@ -5530,7 +5530,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ng_notifications_blocked => '通知已封鎖。請在 Android 設定中允許通知。';
 
   @override
-  String get ng_notifications_off_hint => '通知已關閉，因此 Ares 在背景執行時不會顯示通知。';
+  String get ng_notifications_off_hint => '通知已關閉，因此 z0 Agent 在背景執行時不會顯示通知。';
 
   @override
   String get ng_insights_building => '正在建立報告。首次建立較長期間的報告可能需要最多一分鐘。';
@@ -5596,7 +5596,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ng_recent_notifications => '最近通知';
 
   @override
-  String get ng_recent_notifications_hint => 'Ares 嘗試發布的內容，以及 Android 是否顯示了通知';
+  String get ng_recent_notifications_hint =>
+      'z0 Agent 嘗試發布的內容，以及 Android 是否顯示了通知';
 
   @override
   String get ng_recent_notifications_empty =>
@@ -5613,6 +5614,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get ng_notify_master_off => '通知已關閉';
+
+  @override
+  String get ng_look => 'Look';
+
+  @override
+  String get ng_import_theme => 'Import theme';
+
+  @override
+  String get ng_copy_theme => 'Copy theme JSON';
+
+  @override
+  String get ng_paste_theme_json => 'Paste a theme\'s JSON';
+
+  @override
+  String get ng_theme_applied => 'Theme applied';
+
+  @override
+  String get ng_apply => 'Apply';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -5777,7 +5796,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get setup_interface_classic_description =>
-      '原有的 Ares 工作区，提供完整的连接控制和所有 Classic 设置。';
+      '原有的 z0 Agent 工作区，提供完整的连接控制和所有 Classic 设置。';
 
   @override
   String get setup_interface_nextgen_description =>
@@ -6933,10 +6952,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get go_to_end => '转到末尾';
 
   @override
-  String get hermes_agent => 'Ares - formerly Hermes Android';
+  String get hermes_agent => 'z0 Agent';
 
   @override
-  String get hermes_agent_for_android => 'Ares - formerly Hermes Android';
+  String get hermes_agent_for_android => 'z0 Agent';
 
   @override
   String get hermes_could_not_accept_the_answer_please_try_again =>
@@ -6958,7 +6977,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get hermes_keeps_android_accessibility_text_scaling_active =>
-      'Ares 保持 Android 辅助功能文字缩放处于活动状态。';
+      'z0 Agent 保持 Android 辅助功能文字缩放处于活动状态。';
 
   @override
   String get hermes_needs_your_input => 'Hermes 需要你的输入';
@@ -8617,7 +8636,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get a_newer_hermes_android_build_is_available_on_github =>
-      'GitHub 上已有更新的 Ares 版本。';
+      'GitHub 上已有更新的 z0 Agent 版本。';
 
   @override
   String get release_notes => '发行说明';
@@ -9845,7 +9864,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get ng_too_many_attempts_wait_a_moment => '尝试次数过多，请稍等片刻再试。';
 
   @override
-  String get ng_welcome_to_hermes => '欢迎使用 Ares';
+  String get ng_welcome_to_hermes => '欢迎使用 z0 Agent';
 
   @override
   String get ng_add_a_gateway => '添加网关';
@@ -10907,7 +10926,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get ng_notifications => '通知';
 
   @override
-  String get ng_notifications_hint => 'Ares 在后台运行时接收回复和请求通知';
+  String get ng_notifications_hint => 'z0 Agent 在后台运行时接收回复和请求通知';
 
   @override
   String get ng_notify_replies => '回复';
@@ -10931,13 +10950,13 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get ng_battery_settings => '电池优化';
 
   @override
-  String get ng_battery_settings_hint => '允许 Ares 在后台运行，以便及时收到通知';
+  String get ng_battery_settings_hint => '允许 z0 Agent 在后台运行，以便及时收到通知';
 
   @override
   String get ng_send_test_notification => '发送测试通知';
 
   @override
-  String get ng_test_notification_title => 'Ares 通知功能正常';
+  String get ng_test_notification_title => 'z0 Agent 通知功能正常';
 
   @override
   String get ng_test_notification_body => '回复和请求通知会以这种形式显示。';
@@ -10949,7 +10968,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get ng_notifications_blocked => '通知已被禁止。请在 Android 设置中允许通知。';
 
   @override
-  String get ng_notifications_off_hint => '通知已关闭，因此 Ares 在后台运行时不会发送通知。';
+  String get ng_notifications_off_hint => '通知已关闭，因此 z0 Agent 在后台运行时不会发送通知。';
 
   @override
   String get ng_insights_building => '正在生成报告。首次生成较长时间段的报告可能需要最多一分钟。';
@@ -11015,7 +11034,8 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get ng_recent_notifications => '最近通知';
 
   @override
-  String get ng_recent_notifications_hint => 'Ares 尝试发布的内容，以及 Android 是否显示了通知';
+  String get ng_recent_notifications_hint =>
+      'z0 Agent 尝试发布的内容，以及 Android 是否显示了通知';
 
   @override
   String get ng_recent_notifications_empty =>

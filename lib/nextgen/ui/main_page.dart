@@ -388,7 +388,7 @@ class _NgMainPageState extends State<NgMainPage> with WidgetsBindingObserver {
         'reply',
         label,
         'skipped',
-        'Ares was on screen',
+        'z0 Agent was on screen',
       );
       return;
     }

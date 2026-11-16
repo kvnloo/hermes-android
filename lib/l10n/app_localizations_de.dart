@@ -176,7 +176,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get setup_interface_classic_description =>
-      'Der ursprüngliche Ares-Arbeitsbereich mit allen Verbindungsoptionen und Classic-Einstellungen.';
+      'Der ursprüngliche z0 Agent-Arbeitsbereich mit allen Verbindungsoptionen und Classic-Einstellungen.';
 
   @override
   String get setup_interface_nextgen_description =>
@@ -1466,10 +1466,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get go_to_end => 'Zum Ende';
 
   @override
-  String get hermes_agent => 'Ares - formerly Hermes Android';
+  String get hermes_agent => 'z0 Agent';
 
   @override
-  String get hermes_agent_for_android => 'Ares - formerly Hermes Android';
+  String get hermes_agent_for_android => 'z0 Agent';
 
   @override
   String get hermes_could_not_accept_the_answer_please_try_again =>
@@ -1491,7 +1491,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get hermes_keeps_android_accessibility_text_scaling_active =>
-      'Ares lässt die Android-Textskalierung für Barrierefreiheit aktiv.';
+      'z0 Agent lässt die Android-Textskalierung für Barrierefreiheit aktiv.';
 
   @override
   String get hermes_needs_your_input => 'Hermes braucht deine Eingabe';
@@ -3213,7 +3213,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get a_newer_hermes_android_build_is_available_on_github =>
-      'Auf GitHub ist ein neueres Ares-Build verfügbar.';
+      'Auf GitHub ist ein neueres z0 Agent-Build verfügbar.';
 
   @override
   String get release_notes => 'Versionshinweise';
@@ -4625,7 +4625,7 @@ class AppLocalizationsDe extends AppLocalizations {
       'Zu viele Versuche. Warte kurz und versuch es erneut.';
 
   @override
-  String get ng_welcome_to_hermes => 'Willkommen bei Ares';
+  String get ng_welcome_to_hermes => 'Willkommen bei z0 Agent';
 
   @override
   String get ng_add_a_gateway => 'Gateway hinzufügen';
@@ -5726,7 +5726,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get ng_notifications_hint =>
-      'Antworten und Anfragen, während Ares im Hintergrund läuft';
+      'Antworten und Anfragen, während z0 Agent im Hintergrund läuft';
 
   @override
   String get ng_notify_replies => 'Antworten';
@@ -5754,14 +5754,14 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get ng_battery_settings_hint =>
-      'Ares im Hintergrund laufen lassen, damit Benachrichtigungen pünktlich ankommen';
+      'z0 Agent im Hintergrund laufen lassen, damit Benachrichtigungen pünktlich ankommen';
 
   @override
   String get ng_send_test_notification => 'Testbenachrichtigung senden';
 
   @override
   String get ng_test_notification_title =>
-      'Ares-Benachrichtigungen funktionieren';
+      'z0 Agent-Benachrichtigungen funktionieren';
 
   @override
   String get ng_test_notification_body =>
@@ -5776,7 +5776,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get ng_notifications_off_hint =>
-      'Benachrichtigungen sind deaktiviert. Daher werden keine angezeigt, während Ares im Hintergrund läuft.';
+      'Benachrichtigungen sind deaktiviert. Daher werden keine angezeigt, während z0 Agent im Hintergrund läuft.';
 
   @override
   String get ng_insights_building =>
@@ -5845,7 +5845,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get ng_recent_notifications_hint =>
-      'Was Ares zu posten versucht hat und ob Android es angezeigt hat';
+      'Was z0 Agent zu posten versucht hat und ob Android es angezeigt hat';
 
   @override
   String get ng_recent_notifications_empty =>
@@ -5862,4 +5862,22 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get ng_notify_master_off => 'Benachrichtigungen deaktiviert';
+
+  @override
+  String get ng_look => 'Look';
+
+  @override
+  String get ng_import_theme => 'Import theme';
+
+  @override
+  String get ng_copy_theme => 'Copy theme JSON';
+
+  @override
+  String get ng_paste_theme_json => 'Paste a theme\'s JSON';
+
+  @override
+  String get ng_theme_applied => 'Theme applied';
+
+  @override
+  String get ng_apply => 'Apply';
 }

@@ -383,6 +383,10 @@ class NextGenGateway extends ChangeNotifier {
 
   void forgetRequest(String id) => resolveRequest(id);
 
+  /// Sets the connection phase without a socket (screenshots, widget tests).
+  @visibleForTesting
+  void debugSetPhase(NgConnectionPhase phase) => _set(NgConnectionState(phase));
+
   /// Feeds a server event as if it arrived on the socket.
   @visibleForTesting
   void debugEmit(StreamEvent event) => _events.add(event);

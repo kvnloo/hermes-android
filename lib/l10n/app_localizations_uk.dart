@@ -177,7 +177,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get setup_interface_classic_description =>
-      'Початковий робочий простір Ares з усіма елементами керування підключенням та налаштуваннями Classic.';
+      'Початковий робочий простір z0 Agent з усіма елементами керування підключенням та налаштуваннями Classic.';
 
   @override
   String get setup_interface_nextgen_description =>
@@ -1455,10 +1455,10 @@ class AppLocalizationsUk extends AppLocalizations {
   String get go_to_end => 'До останнього повідомлення';
 
   @override
-  String get hermes_agent => 'Ares - formerly Hermes Android';
+  String get hermes_agent => 'z0 Agent';
 
   @override
-  String get hermes_agent_for_android => 'Ares - formerly Hermes Android';
+  String get hermes_agent_for_android => 'z0 Agent';
 
   @override
   String get hermes_could_not_accept_the_answer_please_try_again =>
@@ -1480,7 +1480,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get hermes_keeps_android_accessibility_text_scaling_active =>
-      'Ares зберігає системне масштабування тексту Android.';
+      'z0 Agent зберігає системне масштабування тексту Android.';
 
   @override
   String get hermes_needs_your_input => 'Hermes потребує вашої відповіді';
@@ -3210,7 +3210,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get a_newer_hermes_android_build_is_available_on_github =>
-      'На GitHub доступна новіша збірка Ares.';
+      'На GitHub доступна новіша збірка z0 Agent.';
 
   @override
   String get release_notes => 'Примітки до випуску';
@@ -4614,7 +4614,7 @@ class AppLocalizationsUk extends AppLocalizations {
       'Забагато спроб. Зачекайте трохи й повторіть.';
 
   @override
-  String get ng_welcome_to_hermes => 'Ласкаво просимо до Ares';
+  String get ng_welcome_to_hermes => 'Ласкаво просимо до z0 Agent';
 
   @override
   String get ng_add_a_gateway => 'Додати шлюз';
@@ -5719,7 +5719,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get ng_notifications_hint =>
-      'Відповіді та запити, коли Ares працює у фоновому режимі';
+      'Відповіді та запити, коли z0 Agent працює у фоновому режимі';
 
   @override
   String get ng_notify_replies => 'Відповіді';
@@ -5748,13 +5748,13 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get ng_battery_settings_hint =>
-      'Дозвольте Ares працювати у фоновому режимі, щоб сповіщення надходили вчасно';
+      'Дозвольте z0 Agent працювати у фоновому режимі, щоб сповіщення надходили вчасно';
 
   @override
   String get ng_send_test_notification => 'Надіслати тестове сповіщення';
 
   @override
-  String get ng_test_notification_title => 'Сповіщення Ares працюють';
+  String get ng_test_notification_title => 'Сповіщення z0 Agent працюють';
 
   @override
   String get ng_test_notification_body =>
@@ -5769,7 +5769,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get ng_notifications_off_hint =>
-      'Сповіщення вимкнено, тому Ares не надсилатиме їх у фоновому режимі.';
+      'Сповіщення вимкнено, тому z0 Agent не надсилатиме їх у фоновому режимі.';
 
   @override
   String get ng_insights_building =>
@@ -5840,7 +5840,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get ng_recent_notifications_hint =>
-      'Що Ares намагався опублікувати та чи показав це Android';
+      'Що z0 Agent намагався опублікувати та чи показав це Android';
 
   @override
   String get ng_recent_notifications_empty =>
@@ -5857,4 +5857,22 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get ng_notify_master_off => 'Сповіщення вимкнено';
+
+  @override
+  String get ng_look => 'Look';
+
+  @override
+  String get ng_import_theme => 'Import theme';
+
+  @override
+  String get ng_copy_theme => 'Copy theme JSON';
+
+  @override
+  String get ng_paste_theme_json => 'Paste a theme\'s JSON';
+
+  @override
+  String get ng_theme_applied => 'Theme applied';
+
+  @override
+  String get ng_apply => 'Apply';
 }

@@ -1,2 +1,0 @@
-Added app localisation for Japanese, Simplified Chinese, Korean, Spanish, French, German, Brazilian Portuguese, and Russian.
-Improved fallback, regional locale selection, and plural handling.

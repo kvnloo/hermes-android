@@ -32,12 +32,12 @@ android {
            "versionCode ${flutter.versionCode} must be greater than " +
                "$minimumInstalledVersionCode to upgrade the accepted Hermes APK"
        }
-       applicationId = "com.hermesagent.hermes_android"
+       applicationId = "io.github.kvnloo.z0agent"
        minSdk = 24
        targetSdk = 36
        versionCode = flutter.versionCode
        versionName = flutter.versionName
-       manifestPlaceholders["appLabel"] = "Ares"
+       manifestPlaceholders["appLabel"] = "z0 Agent"
        buildConfigField("boolean", "PLAY_BUILD", playBuild.toString())
        }
 
@@ -63,7 +63,7 @@ android {
            // verifies the packaged arm64 code against that scheme.
            applicationIdSuffix = ".dev"
            versionNameSuffix = "-dev"
-           manifestPlaceholders["appLabel"] = "Ares Dev"
+           manifestPlaceholders["appLabel"] = "z0 Agent Dev"
        }
        release {
            isMinifyEnabled = true

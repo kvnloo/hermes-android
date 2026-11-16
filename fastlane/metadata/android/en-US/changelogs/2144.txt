@@ -1,1 +1,0 @@
-- Long messages now wrap inside the tablet chat column instead of being clipped.

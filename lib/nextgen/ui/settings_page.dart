@@ -3,6 +3,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/models/connection.dart';
 import '../../core/screens/model_management_screen.dart';
@@ -16,6 +17,8 @@ import '../../core/services/legal_links.dart';
 import '../data/connection_check.dart';
 import '../nextgen_preferences.dart';
 import '../theme/nextgen_theme.dart';
+import '../theme/ng_theme_spec.dart';
+import '../haptics.dart';
 import 'nextgen_scope.dart';
 import 'widgets.dart';
 import '../nextgen_l10n.dart';
@@ -28,6 +31,53 @@ class NgSettingsPage extends StatefulWidget {
 }
 
 class _NgSettingsPageState extends State<NgSettingsPage> {
+  Future<void> _importTheme(NgScope scope) async {
+    final field = TextEditingController();
+    String? error;
+    final applied = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) => AlertDialog(
+          title: Text(ngL.ng_import_theme),
+          content: TextField(
+            key: const ValueKey('ng-theme-json'),
+            controller: field,
+            maxLines: 8,
+            minLines: 4,
+            style: NgType.code,
+            decoration: InputDecoration(
+              hintText: ngL.ng_paste_theme_json,
+              errorText: error,
+              errorMaxLines: 3,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(ngL.ng_cancel),
+            ),
+            FilledButton(
+              key: const ValueKey('ng-theme-apply'),
+              onPressed: () async {
+                try {
+                  await NextGenPreferences.importTheme(scope.prefs, field.text);
+                  NgHaptics.success();
+                  if (context.mounted) Navigator.pop(context, true);
+                } on FormatException catch (e) {
+                  NgHaptics.error();
+                  setDialog(() => error = e.message);
+                }
+              },
+              child: Text(ngL.ng_apply),
+            ),
+          ],
+        ),
+      ),
+    );
+    field.dispose();
+    if (applied == true && mounted) ngToast(context, ngL.ng_theme_applied);
+  }
+
   ConnectionReport? _report;
   bool _checking = false;
   String? _signedInAs;
@@ -245,6 +295,54 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                   ),
                   const SizedBox(height: 18),
                   Text(
+                    ngL.ng_look,
+                    style: NgType.label.copyWith(color: c.text2),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final t in [
+                        ...ngThemePresets,
+                        if (look.customTheme != null) look.customTheme!,
+                      ])
+                        ChoiceChip(
+                          key: ValueKey('ng-theme-${t.id}'),
+                          label: Text(t.name),
+                          selected: look.theme.id == t.id,
+                          onSelected: (_) {
+                            NgHaptics.select();
+                            NextGenPreferences.setTheme(scope.prefs, t.id);
+                          },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    children: [
+                      TextButton.icon(
+                        key: const ValueKey('ng-theme-import'),
+                        icon: const Icon(Icons.file_download_outlined, size: 18),
+                        label: Text(ngL.ng_import_theme),
+                        onPressed: () => _importTheme(scope),
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.copy_rounded, size: 18),
+                        label: Text(ngL.ng_copy_theme),
+                        onPressed: () {
+                          Clipboard.setData(
+                            ClipboardData(text: look.theme.encode()),
+                          );
+                          ngToast(context, ngL.ng_copied);
+                        },
+                      ),
+                    ],
+                  ),
+                  if (!look.theme.ownsAccent) ...[
+                  const SizedBox(height: 18),
+                  Text(
                     ngL.ng_accent,
                     style: NgType.label.copyWith(color: c.text2),
                   ),
@@ -255,8 +353,10 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                     children: [
                       for (final a in NgAccent.values)
                         GestureDetector(
-                          onTap: () =>
-                              NextGenPreferences.setAccent(scope.prefs, a),
+                          onTap: () {
+                            NgHaptics.select();
+                            NextGenPreferences.setAccent(scope.prefs, a);
+                          },
                           child: Container(
                             width: 36,
                             height: 36,
@@ -277,6 +377,7 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                         ),
                     ],
                   ),
+                  ],
                   const SizedBox(height: 8),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -336,7 +437,7 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                       registerAppLicenses();
                       showLicensePage(
                         context: context,
-                        applicationName: 'Ares - formerly Hermes Android',
+                        applicationName: 'z0 Agent',
                       );
                     },
                   ),
@@ -542,7 +643,7 @@ class NgNotificationSettings extends StatelessWidget {
   }
 }
 
-/// What Ares tried to post lately and what came of it, so a notification
+/// What z0 Agent tried to post lately and what came of it, so a notification
 /// that never showed can be explained on the phone.
 class NgRecentNotificationsSheet extends StatelessWidget {
   const NgRecentNotificationsSheet({super.key});

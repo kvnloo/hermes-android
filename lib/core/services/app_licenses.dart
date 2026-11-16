@@ -11,7 +11,7 @@ void registerAppLicenses({AssetBundle? assetBundle}) {
   LicenseRegistry.addLicense(() async* {
     final bundle = assetBundle ?? rootBundle;
     const notices = <String, String>{
-      'LICENSE': 'Ares app (formerly Hermes Android)',
+      'LICENSE': 'z0 Agent, based on Ares by Sam Russell (MIT)',
       'assets/fonts/OFL.txt': 'Cinzel',
       'assets/fonts/geist/OFL.txt': 'Geist and Geist Mono',
       'third_party/licenses/kyllene-MIT.txt':

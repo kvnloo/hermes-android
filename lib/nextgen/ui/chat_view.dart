@@ -26,6 +26,7 @@ import '../../core/services/voice_composer_adapter.dart';
 import '../data/chat_controller.dart';
 import '../data/nextgen_gateway.dart';
 import '../theme/nextgen_theme.dart';
+import '../haptics.dart';
 import 'model_sheet.dart';
 import 'nextgen_scope.dart';
 import 'session_dock.dart';
@@ -105,10 +106,19 @@ class _NgChatViewState extends State<NgChatView> {
     if (old.chat != chat) {
       old.chat.removeListener(_onChat);
       chat.addListener(_onChat);
+      _wasRunning = chat.running;
     }
   }
 
+  /// Whether the open chat was running at the last change, so the end of a
+  /// turn gets one success (or error) pulse, as in Dash.
+  late bool _wasRunning = chat.running;
+
   void _onChat() {
+    if (_wasRunning && !chat.running) {
+      chat.error == null ? NgHaptics.success() : NgHaptics.error();
+    }
+    _wasRunning = chat.running;
     if (mounted) setState(() {});
   }
 
@@ -261,6 +271,7 @@ class _NgChatViewState extends State<NgChatView> {
   Future<void> _send() async {
     final text = _input.text.trim();
     if (text.isEmpty && _drafts.isEmpty) return;
+    NgHaptics.tap();
     if (_drafts.isNotEmpty && !chat.running) {
       final drafts = List.of(_drafts);
       _input.clear();
@@ -889,7 +900,10 @@ class _NgChatViewState extends State<NgChatView> {
                         foregroundColor: c.onInverse,
                       ),
                       icon: const Icon(Icons.stop_rounded),
-                      onPressed: chat.stop,
+                      onPressed: () {
+                        NgHaptics.tap();
+                        chat.stop();
+                      },
                     )
                   else
                     IconButton.filled(
