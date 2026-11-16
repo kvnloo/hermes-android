@@ -1059,7 +1059,7 @@ void main() {
           );
           expect(messageField.minLines, 1);
           expect(messageField.maxLines, 5);
-          expect(messageField.decoration?.hintText, 'Message Hermes…');
+          expect(messageField.decoration?.hintText, 'Message your agent…');
           expect(tester.takeException(), isNull);
         }
       },
