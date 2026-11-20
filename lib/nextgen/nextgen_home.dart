@@ -11,7 +11,7 @@ import 'data/nextgen_gateway.dart';
 import 'nextgen_preferences.dart';
 import 'theme/nextgen_theme.dart';
 import 'ui/connect_screen.dart';
-import 'ui/main_page.dart';
+import '../hm/screens/hm_home.dart';
 import 'ui/nextgen_scope.dart';
 import 'nextgen_l10n.dart';
 
@@ -215,7 +215,7 @@ class _NextGenHomeState extends State<NextGenHome> {
         child: Navigator(
           key: _navigator,
           onGenerateInitialRoutes: (_, _) => [
-            MaterialPageRoute<void>(builder: (_) => const NgMainPage()),
+            MaterialPageRoute<void>(builder: (_) => const HmHome()),
           ],
         ),
       ),

@@ -209,20 +209,33 @@ class NextGenGateway extends ChangeNotifier {
       WsClient? client;
       try {
         String? ticket;
-        try {
-          ticket = await _mintTicket();
-        } on DashboardHttpException catch (e) {
-          if (e.statusCode == 401) {
-            _set(const NgConnectionState(NgConnectionPhase.sessionExpired));
-            _running = false;
-            return;
+        String? token;
+        if (dashboard.usesSessionToken) {
+          // A dashboard without sign-in has no session to mint a ticket
+          // from (`/api/auth/ws-ticket` answers 401 there); it accepts its
+          // page token on the upgrade instead.
+          try {
+            token = await dashboard.sessionToken();
+          } on DashboardAuthUnavailableException catch (e) {
+            throw _Retry(e.reason);
           }
-          rethrow;
+        } else {
+          try {
+            ticket = await _mintTicket();
+          } on DashboardHttpException catch (e) {
+            if (e.statusCode == 401) {
+              _set(const NgConnectionState(NgConnectionPhase.sessionExpired));
+              _running = false;
+              return;
+            }
+            rethrow;
+          }
+          if (ticket == null) return;
         }
-        if (ticket == null) return;
         client = WsClient(
           dashboard.baseUrl,
           ticket: ticket,
+          token: token,
           profile: profile,
           clientCertificate: connection.clientCertificate,
           ticketInSubprotocol: true,

@@ -324,7 +324,10 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                     children: [
                       TextButton.icon(
                         key: const ValueKey('ng-theme-import'),
-                        icon: const Icon(Icons.file_download_outlined, size: 18),
+                        icon: const Icon(
+                          Icons.file_download_outlined,
+                          size: 18,
+                        ),
                         label: Text(ngL.ng_import_theme),
                         onPressed: () => _importTheme(scope),
                       ),
@@ -341,42 +344,46 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                     ],
                   ),
                   if (!look.theme.ownsAccent) ...[
-                  const SizedBox(height: 18),
-                  Text(
-                    ngL.ng_accent,
-                    style: NgType.label.copyWith(color: c.text2),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      for (final a in NgAccent.values)
-                        GestureDetector(
-                          onTap: () {
-                            NgHaptics.select();
-                            NextGenPreferences.setAccent(scope.prefs, a);
-                          },
-                          child: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: ngAccentSwatch(a, brightness),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: a == look.accent
-                                    ? c.text
-                                    : Colors.transparent,
-                                width: 2.5,
+                    const SizedBox(height: 18),
+                    Text(
+                      ngL.ng_accent,
+                      style: NgType.label.copyWith(color: c.text2),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        for (final a in NgAccent.values)
+                          GestureDetector(
+                            onTap: () {
+                              NgHaptics.select();
+                              NextGenPreferences.setAccent(scope.prefs, a);
+                            },
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: ngAccentSwatch(a, brightness),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: a == look.accent
+                                      ? c.text
+                                      : Colors.transparent,
+                                  width: 2.5,
+                                ),
                               ),
+                              child: a == look.accent
+                                  ? Icon(
+                                      Icons.check,
+                                      size: 18,
+                                      color: c.onAccent,
+                                    )
+                                  : null,
                             ),
-                            child: a == look.accent
-                                ? Icon(Icons.check, size: 18, color: c.onAccent)
-                                : null,
                           ),
-                        ),
-                    ],
-                  ),
+                      ],
+                    ),
                   ],
                   const SizedBox(height: 8),
                   SwitchListTile(

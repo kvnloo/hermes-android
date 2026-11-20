@@ -2674,6 +2674,16 @@ class DashboardClient {
     return signIn == null ? access : '$access; $signIn';
   }
 
+  /// Whether this origin is a loopback-mode dashboard (no sign-in), which
+  /// guards `/api` and `/api/ws` with the session token it injects into its
+  /// page instead of a login: no ticket can be minted there, so the socket
+  /// dials with `?token=`.
+  bool get usesSessionToken =>
+      !usesBrowserSignIn && !_proxied && !_usesPasswordAuth;
+
+  /// The dashboard's page-injected session token (see [usesSessionToken]).
+  Future<String> sessionToken() => _getToken();
+
   /// Returns the SPA session token, reusing a cached value or an in-flight fetch.
   Future<String> _getToken() {
     final cached = _token;

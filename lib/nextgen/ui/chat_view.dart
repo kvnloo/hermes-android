@@ -28,7 +28,6 @@ import '../data/nextgen_gateway.dart';
 import '../data/read_aloud.dart';
 import '../theme/nextgen_theme.dart';
 import '../haptics.dart';
-import 'model_sheet.dart';
 import 'nextgen_scope.dart';
 import 'session_dock.dart';
 import 'sessions_sidebar.dart';
@@ -43,6 +42,8 @@ class NgChatView extends StatefulWidget {
     this.sessions,
     required this.onNewChat,
     this.readAloudFactory,
+    this.appBar,
+    this.botName,
   });
 
   final NgChatController chat;
@@ -55,6 +56,12 @@ class NgChatView extends StatefulWidget {
   /// Test hook: supplies the read-aloud controller (e.g. a fake speaker).
   @visibleForTesting
   final NgReadAloud Function()? readAloudFactory;
+
+  /// Replaces the default app bar (the Hermes-style bot header).
+  final PreferredSizeWidget? appBar;
+
+  /// The bot this chat talks to, named in the composer hint.
+  final String? botName;
 
   @override
   State<NgChatView> createState() => _NgChatViewState();
@@ -445,72 +452,74 @@ class _NgChatViewState extends State<NgChatView> {
         final state = gateway.state;
         return Scaffold(
           backgroundColor: c.background,
-          appBar: AppBar(
-            backgroundColor: c.background,
-            surfaceTintColor: Colors.transparent,
-            leading: ListenableBuilder(
-              listenable: widget.sessions == null
-                  ? const _NoListenable()
-                  : Listenable.merge([widget.sessions, gateway]),
-              builder: (context, _) {
-                final unread = widget.sessions?.unreadCount ?? 0;
-                final dot = switch (widget.sessions?.topAttention) {
-                  NgChatAttention.waiting => c.warning,
-                  NgChatAttention.finished => c.success,
-                  _ => c.accent,
-                };
-                return IconButton(
-                  key: const ValueKey('ng-sidebar-button'),
-                  tooltip: unread > 0
-                      ? ngL.ng_chats_unread(unread)
-                      : ngL.ng_chats,
-                  icon: Badge(
-                    isLabelVisible: unread > 0,
-                    smallSize: 8,
-                    backgroundColor: dot,
-                    child: const Icon(Icons.view_sidebar_outlined),
+          appBar:
+              widget.appBar ??
+              AppBar(
+                backgroundColor: c.background,
+                surfaceTintColor: Colors.transparent,
+                leading: ListenableBuilder(
+                  listenable: widget.sessions == null
+                      ? const _NoListenable()
+                      : Listenable.merge([widget.sessions, gateway]),
+                  builder: (context, _) {
+                    final unread = widget.sessions?.unreadCount ?? 0;
+                    final dot = switch (widget.sessions?.topAttention) {
+                      NgChatAttention.waiting => c.warning,
+                      NgChatAttention.finished => c.success,
+                      _ => c.accent,
+                    };
+                    return IconButton(
+                      key: const ValueKey('ng-sidebar-button'),
+                      tooltip: unread > 0
+                          ? ngL.ng_chats_unread(unread)
+                          : ngL.ng_chats,
+                      icon: Badge(
+                        isLabelVisible: unread > 0,
+                        smallSize: 8,
+                        backgroundColor: dot,
+                        child: const Icon(Icons.view_sidebar_outlined),
+                      ),
+                      onPressed: widget.onOpenSidebar,
+                    );
+                  },
+                ),
+                titleSpacing: 0,
+                title: GestureDetector(
+                  onTap: chat.isNew ? null : _rename,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        chat.title.isEmpty ? ngL.ng_new_chat : chat.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: NgType.heading.copyWith(color: c.text),
+                      ),
+                      Text(
+                        _subtitle(state),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: NgType.caption.copyWith(
+                          color: state.isConnected ? c.text3 : c.warning,
+                        ),
+                      ),
+                    ],
                   ),
-                  onPressed: widget.onOpenSidebar,
-                );
-              },
-            ),
-            titleSpacing: 0,
-            title: GestureDetector(
-              onTap: chat.isNew ? null : _rename,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    chat.title.isEmpty ? ngL.ng_new_chat : chat.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: NgType.heading.copyWith(color: c.text),
-                  ),
-                  Text(
-                    _subtitle(state),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: NgType.caption.copyWith(
-                      color: state.isConnected ? c.text3 : c.warning,
+                ),
+                actions: [
+                  if (chat.usage != null)
+                    IconButton(
+                      tooltip: ngL.ng_usage,
+                      icon: const Icon(Icons.data_usage),
+                      onPressed: _showUsage,
                     ),
+                  IconButton(
+                    tooltip: ngL.ng_new_chat,
+                    icon: const Icon(Icons.edit_square),
+                    onPressed: widget.onNewChat,
                   ),
                 ],
               ),
-            ),
-            actions: [
-              if (chat.usage != null)
-                IconButton(
-                  tooltip: ngL.ng_usage,
-                  icon: const Icon(Icons.data_usage),
-                  onPressed: _showUsage,
-                ),
-              IconButton(
-                tooltip: ngL.ng_new_chat,
-                icon: const Icon(Icons.edit_square),
-                onPressed: widget.onNewChat,
-              ),
-            ],
-          ),
           body: Column(
             children: [
               if (!state.isConnected) _connectionBanner(c, gateway),
@@ -820,22 +829,84 @@ class _NgChatViewState extends State<NgChatView> {
   Widget _composer(NgColors c, NgConnectionState state) {
     final hasText = _input.text.trim().isNotEmpty;
     final canSend = hasText || (_drafts.isNotEmpty && !chat.running);
-    final modelLabel = [
-      chat.model == null ? ngL.ng_default_model : _shortModel(chat.model!),
-      if (chat.reasoningEffort != null && chat.reasoningEffort!.isNotEmpty)
-        ngEffortLabel(chat.reasoningEffort),
-    ].join(' · ');
+    final shadow = [
+      BoxShadow(
+        color: Colors.black.withValues(
+          alpha: c.background.computeLuminance() > 0.5 ? 0.08 : 0.35,
+        ),
+        blurRadius: 12,
+        offset: const Offset(0, 3),
+      ),
+    ];
+    Widget round({
+      required IconData icon,
+      required String tooltip,
+      required VoidCallback? onTap,
+      required Color bg,
+      required Color fg,
+      bool lifted = false,
+      Key? key,
+    }) => Tooltip(
+      message: tooltip,
+      child: SizedBox.square(
+        key: key,
+        dimension: 48,
+        child: Material(
+          color: bg,
+          shape: const CircleBorder(),
+          elevation: lifted ? 3 : 0,
+          shadowColor: Colors.black.withValues(alpha: 0.35),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Icon(icon, color: fg, size: 24),
+          ),
+        ),
+      ),
+    );
+    final Widget action;
+    if (chat.running && !hasText) {
+      action = round(
+        tooltip: ngL.ng_stop,
+        icon: Icons.stop_rounded,
+        bg: c.inverse,
+        fg: c.onInverse,
+        onTap: () {
+          NgHaptics.tap();
+          chat.stop();
+        },
+      );
+    } else if (canSend) {
+      action = round(
+        key: const ValueKey('ng-send'),
+        tooltip: ngL.ng_send,
+        icon: Icons.arrow_upward_rounded,
+        bg: c.accent,
+        fg: c.onAccent,
+        onTap: _send,
+      );
+    } else {
+      action = round(
+        tooltip: _listening ? ngL.ng_stop_dictation : ngL.ng_dictate,
+        icon: _listening ? Icons.mic : Icons.mic_none_rounded,
+        bg: _listening ? c.accent : c.accentSoft,
+        fg: _listening ? c.onAccent : c.accentText,
+        onTap: _toggleDictation,
+      );
+    }
+    final name = widget.botName;
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+        padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
         child: Container(
           decoration: BoxDecoration(
-            color: c.input,
-            borderRadius: BorderRadius.circular(NgRadii.xl),
+            color: c.surface,
+            borderRadius: BorderRadius.circular(32),
             border: Border.all(color: c.stroke),
+            boxShadow: shadow,
           ),
-          padding: const EdgeInsets.fromLTRB(6, 4, 6, 6),
+          padding: const EdgeInsets.all(8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -844,7 +915,7 @@ class _NgChatViewState extends State<NgChatView> {
                   height: 44,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
+                    padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
                     children: [
                       for (final d in _drafts)
                         Padding(
@@ -878,85 +949,60 @@ class _NgChatViewState extends State<NgChatView> {
                     ],
                   ),
                 ),
-              TextField(
-                key: const ValueKey('ng-composer-field'),
-                controller: _input,
-                focusNode: _focus,
-                onTap: () {
-                  // Android can hide the keyboard with Back while this node
-                  // retains focus. Explicitly show it on every composer tap.
-                  _focus.requestFocus();
-                  unawaited(
-                    SystemChannels.textInput.invokeMethod<void>(
-                      'TextInput.show',
-                    ),
-                  );
-                },
-                minLines: 1,
-                maxLines: 8,
-                textCapitalization: TextCapitalization.sentences,
-                style: NgType.body.copyWith(color: c.text),
-                decoration: InputDecoration(
-                  hintText: _listening
-                      ? ngL.ng_listening
-                      : chat.running
-                      ? ngL.ng_steer_or_queue_a_message
-                      : ngL.ng_message_hermes,
-                  hintStyle: NgType.body.copyWith(color: c.textMuted),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-                ),
-              ),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  IconButton(
+                  round(
                     tooltip: ngL.ng_attach,
-                    icon: Icon(Icons.add_circle_outline, color: c.text2),
-                    onPressed: _preparing ? null : _attach,
+                    icon: Icons.add,
+                    bg: c.surface,
+                    fg: c.text,
+                    lifted: true,
+                    onTap: _preparing ? null : _attach,
                   ),
-                  Flexible(
-                    child: NgPill(
-                      key: const ValueKey('ng-model-picker'),
-                      modelLabel,
-                      icon: Icons.auto_awesome,
-                      onTap: () => showNgModelSheet(context, chat),
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    tooltip: _listening
-                        ? ngL.ng_stop_dictation
-                        : ngL.ng_dictate,
-                    icon: Icon(
-                      _listening ? Icons.mic : Icons.mic_none,
-                      color: _listening ? c.accent : c.text2,
-                    ),
-                    onPressed: _toggleDictation,
-                  ),
-                  if (chat.running && !hasText)
-                    IconButton.filled(
-                      tooltip: ngL.ng_stop,
-                      style: IconButton.styleFrom(
-                        backgroundColor: c.inverse,
-                        foregroundColor: c.onInverse,
-                      ),
-                      icon: const Icon(Icons.stop_rounded),
-                      onPressed: () {
-                        NgHaptics.tap();
-                        chat.stop();
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('ng-composer-field'),
+                      controller: _input,
+                      focusNode: _focus,
+                      onTap: () {
+                        // Android can hide the keyboard with Back while this
+                        // node retains focus. Show it on every composer tap.
+                        _focus.requestFocus();
+                        unawaited(
+                          SystemChannels.textInput.invokeMethod<void>(
+                            'TextInput.show',
+                          ),
+                        );
                       },
-                    )
-                  else
-                    IconButton.filled(
-                      tooltip: ngL.ng_send,
-                      style: IconButton.styleFrom(
-                        backgroundColor: c.accent,
-                        foregroundColor: c.onAccent,
-                        disabledBackgroundColor: c.surface3,
+                      minLines: 1,
+                      maxLines: 6,
+                      textCapitalization: TextCapitalization.sentences,
+                      style: NgType.body.copyWith(color: c.text),
+                      decoration: InputDecoration(
+                        hintText: _listening
+                            ? ngL.ng_listening
+                            : chat.running
+                            ? ngL.ng_steer_or_queue_a_message
+                            : name == null
+                            ? ngL.ng_message_hermes
+                            : 'Message $name…',
+                        hintStyle: NgType.body.copyWith(color: c.textMuted),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.fromLTRB(
+                          12,
+                          13,
+                          8,
+                          13,
+                        ),
                       ),
-                      icon: const Icon(Icons.arrow_upward_rounded),
-                      onPressed: canSend ? _send : null,
                     ),
+                  ),
+                  action,
                 ],
               ),
             ],
@@ -964,11 +1010,6 @@ class _NgChatViewState extends State<NgChatView> {
         ),
       ),
     );
-  }
-
-  static String _shortModel(String model) {
-    final slash = model.lastIndexOf('/');
-    return slash >= 0 ? model.substring(slash + 1) : model;
   }
 }
 

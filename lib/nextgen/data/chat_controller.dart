@@ -14,6 +14,7 @@ import '../../core/models/attachment_draft.dart';
 import '../../core/models/background_report.dart';
 import '../../core/models/legacy_lcm_summary.dart';
 import '../../core/services/attachment_draft_service.dart';
+import '../../core/services/dashboard_api_client.dart';
 import '../../core/services/ws_client.dart';
 import 'history_rows.dart';
 import 'nextgen_gateway.dart';
@@ -508,6 +509,7 @@ class NgChatController extends ChangeNotifier {
   NgChatController(
     this.gateway, {
     String? sessionId,
+    this.profile,
     this.title = '',
     this.workingDirectory,
     this.onCreated,
@@ -522,6 +524,25 @@ class NgChatController extends ChangeNotifier {
 
   final NextGenGateway gateway;
   final String? workingDirectory;
+
+  /// The bot (host profile) this chat talks to; null keeps the connection's
+  /// own profile. One gateway socket serves every profile of a host, scoped
+  /// per call by `params['profile']`, so each bot needs no socket of its own.
+  final String? profile;
+
+  late final DashboardApiClient _api = profile == null
+      ? gateway.api
+      : DashboardApiClient.withDashboard(gateway.dashboard, profile: profile);
+
+  Future<Map<String, dynamic>> _call(
+    String method,
+    Map<String, dynamic> params, {
+    Duration timeout = const Duration(seconds: 30),
+  }) => gateway.call(
+    method,
+    profile == null ? params : {...params, 'profile': profile},
+    timeout: timeout,
+  );
 
   /// Prepares and caches composer attachments (shared with classic chat).
   final AttachmentDraftService attachmentService;
@@ -568,12 +589,7 @@ class NgChatController extends ChangeNotifier {
     required int limit,
     int offset = 0,
   }) async => ngDecodeHistory(
-    await gateway.api.getMessagesBytes(
-      id,
-      limit: limit,
-      offset: offset,
-      latest: true,
-    ),
+    await _api.getMessagesBytes(id, limit: limit, offset: offset, latest: true),
   );
   String? historyError;
   String? status;
@@ -706,7 +722,7 @@ class NgChatController extends ChangeNotifier {
     _attachCompleter = attaching;
     try {
       await gateway.connected();
-      final result = await gateway.call('session.resume', {
+      final result = await _call('session.resume', {
         'session_id': id,
         'source': 'desktop',
         'omit_messages': true,
@@ -1232,7 +1248,7 @@ class NgChatController extends ChangeNotifier {
     List<StreamEvent>? missed;
     if (rt != null && from != null && _seqEpoch == _readyEpoch()) {
       try {
-        final reply = await gateway.call('session.events.since', {
+        final reply = await _call('session.events.since', {
           'session_id': rt,
           'last_seen': from,
         });
@@ -1274,7 +1290,7 @@ class NgChatController extends ChangeNotifier {
     try {
       // Whether the turn still runs, as the gateway has it now.
       if (rt != null) {
-        final result = await gateway.call('session.resume', {
+        final result = await _call('session.resume', {
           'session_id': id,
           'source': 'desktop',
           'omit_messages': true,
@@ -1561,9 +1577,7 @@ class NgChatController extends ChangeNotifier {
     if (id == null || _controlUnsupported || _disposed) return;
     final before = control;
     try {
-      final result = await gateway.call('session.control.read', {
-        'session_id': id,
-      });
+      final result = await _call('session.control.read', {'session_id': id});
       if (_disposed || !identical(control, before)) return;
       if (result.containsKey('control')) {
         _withControl(NgSessionControl.parse(result['control']));
@@ -1591,7 +1605,7 @@ class NgChatController extends ChangeNotifier {
     final id = runtimeId;
     if (id == null || _disposed) return;
     try {
-      final result = await gateway.call('subagent.list', {'session_id': id});
+      final result = await _call('subagent.list', {'session_id': id});
       if (_disposed) return;
       final wasLive = subagents.any((a) => a.status.live);
       ngApplySubagentSnapshots(subagents, result['subagents']);
@@ -1612,7 +1626,7 @@ class NgChatController extends ChangeNotifier {
     final id = runtimeId;
     if (id == null) return;
     try {
-      await gateway.call('subagent.interrupt', {
+      await _call('subagent.interrupt', {
         'session_id': id,
         'subagent_id': agent.id,
       });
@@ -1638,7 +1652,7 @@ class NgChatController extends ChangeNotifier {
     try {
       await _ensureSession();
       final before = control;
-      final result = await gateway.call('session.control', {
+      final result = await _call('session.control', {
         'session_id': runtimeId,
         'action': action.wire,
         if (text != null)
@@ -1727,7 +1741,7 @@ class NgChatController extends ChangeNotifier {
     final pickedModel = _pickedModel;
     final pickedProvider = _pickedProvider;
     final pickedEffort = _pickedEffort;
-    final result = await gateway.call('session.create', {
+    final result = await _call('session.create', {
       // CanonicalCreateParams.source refuses the legacy 'desktop' hint on
       // the authority route; 'gui' is the canonical graphical surface (#291).
       'source': gateway.sessionAuthority ? 'gui' : 'desktop',
@@ -1790,7 +1804,7 @@ class NgChatController extends ChangeNotifier {
       }
       if (draft.isImage) {
         final bytes = await File(draft.cachedPath).readAsBytes();
-        final result = await gateway.call('image.attach_bytes', {
+        final result = await _call('image.attach_bytes', {
           'session_id': runtimeId,
           'content_base64': base64Encode(bytes),
           'filename': draft.name,
@@ -1807,7 +1821,7 @@ class NgChatController extends ChangeNotifier {
         return null;
       }
       final dataUrl = await attachmentService.readDataUrl(draft);
-      final result = await gateway.call('file.attach', {
+      final result = await _call('file.attach', {
         'session_id': runtimeId,
         'name': draft.name,
         'path': '',
@@ -1912,7 +1926,7 @@ class NgChatController extends ChangeNotifier {
     } catch (_) {}
     var usedInPlace = false;
     try {
-      final result = await gateway.call('file.attach', {
+      final result = await _call('file.attach', {
         'session_id': runtimeId,
         'path': staged,
         'name': draft.name,
@@ -1946,10 +1960,7 @@ class NgChatController extends ChangeNotifier {
   Future<void> _detach(List<String> paths) async {
     for (final path in paths) {
       try {
-        await gateway.call('image.detach', {
-          'session_id': runtimeId,
-          'path': path,
-        });
+        await _call('image.detach', {'session_id': runtimeId, 'path': path});
       } catch (_) {
         return; // the socket is likely gone, and the queue with it
       }
@@ -2036,10 +2047,7 @@ class NgChatController extends ChangeNotifier {
     items.add(item);
     _changed();
     try {
-      await gateway.call('session.steer', {
-        'session_id': runtimeId,
-        'text': trimmed,
-      });
+      await _call('session.steer', {'session_id': runtimeId, 'text': trimmed});
       item.pending = false;
     } catch (e) {
       item.pending = false;
@@ -2066,7 +2074,7 @@ class NgChatController extends ChangeNotifier {
     final id = runtimeId;
     if (id == null) return;
     try {
-      await gateway.call('session.interrupt', {'session_id': id});
+      await _call('session.interrupt', {'session_id': id});
     } catch (e) {
       error = ngL.ng_couldn_t_stop(_clean(e));
       _changed();
@@ -2084,13 +2092,13 @@ class NgChatController extends ChangeNotifier {
     required String submissionId,
   }) async {
     try {
-      return await gateway.call('prompt.submit', {
+      return await _call('prompt.submit', {
         ...baseParams,
         'submission_id': submissionId,
       }, timeout: const Duration(seconds: 60));
     } on JsonRpcError catch (e) {
       if (!isRejectedSubmissionIdError(e)) rethrow;
-      return gateway.call(
+      return _call(
         'prompt.submit',
         baseParams,
         timeout: const Duration(seconds: 60),
@@ -2278,7 +2286,7 @@ class NgChatController extends ChangeNotifier {
       );
     }
     try {
-      final result = await gateway.call('config.set', {
+      final result = await _call('config.set', {
         'session_id': id,
         'key': 'model',
         'value': WsClient.buildSessionModelValue(
@@ -2369,7 +2377,7 @@ class NgChatController extends ChangeNotifier {
       _retainedModelKey = confirmationKey;
       _retainedModelMutation = params;
       try {
-        final result = await gateway.call('session.mutate', params);
+        final result = await _call('session.mutate', params);
         _clearRetainedModelMutation();
         if (useToken) _clearModelConfirmation();
         _withAuthority(result);
@@ -2445,7 +2453,7 @@ class NgChatController extends ChangeNotifier {
       throw StateError(ngL.ng_model_switch_not_connected);
     }
     try {
-      await gateway.call('config.set', {
+      await _call('config.set', {
         'session_id': runtimeId,
         'key': 'reasoning',
         'value': effort,
@@ -2461,10 +2469,7 @@ class NgChatController extends ChangeNotifier {
   Future<void> rename(String newTitle) async {
     final id = storedId;
     if (id == null) return;
-    final saved = await gateway.api.renameSession(
-      sessionId: id,
-      title: newTitle,
-    );
+    final saved = await _api.renameSession(sessionId: id, title: newTitle);
     title = saved;
     _changed();
   }
