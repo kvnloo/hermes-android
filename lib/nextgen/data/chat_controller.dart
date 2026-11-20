@@ -181,6 +181,9 @@ class NgUserItem extends NgItem {
   /// Names of files a stored prompt referenced (`@file:` lines).
   final List<String> files;
 
+  /// Client-generated UUID for `prompt.submit` idempotency on modern gateways.
+  final String? submissionId;
+
   NgUserItem(
     super.key,
     this.text, {
@@ -189,6 +192,7 @@ class NgUserItem extends NgItem {
     this.pending = false,
     this.attachments = const [],
     this.files = const [],
+    this.submissionId,
   });
 }
 
@@ -539,9 +543,25 @@ class NgChatController extends ChangeNotifier {
   bool loadingOlder = false;
 
   /// Ids of the stored rows behind the transcript, oldest first; their
-  /// count is the offset (from the newest) of the next older page. Only ids
-  /// are kept: the rows themselves can be megabytes of tool output.
+  /// count is the baseline offset (from the newest) of the next older page,
+  /// raised by [_olderShift] for rows a page re-served. Only ids are kept:
+  /// the rows themselves can be megabytes of tool output.
   final List<String?> _rowIds = [];
+
+  /// A live turn's rows are stored by now, but the transcript shows that
+  /// turn as the aggregate it streamed into. [_adoptPersistedIds] walks the
+  /// newest pages after the turn ends and adopts the ids at the tail, so
+  /// paging treats those rows as shown instead of re-inserting them as
+  /// older items.
+  bool _adopting = false;
+
+  /// Rows a page re-served because a live turn appended rows after the
+  /// window was built. A live turn persists rows while the reader is
+  /// scrolled back, moving the newest end under [_rowIds.length]; carrying
+  /// the overlap forward keeps every next offset behind the oldest row of
+  /// the last page, so paging advances a full page per fetch and an
+  /// all-known page cannot occur from growth alone. Reset with the window.
+  int _olderShift = 0;
 
   Future<List<Map<String, dynamic>>> _fetchRows(
     String id, {
@@ -691,7 +711,8 @@ class NgChatController extends ChangeNotifier {
         'source': 'desktop',
         'omit_messages': true,
         'defer_history': true,
-        'inline_images': false,
+        // The canonical resume model forbids inline_images (#291).
+        if (!gateway.sessionAuthority) 'inline_images': false,
       });
       _withAuthority(result);
       runtimeId = result['session_id']?.toString() ?? runtimeId;
@@ -852,6 +873,7 @@ class NgChatController extends ChangeNotifier {
     final full = page.length >= limit;
     final rows = full ? ngFromFirstTurn(page) : page;
     hasOlder = full;
+    _olderShift = 0;
     _rowIds
       ..clear()
       ..addAll(rows.map((r) => r['id']?.toString()));
@@ -868,19 +890,34 @@ class NgChatController extends ChangeNotifier {
     loadingOlder = true;
     _changed();
     try {
-      final page = await _fetchRows(
-        id,
-        limit: ngHistoryPage,
-        offset: _rowIds.length,
-      );
+      final offset = _rowIds.length + _olderShift;
+      final guardLength = _rowIds.length;
+      final guardShift = _olderShift;
+      final page = await _fetchRows(id, limit: ngHistoryPage, offset: offset);
       if (_disposed) return;
+      // Adoption or a window rebuild during the fetch moved the accounting
+      // this page's offset was computed from. Applying it would double-count
+      // the adopted rows in the shift; drop it and let the next scroll retry
+      // against the current window.
+      if (_rowIds.length != guardLength || _olderShift != guardShift) return;
       final full = page.length >= ngHistoryPage;
       final known = _rowIds.whereType<String>().toSet();
       // Rows already shown come again when the chat grew since.
-      final fresh = (full ? ngFromFirstTurn(page) : page)
+      // Drop rows already shown before trimming: a partially-known page's
+      // unseen rows can be the tail of a long turn with no prompt in them,
+      // and trimming first would cut exactly those and let the shift
+      // advance a whole page past them.
+      final unknown = page
           .where((r) => r['id'] == null || !known.contains('${r['id']}'))
           .toList();
-      hasOlder = full && fresh.isNotEmpty;
+      final fresh = full ? ngFromFirstTurn(unknown) : unknown;
+      hasOlder = full;
+      // Carry the overlap forward: the re-served rows are ones a live turn
+      // appended after the window was built, so the next offset must skip
+      // them on top of the shown rows instead of pointing back into them.
+      // Rows trimmed away below count as neither known nor shown, so the
+      // next page re-reads exactly them.
+      _olderShift += page.length - unknown.length;
       if (fresh.isNotEmpty) {
         _rowIds.insertAll(0, fresh.map((r) => r['id']?.toString()));
         items.insertAll(0, _itemsFrom(fresh));
@@ -890,6 +927,61 @@ class NgChatController extends ChangeNotifier {
     } finally {
       loadingOlder = false;
       _changed();
+    }
+  }
+
+  /// Adopts the stored ids a finished live turn appended at the newest end.
+  /// The transcript already shows the turn as the aggregate it streamed
+  /// into, but [_rowIds] never learned those rows, so without this a page
+  /// reaching them would re-insert them as older duplicates. Walks newest
+  /// pages while the tail is unknown, adopting only the unknown run after
+  /// the last known row — unknown rows below it are older history, not yet
+  /// shown. The walk has no page cap: it stops at the first known row or a
+  /// short page, so a turn of any length is fully adopted. Adopted rows were
+  /// being carried by [_olderShift] as unlearned growth, so the shift shrinks
+  /// by the adopted count to keep the next offset on real coverage. Best
+  /// effort: a window rebuild mid-fetch aborts, and rows that persist between
+  /// a fetch and its adopt stay covered by [_olderShift].
+  Future<void> _adoptPersistedIds() async {
+    final id = storedId;
+    if (id == null || _disposed || _adopting) return;
+    // An empty trimmed window shows nothing to reconcile against; adopting
+    // would mark unseen history as shown. A resync rebuilds the window.
+    if (_rowIds.isEmpty) return;
+    _adopting = true;
+    try {
+      var baseline = _rowIds.length;
+      for (var page = 0; ; page++) {
+        final rows = await _fetchRows(
+          id,
+          limit: ngHistoryPage,
+          offset: page * ngHistoryPage,
+        );
+        if (_disposed || storedId != id || _rowIds.length != baseline) return;
+        final known = _rowIds.whereType<String>().toSet();
+        var cut = rows.length;
+        while (cut > 0) {
+          final rid = rows[cut - 1]['id']?.toString();
+          if (rid != null && known.contains(rid)) break;
+          cut--;
+        }
+        if (cut == rows.length) return;
+        final adopted = rows.length - cut;
+        _rowIds.addAll([
+          for (final r in rows.sublist(cut)) r['id']?.toString(),
+        ]);
+        // The shift was carrying these same rows as unlearned growth; now
+        // that they are shown ids, drop them from the shift so the next
+        // offset does not overshoot real coverage.
+        _olderShift -= adopted;
+        if (_olderShift < 0) _olderShift = 0;
+        baseline = _rowIds.length;
+        if (cut > 0 || rows.length < ngHistoryPage) return;
+      }
+    } catch (_) {
+      // The next turn end or resync tries again; the shift covers the gap.
+    } finally {
+      _adopting = false;
     }
   }
 
@@ -925,17 +1017,19 @@ class NgChatController extends ChangeNotifier {
           reply?.open = false;
           reply = null;
           items.add(
-            NgSystemItem(
-              _key('s'),
-              kind: NgSystemKind.summary,
-              body: split.$1,
-            )..time = _time(m['timestamp']),
+            NgSystemItem(_key('s'), kind: NgSystemKind.summary, body: split.$1)
+              ..time = _time(m['timestamp']),
           );
           // The tail is the assistant's real answer; render it normally.
           if (role == 'user') {
             final (body, files) = splitFileRefs(split.$2);
             items.add(
-              NgUserItem(_key('u'), body, time: _time(m['timestamp']), files: files),
+              NgUserItem(
+                _key('u'),
+                body,
+                time: _time(m['timestamp']),
+                files: files,
+              ),
             );
           } else {
             reply = NgAssistantItem(_key('a'), open: false);
@@ -1185,7 +1279,8 @@ class NgChatController extends ChangeNotifier {
           'source': 'desktop',
           'omit_messages': true,
           'defer_history': true,
-          'inline_images': false,
+          // The canonical resume model forbids inline_images (#291).
+          if (!gateway.sessionAuthority) 'inline_images': false,
         });
         _withAuthority(result);
         runtimeId = result['session_id']?.toString() ?? runtimeId;
@@ -1403,11 +1498,13 @@ class NgChatController extends ChangeNotifier {
         lastTurnFailed = outcome == 'error';
         lastTurnInterrupted = outcome == 'interrupted';
         _finishTurn(failed: lastTurnFailed);
+        unawaited(_adoptPersistedIds());
       case 'turn.error':
         error = s('message') ?? ngL.ng_the_turn_failed;
         lastTurnFailed = true;
         lastTurnInterrupted = false;
         _finishTurn(failed: true);
+        unawaited(_adoptPersistedIds());
       case 'request.cancel':
         final id = s('id') ?? s('request_id');
         if (id != null) {
@@ -1631,7 +1728,9 @@ class NgChatController extends ChangeNotifier {
     final pickedProvider = _pickedProvider;
     final pickedEffort = _pickedEffort;
     final result = await gateway.call('session.create', {
-      'source': 'desktop',
+      // CanonicalCreateParams.source refuses the legacy 'desktop' hint on
+      // the authority route; 'gui' is the canonical graphical surface (#291).
+      'source': gateway.sessionAuthority ? 'gui' : 'desktop',
       if (workingDirectory != null && workingDirectory!.trim().isNotEmpty)
         'cwd': workingDirectory,
       'model': ?pickedModel,
@@ -1863,15 +1962,18 @@ class NgChatController extends ChangeNotifier {
   Future<bool> send(
     String text, {
     List<AttachmentDraft> attachments = const [],
+    String? submissionId,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachments.isEmpty) return false;
+    final effectiveSubmissionId = submissionId ?? const Uuid().v4();
     final item = NgUserItem(
       _key('u'),
       trimmed,
       time: DateTime.now(),
       pending: true,
       attachments: List.of(attachments),
+      submissionId: effectiveSubmissionId,
     );
     items.add(item);
     error = null;
@@ -1898,10 +2000,10 @@ class NgChatController extends ChangeNotifier {
         trimmed,
       ].where((part) => part.trim().isNotEmpty).join('\n\n');
       _clearRetainedModelMutation();
-      final result = await gateway.call('prompt.submit', {
+      final result = await _submitPromptWithCompatibility({
         'session_id': runtimeId,
         'text': prompt,
-      }, timeout: const Duration(seconds: 60));
+      }, submissionId: effectiveSubmissionId);
       item.pending = false;
       final status = result['status']?.toString();
       if (status == 'queued') item.text = trimmed;
@@ -1977,6 +2079,25 @@ class NgChatController extends ChangeNotifier {
     await stop();
   }
 
+  Future<Map<String, dynamic>> _submitPromptWithCompatibility(
+    Map<String, dynamic> baseParams, {
+    required String submissionId,
+  }) async {
+    try {
+      return await gateway.call('prompt.submit', {
+        ...baseParams,
+        'submission_id': submissionId,
+      }, timeout: const Duration(seconds: 60));
+    } on JsonRpcError catch (e) {
+      if (!isRejectedSubmissionIdError(e)) rethrow;
+      return gateway.call(
+        'prompt.submit',
+        baseParams,
+        timeout: const Duration(seconds: 60),
+      );
+    }
+  }
+
   /// Sends the last prompt again.
   Future<void> retryLast() async {
     final last = items.whereType<NgUserItem>().lastOrNull;
@@ -1987,6 +2108,7 @@ class NgChatController extends ChangeNotifier {
     await send(
       last.text,
       attachments: last.failure != null ? last.attachments : const [],
+      submissionId: last.failure != null ? last.submissionId : null,
     );
   }
 

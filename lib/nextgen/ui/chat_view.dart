@@ -25,6 +25,7 @@ import '../../core/services/attachment_draft_service.dart';
 import '../../core/services/voice_composer_adapter.dart';
 import '../data/chat_controller.dart';
 import '../data/nextgen_gateway.dart';
+import '../data/read_aloud.dart';
 import '../theme/nextgen_theme.dart';
 import '../haptics.dart';
 import 'model_sheet.dart';
@@ -41,6 +42,7 @@ class NgChatView extends StatefulWidget {
     required this.onOpenSidebar,
     this.sessions,
     required this.onNewChat,
+    this.readAloudFactory,
   });
 
   final NgChatController chat;
@@ -49,6 +51,10 @@ class NgChatView extends StatefulWidget {
   /// The sidebar's list, for a dot on its button while other chats are unread.
   final NgSessionsModel? sessions;
   final VoidCallback onNewChat;
+
+  /// Test hook: supplies the read-aloud controller (e.g. a fake speaker).
+  @visibleForTesting
+  final NgReadAloud Function()? readAloudFactory;
 
   @override
   State<NgChatView> createState() => _NgChatViewState();
@@ -81,12 +87,23 @@ class _NgChatViewState extends State<NgChatView> {
   bool _listening = false;
   String _beforeDictation = '';
 
+  /// One read-aloud engine for this transcript: the reading reply's action
+  /// row shows Stop, and starting another reply stops the current one.
+  late final NgReadAloud _readAloud;
+
   NgChatController get chat => widget.chat;
 
   @override
   void initState() {
     super.initState();
     chat.addListener(_onChat);
+    _readAloud = (widget.readAloudFactory ?? NgReadAloud.new)();
+    _readAloud.addListener(_onReadAloud);
+    _readAloud.onUnavailable = () {
+      if (mounted) {
+        ngToast(context, ngL.read_aloud_is_unavailable_on_this_device);
+      }
+    };
     _input.addListener(() => setState(() {}));
     _scroll.addListener(() {
       if (_scroll.hasClients &&
@@ -107,6 +124,8 @@ class _NgChatViewState extends State<NgChatView> {
       old.chat.removeListener(_onChat);
       chat.addListener(_onChat);
       _wasRunning = chat.running;
+      // A reply being read belongs to the chat we left.
+      unawaited(_readAloud.stop());
     }
   }
 
@@ -114,12 +133,31 @@ class _NgChatViewState extends State<NgChatView> {
   /// turn gets one success (or error) pulse, as in Dash.
   late bool _wasRunning = chat.running;
 
+  void _onReadAloud() {
+    if (!mounted) return;
+    // Classic settles dictation before reading a reply aloud; do not let
+    // the mic keep listening to the engine's own playback.
+    if (_readAloud.readingKey != null && _listening) {
+      _listening = false;
+      final voice = _voice;
+      if (voice != null) unawaited(voice.stop());
+    }
+    setState(() {});
+  }
+
   void _onChat() {
     if (_wasRunning && !chat.running) {
       chat.error == null ? NgHaptics.success() : NgHaptics.error();
     }
     _wasRunning = chat.running;
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    // A retry or history reload can remove the reply being read; do not
+    // keep speaking a row that no longer has a Stop affordance.
+    final reading = _readAloud.readingKey;
+    if (reading != null && !chat.items.any((item) => item.key == reading)) {
+      unawaited(_readAloud.stop());
+    }
+    setState(() {});
   }
 
   /// The transcript is reversed, so its top is the scroll's far end: fetch
@@ -142,6 +180,8 @@ class _NgChatViewState extends State<NgChatView> {
   @override
   void dispose() {
     chat.removeListener(_onChat);
+    _readAloud.removeListener(_onReadAloud);
+    _readAloud.dispose();
     _ticker?.cancel();
     _input.dispose();
     _focus.dispose();
@@ -732,6 +772,7 @@ class _NgChatViewState extends State<NgChatView> {
         filesIdentity: (NgScope.of(context).connection.id, chat.storedId),
         last: i == items.length - 1,
         onRetry: i == items.length - 1 && !chat.running ? chat.retryLast : null,
+        readAloud: _readAloud,
       ),
       NgSystemItem() => _SystemCard(item: item),
       NgNoticeItem() => Padding(
@@ -1272,6 +1313,7 @@ class _AssistantBlock extends StatefulWidget {
     required this.last,
     required this.files,
     required this.filesIdentity,
+    required this.readAloud,
     this.onRetry,
   });
   final NgAssistantItem item;
@@ -1281,6 +1323,9 @@ class _AssistantBlock extends StatefulWidget {
   final Object filesIdentity;
   final bool last;
   final VoidCallback? onRetry;
+
+  /// Shared transcript playback: this reply's row shows Stop while it reads.
+  final NgReadAloud readAloud;
 
   @override
   State<_AssistantBlock> createState() => _AssistantBlockState();
@@ -1364,6 +1409,9 @@ class _AssistantBlockState extends State<_AssistantBlock> {
           code: fence.code,
           language: fence.language,
           selectable: false,
+          // A labelled Copy button: one obvious tap on a phone, no need to
+          // discover the icon or drag a selection across the fence (#288).
+          showCopyLabel: true,
         );
       });
     }
@@ -1450,6 +1498,7 @@ class _AssistantBlockState extends State<_AssistantBlock> {
     final item = widget.item;
     final tools = item.tools;
     final runningTool = tools.where((t) => t.running).lastOrNull;
+    final reading = widget.readAloud.isReading(item.key);
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 4),
       child: Column(
@@ -1506,6 +1555,19 @@ class _AssistantBlockState extends State<_AssistantBlock> {
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: item.text));
                       ngToast(context, ngL.ng_copied);
+                    },
+                  ),
+                  _ActionIcon(
+                    icon: reading
+                        ? Icons.stop_circle_outlined
+                        : Icons.volume_up_outlined,
+                    tooltip: reading ? ngL.ng_stop : ngL.ng_read_aloud,
+                    onTap: () {
+                      if (reading) {
+                        unawaited(widget.readAloud.stop());
+                      } else {
+                        unawaited(widget.readAloud.read(item.key, item.text));
+                      }
                     },
                   ),
                   _ActionIcon(

@@ -5,7 +5,7 @@ All notable changes since v1.0.7 are documented here. This project adheres to
 shows the three latest published stable releases (including the prepared stable
 promotion), excluding source-only preparations and prereleases.
 
-<!-- source-only-releases: 3.1.1, 3.1.2, 3.1.3, 3.1.4, 3.1.5, 3.1.6 -->
+<!-- source-only-releases: 3.1.1, 3.1.2, 3.1.3, 3.1.4, 3.1.5, 3.1.6, 4.0.6 -->
 
 Publication correction: tags 3.1.1–3.1.6 have no published APK assets. Their
 historical entries below describe source preparations, not downloadable releases;
@@ -16,6 +16,146 @@ Publication correction: the 3.2.3 entry below lists the Ukrainian catalogue and
 persistent in-app language selector (#255), but that change merged after the
 v3.2.3 tag and is absent from its published APKs. It first ships in 3.2.4, where
 the credit to @simplaerai-sv is repeated.
+
+Publication correction: tag v4.0.6 has no published APK assets; its release
+workflow failed the identity gate because the tag preceded the version bump.
+The paging change it names (#284) first ships in the published 4.0.7 APKs.
+
+## [4.0.9] - 2026-11-20
+
+Stable release `4.0.9+3065`, with release APK codes `30651`, `30652` and
+`30653`. Each split exceeds the published 4.0.8 stable splits (`30643`).
+Installs over the existing app.
+
+### Fixed
+
+- **Sending and live updates work on Hermes 0.23.x session-authority
+  gateways (#293, fixes #291).** v4.0.8 still failed with "Not sent:
+  invalid_params" and "Live updates are unavailable: invalid_params"
+  because `session.create` sent the legacy `source: 'desktop'` and
+  `session.resume` sent the legacy-only `inline_images` key, which the
+  canonical session authority's params models refuse. The app now reads
+  the `session_authority` flag from its real place in the gateway ready
+  frame (`params.payload` — the previous top-level read never matched the
+  wire), sends `source: 'gui'` on create and omits `inline_images` on
+  resume for authority gateways, and keeps the exact legacy shapes for
+  older gateways. With the flag live, authority gateways also get the
+  intended `reasoning` create field and `session.mutate` model switches.
+- **NextGen finds chats on multiplexed gateways without picking a profile
+  (#292).** With the profile left on Server default, a multiplexed gateway
+  answered the profile-less session list from its default store, showing
+  "no chats yet" even when another profile held the chats. On save, NextGen
+  now reads the all-profiles session counts and, when exactly one
+  non-default profile owns all the chats, saves the connection with that
+  profile (same stored row, no duplicate). Ambiguous or default-only cases
+  keep the server default; any failure keeps the previous behaviour, and
+  single-profile gateways are unaffected. An explicit Server-default choice
+  is treated the same as no selection, so auto-select can override it.
+  Testing a connection no longer clears a stored profile when the gateway
+  reports an empty profile list. By @manuelanguitatrejo; original commits
+  preserved.
+
+### Thanks
+
+- @shmuelsash — reported the `session.create` / `session.resume`
+  invalid_params refusals on Hermes 0.23.2 with a source-level diagnosis
+  (#291).
+- @manuelanguitatrejo — fixed the multiplexed-gateway profile preselection
+  with regression tests (#292).
+
+## [4.0.8] - 2026-11-19
+
+Stable release `4.0.8+3064`, with release APK codes `30641`, `30642` and
+`30643`. Each split exceeds the published 4.0.7 stable splits (`30633`).
+Installs over the existing app.
+
+### Fixed
+
+- **NextGen reads replies aloud and copies code blocks in one tap (#289,
+  fixes #288).** Every completed assistant reply in NextGen now offers
+  Read aloud/Stop, matching Classic: one shared playback engine per chat,
+  starting a reply stops the previous one, and switching chats or removing
+  the reading reply stops playback. Voice selection mirrors Classic's
+  settings; Android playback uses the same completion-correlated speaker as
+  hands-free mode, so long replies are chunked and Stop is a real barrier.
+  Fenced code blocks gain a labelled Copy code button that copies just that
+  block's source in one tap; Classic's icon-only header is unchanged.
+
+### Thanks
+
+- @Susensio — reported the NextGen Read aloud / code-copy regression with a
+  source-level comparison against Classic (#288), on behalf of a user.
+
+## [4.0.7] - 2026-11-19
+
+Stable release `4.0.7+3063`, with release APK codes `30631`, `30632` and
+`30633`. Each split exceeds the published 4.0.5 stable splits (`30623`).
+Installs over the existing app. Covers all changes since 4.0.5, including the
+paging fix prepared under the unpublished 4.0.6 tag.
+
+### Fixed
+
+- **Sending works against Hermes 0.23.x gateways (#286, fixes #285).** Hermes
+  0.23.0 began refusing a Desktop Gateway `prompt.submit` without a
+  `submission_id`/`input_id` with a bare `invalid_params`, so every send over
+  that transport failed with "Not sent: invalid_params" on those gateways,
+  in new and existing chats alike. Both send paths now mint a UUID
+  `submission_id` per turn and fall back once without it if a pre-0.23
+  gateway rejects the extra field. NextGen's Retry reuses the failed send's
+  id; the classic path recovers ambiguous sends from server history without
+  resending. Reported with a source-level diagnosis by @shmuelsash.
+- **NextGen paging carries growth overlap forward (#284, fixes #280).** After
+  a burst of new rows, paging no longer re-fetches offsets full of rows
+  already on screen, and a live turn's stored rows no longer page back in as
+  older duplicate items after the turn ends. This removes the known limits
+  recorded in 4.0.5. Thanks to @Thaeland.
+
+## [4.0.6] - 2026-11-18
+
+Source-only preparation: the v4.0.6 tag was pushed before the release identity
+was bumped, so its release workflow failed and no APK assets were published.
+The tag names one change, which first ships in the published 4.0.7 APKs:
+
+### Fixed
+
+- NextGen paging carries the growth overlap forward instead of re-fetching
+  shown rows, and adopts a live turn's stored rows at turn end (#284, fixes
+  #280). Thanks to @Thaeland.
+
+## [4.0.5] - 2026-11-18
+
+Stable release `4.0.5+3062`, with release APK codes `30621`, `30622` and
+`30623`. Each split exceeds the published 4.0.4 stable splits (`30613`).
+Installs over the existing app. Covers all changes since 4.0.4.
+
+### Fixed
+
+- **NextGen history paging survives a running turn (#275).** Scrolling back
+  through a long chat while a turn was still writing rows could stop paging
+  for good once a fetched page held only rows already on screen, leaving older
+  history unreachable until a reconnect. Paging now skips past such a page and
+  carries on, including beside a long, tool-heavy turn. After a burst of growth
+  paging can fetch rows that are already shown before reaching new ones (#280).
+  Thanks to @Thaeland.
+- **Dashboard sign-in through the gateway Webapp (#282, fixes #281).** The
+  Webapp served by `hermes webapp` adds a per-gateway suffix to every sign-in
+  cookie name and binds each session to its browser credential. Ares now
+  recognises the suffixed session cookie and sends the sign-in binding cookie
+  beside it, so password sign-in works against the Webapp as well as the
+  standalone `hermes dashboard`. Thanks to @manuelanguitatrejo.
+
+## [4.0.4] - 2026-11-16
+
+Stable release `4.0.4+3061`, with release APK codes `30611`, `30612` and
+`30613`. Each split exceeds the published 4.0.3 stable splits (`30603`).
+Installs over the existing app. Covers all changes since 4.0.3.
+
+### Fixed
+
+- **NextGen back gesture closes the sidebar (#278).** In NextGen mode the back
+  gesture opened the chat sidebar, but a second back exited the app instead of
+  closing the sidebar. Back now dismisses the open sidebar, restoring the
+  open/close toggle; pushed pages (Settings, Scheduled, …) still pop first.
 
 ## [4.0.3] - 2026-11-16
 

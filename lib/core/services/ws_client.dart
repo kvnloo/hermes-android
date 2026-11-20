@@ -8,6 +8,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/io.dart';
 
 import '../models/client_certificate.dart';
@@ -104,6 +105,24 @@ JsonRpcError _gatewayResponseError(
     );
   }
   return JsonRpcError(method, fallbackMessage);
+}
+
+/// Returns true when a legacy gateway rejects `submission_id` as an
+/// unsupported parameter on `prompt.submit`, so the caller can retry once
+/// without it.
+bool isRejectedSubmissionIdError(JsonRpcError error) {
+  // Defensive branch for fork/legacy gateways that refuse the parameter with
+  // 4094. Stock pre-0.23 gateways answer 4000 with the field path (below);
+  // 0.23+ answers 4001 without naming the field and is satisfied by the id.
+  // Any such refusal means no turn started, so the one-shot retry is safe.
+  if (error.code == 4094) return true;
+  if (error.code != 4000 && error.code != -32602) return false;
+  final lower = error.message.toLowerCase();
+  return lower.contains('submission_id') &&
+      (lower.contains('extra') ||
+          lower.contains('not permitted') ||
+          lower.contains('unexpected') ||
+          lower.contains('unknown'));
 }
 
 /// Event types streamed from the gateway during a prompt submission.
@@ -830,6 +849,24 @@ class WsClient {
     );
   }
 
+  /// Whether a `gateway.ready` frame advertises the canonical session
+  /// authority (Hermes 0.23+). The gateway nests the flag inside the ready
+  /// frame's `params.payload`; a top-level read never matches the real wire
+  /// (#291).
+  static bool readyFrameHasSessionAuthority(Map<String, dynamic>? frame) {
+    final params = frame?['params'];
+    final payload = params is Map<String, dynamic> ? params['payload'] : null;
+    return payload is Map<String, dynamic> &&
+        payload['session_authority'] == true;
+  }
+
+  /// Whether this socket's gateway routes session RPCs through the canonical
+  /// session authority (Hermes 0.23+). Its params models forbid legacy-only
+  /// keys (`inline_images` on resume) and enum values (`source: 'desktop'`
+  /// on create), so callers must send the canonical shapes instead (#291).
+  bool get sessionAuthority =>
+      readyFrameHasSessionAuthority(_gatewayReadyFrame);
+
   /// Wait for the capability-bearing greeting emitted by this exact socket.
   Future<Map<String, dynamic>> waitForGatewayReady({
     Duration timeout = const Duration(seconds: 15),
@@ -974,6 +1011,7 @@ class WsClient {
     void Function()? onSent,
     void Function()? onAccepted,
     bool Function()? maySend,
+    String? submissionId,
     Duration timeout = const Duration(minutes: 10),
   }) async {
     final source = _channel;
@@ -1043,20 +1081,51 @@ class WsClient {
     });
 
     try {
-      final response = await send('prompt.submit', {
+      final effectiveSubmissionId = submissionId ?? const Uuid().v4();
+      final baseParams = <String, dynamic>{
         'session_id': sessionId,
         'text': promptText,
         // Stock gateways use this only for title generation. The app's note
         // must not become the subject of an otherwise short user prompt.
         if (promptText != message) 'title_preview': message,
+      };
+      var response = await send('prompt.submit', {
+        ...baseParams,
+        'submission_id': effectiveSubmissionId,
       }, onSent: onSent);
-      final error = response['error'];
+      var error = response['error'];
       if (error != null) {
-        throw _gatewayResponseError(
+        final rpcError = _gatewayResponseError(
           'prompt.submit',
           error,
           fallbackMessage: 'Unknown error',
         );
+        if (isRejectedSubmissionIdError(rpcError)) {
+          // The refusal crossed an async boundary: re-validate admission and
+          // socket ownership before the compatibility retry writes again, so
+          // a stale owner or a replacement socket never receives the prompt.
+          if (!_connected || !identical(source, _channel)) {
+            throw JsonRpcError(
+              'prompt.submit',
+              'Desktop gateway connection closed',
+              reason: 'connection_closed',
+            );
+          }
+          if (maySend?.call() == false) {
+            throw StateError('Prompt admission is no longer owned.');
+          }
+          response = await send('prompt.submit', baseParams);
+          error = response['error'];
+          if (error != null) {
+            throw _gatewayResponseError(
+              'prompt.submit',
+              error,
+              fallbackMessage: 'Unknown error',
+            );
+          }
+        } else {
+          throw rpcError;
+        }
       }
       // Stock typed voice controls acknowledge without starting an agent turn
       // or emitting a terminal frame. Do not wait ten minutes for one.
@@ -1328,7 +1397,10 @@ class WsClient {
       // the attach RPC itself exceed the request deadline.
       'omit_messages': true,
       'defer_history': true,
-      'inline_images': false,
+      // The canonical resume model (0.23+ session authority) has no
+      // inline_images field and refuses unknown keys; legacy gateways
+      // still accept it (#291).
+      if (!sessionAuthority) 'inline_images': false,
     });
     if (result['error'] != null) {
       throw _gatewayResponseError(
@@ -1492,7 +1564,12 @@ class WsClient {
     String? model,
     String? workingDirectory,
   }) async {
-    final params = <String, dynamic>{'source': 'desktop'};
+    // CanonicalCreateParams.source only accepts cli/tui/gui/acp/tool/oneshot;
+    // 'desktop' is the legacy surface hint and is refused on the authority
+    // route (#291). 'gui' is the canonical graphical-chat surface.
+    final params = <String, dynamic>{
+      'source': sessionAuthority ? 'gui' : 'desktop',
+    };
     if (model != null) params['model'] = model;
     final cwd = workingDirectory?.trim();
     if (cwd != null && cwd.isNotEmpty) params['cwd'] = cwd;
