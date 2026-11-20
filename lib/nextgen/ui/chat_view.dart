@@ -28,6 +28,7 @@ import '../data/nextgen_gateway.dart';
 import '../data/read_aloud.dart';
 import '../theme/nextgen_theme.dart';
 import '../haptics.dart';
+import 'model_sheet.dart';
 import 'nextgen_scope.dart';
 import 'session_dock.dart';
 import 'sessions_sidebar.dart';
@@ -507,6 +508,14 @@ class _NgChatViewState extends State<NgChatView> {
                   ),
                 ),
                 actions: [
+                  // The model sheet's entry in this bar; the Hermes-style
+                  // header reaches it through More -> Chat Settings.
+                  IconButton(
+                    key: const ValueKey('ng-model-picker'),
+                    tooltip: ngL.ng_model,
+                    icon: const Icon(Icons.tune),
+                    onPressed: () => showNgModelSheet(context, chat),
+                  ),
                   if (chat.usage != null)
                     IconButton(
                       tooltip: ngL.ng_usage,

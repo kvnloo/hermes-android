@@ -18,7 +18,13 @@ void main() {
       '{"id":"x","name":"X","dark":{"background":"#102030"}}',
     );
     final base = NgColors.build(Brightness.dark, NgAccent.blue, false, true);
-    final c = NgColors.build(Brightness.dark, NgAccent.blue, false, true, theme);
+    final c = NgColors.build(
+      Brightness.dark,
+      NgAccent.blue,
+      false,
+      true,
+      theme,
+    );
     expect(c.background, const Color(0xFF102030));
     expect(c.text, base.text);
   });
@@ -34,14 +40,23 @@ void main() {
     }
   });
 
-  test('the default preset is the monochrome OLED look', () {
-    final c = NgColors.build(
-      Brightness.dark,
+  test('the default preset is the Hermes look; OLED stays available', () {
+    expect(ngThemePresets.first.id, 'hermes');
+    final light = NgColors.build(
+      Brightness.light,
       NgAccent.blue,
       false,
       true,
       ngThemePresets.first,
     );
-    expect(c.background, const Color(0xFF000000));
+    expect(light.background, const Color(0xFFFFFFFF));
+    final oled = NgColors.build(
+      Brightness.dark,
+      NgAccent.blue,
+      false,
+      true,
+      ngPresetById('onyx'),
+    );
+    expect(oled.background, const Color(0xFF000000));
   });
 }
