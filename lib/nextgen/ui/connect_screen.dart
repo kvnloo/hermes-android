@@ -251,11 +251,52 @@ class _NgConnectScreenState extends State<NgConnectScreen> {
     final result = await HermesSignIn().browserSignIn(
       _url!,
       certificate: _certificate.config,
-      openBrowser: (uri) =>
-          launchUrl(uri, mode: LaunchMode.externalApplication),
+      // A Custom Tab, not the external browser: it keeps this app's task
+      // visible, so Android doesn't freeze the process whose loopback
+      // listener has to answer the sign-in redirect.
+      openBrowser: (uri) => launchUrl(uri, mode: LaunchMode.inAppBrowserView),
+      onBrowserDone: () => unawaited(closeInAppWebView()),
+      untilForeground: _untilResumed,
+      // Back in the app with no code: the browser was closed. Give a late
+      // redirect a moment to land first.
+      cancelled: _nextReturn().then(
+        (_) => Future<void>.delayed(const Duration(seconds: 2)),
+      ),
     );
     if (!mounted) return;
     await _handle(result, 'browser');
+  }
+
+  /// Completes the next time the app comes back after leaving.
+  static Future<void> _nextReturn() {
+    final done = Completer<void>();
+    var left = false;
+    late final AppLifecycleListener listener;
+    listener = AppLifecycleListener(
+      onHide: () => left = true,
+      onResume: () {
+        if (!left) return;
+        listener.dispose();
+        if (!done.isCompleted) done.complete();
+      },
+    );
+    return done.future;
+  }
+
+  static Future<void> _untilResumed() {
+    final binding = WidgetsBinding.instance;
+    if (binding.lifecycleState == AppLifecycleState.resumed) {
+      return Future.value();
+    }
+    final done = Completer<void>();
+    late final AppLifecycleListener listener;
+    listener = AppLifecycleListener(
+      onResume: () {
+        listener.dispose();
+        if (!done.isCompleted) done.complete();
+      },
+    );
+    return done.future;
   }
 
   Future<void> _handle(SignInResult result, String method) async {
@@ -274,6 +315,8 @@ class _NgConnectScreenState extends State<NgConnectScreen> {
         _signInError = ngL.ng_too_many_attempts_wait_a_moment;
       case SignInFailed(:final message):
         _signInError = message;
+      case SignInCancelled():
+        break;
     }
     if (mounted) {
       setState(() {

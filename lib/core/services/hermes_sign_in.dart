@@ -765,6 +765,11 @@ class SignInFailed extends SignInResult {
   const SignInFailed(this.message);
 }
 
+/// The person came back from the browser without finishing.
+class SignInCancelled extends SignInResult {
+  const SignInCancelled();
+}
+
 /// Who the stored sign-in belongs to (`GET /api/auth/me`).
 @immutable
 class AuthUser {
@@ -854,6 +859,9 @@ class HermesSignIn {
   Future<SignInResult> browserSignIn(
     GatewayUrl url, {
     required Future<bool> Function(Uri) openBrowser,
+    void Function()? onBrowserDone,
+    Future<void> Function()? untilForeground,
+    Future<void>? cancelled,
     String? provider,
     ClientCertificateConfig? certificate,
     Duration timeout = const Duration(minutes: 10),
@@ -899,19 +907,31 @@ class HermesSignIn {
                   ),
           );
         await request.response.close();
-        if (matches && !code.isCompleted) code.complete(query['code']!);
+        if (matches && !code.isCompleted) {
+          code.complete(query['code']!);
+          // Bring the app back before Android freezes it behind the browser;
+          // the code still has to be redeemed.
+          onBrowserDone?.call();
+        }
       });
       try {
         final opened = await openBrowser(authorize);
         if (!opened) {
           return const SignInFailed("Couldn't open the browser to sign in.");
         }
-        final String received;
+        final String? received;
         try {
-          received = await code.future.timeout(timeout);
+          received = await Future.any<String?>([
+            code.future,
+            if (cancelled != null) cancelled.then((_) => null),
+          ]).timeout(timeout);
         } on TimeoutException {
           return const SignInFailed('The sign-in took too long. Try again.');
         }
+        if (received == null) return const SignInCancelled();
+        // The code lands while the browser is in front. Android cuts network
+        // access for an app in the background, so redeem it once we're back.
+        if (untilForeground != null) await untilForeground().timeout(timeout);
         return await _with(certificate, (client) async {
           final uri = Uri.parse(url.resolve('auth/native/token'));
           final res = await client
