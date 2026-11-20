@@ -7,7 +7,8 @@ import '../../nextgen/theme/nextgen_theme.dart';
 import '../../nextgen/ui/chat_view.dart';
 import '../../nextgen/ui/model_sheet.dart';
 import '../hm_bots.dart';
-import '../hm_character.dart';
+import '../avatar/hm_avatar.dart';
+import '../avatar/hm_avatar_state.dart';
 import '../hm_ui.dart';
 
 /// What the More menu can open; the screen that owns the chat decides how.
@@ -115,10 +116,10 @@ class _HmChatHeader extends StatelessWidget implements PreferredSizeWidget {
                       return Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          HmCharacter(
+                          HmAvatar(
                             spec: bot.character,
                             size: 44,
-                            working: chat.running,
+                            state: hmAvatarStateOf(chat),
                           ),
                           Transform.translate(
                             offset: const Offset(0, -6),
@@ -312,3 +313,15 @@ Future<T?> showHmMenu<T>(
 /// Chat Settings: what this chat runs on (model + effort) and its title.
 Future<void> showHmChatSettings(BuildContext context, NgChatController chat) =>
     showNgModelSheet(context, chat);
+
+/// What the chat's bot is doing: reply text streaming is speaking, a running
+/// turn before any text is thinking, a failed last turn is an error.
+HmAvatarState hmAvatarStateOf(NgChatController chat) {
+  if (chat.running) {
+    final last = chat.items.isEmpty ? null : chat.items.last;
+    return last is NgAssistantItem && last.open && last.text.isNotEmpty
+        ? HmAvatarState.speaking
+        : HmAvatarState.thinking;
+  }
+  return chat.lastTurnFailed ? HmAvatarState.error : HmAvatarState.idle;
+}

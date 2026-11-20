@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../hm/avatar/hm_avatar_state.dart';
 import 'theme/ng_theme_spec.dart';
 
 /// Whether the app runs the NextGen interface. Toggled from Settings in either
@@ -87,6 +88,10 @@ class NextGenLook extends ChangeNotifier {
   /// The theme the user imported, if any.
   NgThemeSpec? customTheme;
 
+  /// Which avatar library draws bots, and the Persona look when it's that.
+  HmAvatarStyle avatarStyle = HmAvatarStyle.syn;
+  HmPersonaVariant personaVariant = HmPersonaVariant.opal;
+
   NgThemeSpec get theme => themeId == 'custom' && customTheme != null
       ? customTheme!
       : ngPresetById(themeId);
@@ -109,6 +114,8 @@ abstract final class NextGenPreferences {
   static const starredModelsKey = 'nextgen_starred_models';
   static const recentModelsKey = 'nextgen_recent_models';
   static const lastSessionKeyPrefix = 'nextgen_last_session.';
+  static const avatarStyleKey = 'hm_avatar_style';
+  static const personaVariantKey = 'hm_persona_variant';
 
   /// Reads every NextGen preference into memory. Synchronous: the shared
   /// [SharedPreferences] instance is already loaded at startup.
@@ -129,6 +136,32 @@ abstract final class NextGenPreferences {
     look.glow = prefs.getBool(glowKey) ?? true;
     look.customTheme = _readCustom(prefs.getString(customThemeKey));
     look.themeId = prefs.getString(themeKey) ?? ngThemePresets.first.id;
+    look.avatarStyle = HmAvatarStyle.values.firstWhere(
+      (s) => s.name == prefs.getString(avatarStyleKey),
+      orElse: () => HmAvatarStyle.syn,
+    );
+    look.personaVariant = HmPersonaVariant.values.firstWhere(
+      (v) => v.name == prefs.getString(personaVariantKey),
+      orElse: () => HmPersonaVariant.opal,
+    );
+  }
+
+  static Future<void> setAvatarStyle(
+    SharedPreferences prefs,
+    HmAvatarStyle style,
+  ) async {
+    NextGenLook.instance._apply(() => NextGenLook.instance.avatarStyle = style);
+    await prefs.setString(avatarStyleKey, style.name);
+  }
+
+  static Future<void> setPersonaVariant(
+    SharedPreferences prefs,
+    HmPersonaVariant variant,
+  ) async {
+    NextGenLook.instance._apply(
+      () => NextGenLook.instance.personaVariant = variant,
+    );
+    await prefs.setString(personaVariantKey, variant.name);
   }
 
   static NgThemeSpec? _readCustom(String? source) {

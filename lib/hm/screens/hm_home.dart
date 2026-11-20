@@ -10,7 +10,8 @@ import '../../nextgen/data/nextgen_gateway.dart';
 import '../../nextgen/theme/nextgen_theme.dart';
 import '../../nextgen/ui/nextgen_scope.dart';
 import '../hm_bots.dart';
-import '../hm_character.dart';
+import '../avatar/hm_avatar.dart';
+import '../avatar/hm_avatar_state.dart';
 import '../hm_ui.dart';
 import 'hm_agent_screen.dart';
 import 'hm_chat_screen.dart';
@@ -317,10 +318,12 @@ class _BotRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              HmCharacter(
+              HmAvatar(
                 spec: summary.bot.character,
                 size: HmMetrics.botAvatar,
-                working: latest?.isActive ?? false,
+                state: (latest?.isActive ?? false)
+                    ? HmAvatarState.thinking
+                    : HmAvatarState.idle,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -440,7 +443,7 @@ Future<HmBot?> showHmNewSessionSheet(BuildContext context, List<HmBot> bots) {
                       ),
                       child: Row(
                         children: [
-                          HmCharacter(spec: b.character, size: 52),
+                          HmAvatar(spec: b.character, size: 52),
                           const SizedBox(width: 16),
                           Text(
                             b.displayName,

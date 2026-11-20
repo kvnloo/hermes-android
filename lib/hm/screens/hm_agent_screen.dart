@@ -7,7 +7,7 @@ import '../../nextgen/theme/nextgen_theme.dart';
 import '../../nextgen/ui/capabilities_page.dart';
 import '../../nextgen/ui/scheduled_page.dart';
 import '../hm_bots.dart';
-import '../hm_character.dart';
+import '../avatar/hm_avatar.dart';
 import '../hm_ui.dart';
 
 class HmAgentScreen extends StatelessWidget {
@@ -44,7 +44,7 @@ class HmAgentScreen extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 32),
               children: [
                 const SizedBox(height: 8),
-                Center(child: HmCharacter(spec: bot.character, size: 96)),
+                Center(child: HmAvatar(spec: bot.character, size: 96)),
                 const SizedBox(height: 12),
                 Center(
                   child: Semantics(

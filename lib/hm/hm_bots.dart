@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../core/models/session.dart';
 import '../core/services/dashboard_api_client.dart';
 import '../nextgen/data/nextgen_gateway.dart';
-import 'hm_character.dart';
+import 'avatar/hm_avatar.dart';
 
 @immutable
 class HmBot {
@@ -38,7 +38,9 @@ class HmBot {
   /// so the host keeps its own default.
   String? get scope => isDefault ? null : profile;
 
-  factory HmBot.fromJson(Map<String, dynamic> j) {
+  /// [rank] is the profile's place among the host's profiles by name; it
+  /// gives each bot without its own colour a distinct, stable tone.
+  factory HmBot.fromJson(Map<String, dynamic> j, {int? rank}) {
     final name = (j['name'] ?? 'default').toString();
     final isDefault = j['is_default'] == true || name == 'default';
     final display = (j['display_name'] ?? '').toString().trim();
@@ -61,7 +63,7 @@ class HmBot {
       provider: (j['provider'] ?? '').toString(),
       skillCount: j['skill_count'] is int ? j['skill_count'] as int : 0,
       description: (j['description'] ?? '').toString(),
-      character: HmCharacterSpec.fromMeta(meta, shown),
+      character: HmCharacterSpec.fromMeta(meta, shown, rank: rank),
       uiMeta: meta,
     );
   }
@@ -124,10 +126,18 @@ class HmBotsModel extends ChangeNotifier {
       }
       final body = jsonDecode(res.body);
       final rows = (body is Map ? body['profiles'] : body) as List? ?? const [];
-      final list = rows
-          .whereType<Map>()
-          .map((m) => HmBot.fromJson(Map<String, dynamic>.from(m)))
-          .toList();
+      final maps = [
+        for (final m in rows.whereType<Map>()) Map<String, dynamic>.from(m),
+      ];
+      final names = [for (final m in maps) (m['name'] ?? 'default').toString()]
+        ..sort();
+      final list = [
+        for (final m in maps)
+          HmBot.fromJson(
+            m,
+            rank: names.indexOf((m['name'] ?? 'default').toString()),
+          ),
+      ];
       list.sort(
         (a, b) => a.isDefault == b.isDefault ? 0 : (a.isDefault ? -1 : 1),
       );

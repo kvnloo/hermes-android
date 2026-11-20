@@ -8,9 +8,11 @@ import '../../core/services/connection_manager.dart';
 import '../../nextgen/nextgen_preferences.dart';
 import '../../nextgen/ui/nextgen_scope.dart';
 import '../../nextgen/ui/settings_page.dart';
+import '../avatar/hm_avatar.dart';
 import '../hm_bots.dart';
 import '../hm_ui.dart';
 import 'hm_agent_screen.dart';
+import 'hm_avatar_picker.dart';
 
 class HmSettingsScreen extends StatelessWidget {
   const HmSettingsScreen({super.key, required this.bots});
@@ -24,7 +26,7 @@ class HmSettingsScreen extends StatelessWidget {
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => page));
     return ListenableBuilder(
-      listenable: bots,
+      listenable: Listenable.merge([bots, look]),
       builder: (context, _) => HmPage(
         title: 'Settings',
         children: [
@@ -74,6 +76,18 @@ class HmSettingsScreen extends StatelessWidget {
                 label: 'Look & Feel',
                 value: _modeLabel(look.themeMode),
                 onTap: () => push(const NgSettingsPage()),
+              ),
+              HmRow(
+                icon: Icons.face_outlined,
+                label: 'Bot avatar',
+                value: look.avatarStyle.label,
+                onTap: () => push(
+                  HmAvatarPicker(
+                    sample:
+                        bots.bots.firstOrNull?.character ??
+                        HmCharacterSpec.forName('Hermes'),
+                  ),
+                ),
               ),
               HmRow(
                 icon: Icons.chat_outlined,

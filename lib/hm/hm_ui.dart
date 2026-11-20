@@ -283,6 +283,7 @@ class HmRow extends StatelessWidget {
   const HmRow({
     super.key,
     this.icon,
+    this.leading,
     required this.label,
     this.value,
     this.subValue,
@@ -294,6 +295,9 @@ class HmRow extends StatelessWidget {
   });
 
   final IconData? icon;
+
+  /// Drawn in place of [icon] (a live avatar preview, say).
+  final Widget? leading;
   final String label;
   final String? value;
   final String? subValue;
@@ -317,7 +321,10 @@ class HmRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              if (icon != null) ...[
+              if (leading != null) ...[
+                leading!,
+                const SizedBox(width: 14),
+              ] else if (icon != null) ...[
                 Icon(icon, size: 24, color: ink),
                 const SizedBox(width: 18),
               ],
