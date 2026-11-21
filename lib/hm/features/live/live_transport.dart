@@ -5,8 +5,9 @@
 // recognition, each heard utterance is a normal turn on the bot's chat
 // (prompt.submit through NgChatController), and the reply is spoken with
 // the host's TTS (POST /api/audio/speak), else the device's.
-// GPT-Live (POST /api/audio/voice-live/session) needs a WebRTC media stack
-// the app does not carry, so this client never mounts it.
+// When the host selects GPT-Live (voice_chat_mode: gpt-live) and can start
+// it, the call runs over WebRTC instead (live_webrtc.dart), and this loop is
+// the fallback.
 import 'dart:async';
 import 'dart:convert';
 
@@ -20,6 +21,7 @@ import '../../../core/services/voice_composer_adapter.dart';
 import '../../../nextgen/data/chat_controller.dart';
 import '../../../nextgen/data/read_aloud.dart';
 import 'live_strings.dart';
+import 'live_webrtc.dart';
 
 // ── Data shapes ─────────────────────────────────────────────────────────────
 
@@ -30,18 +32,34 @@ class LiveVoiceStatus {
     required this.mode,
     required this.gptLiveAvailable,
     this.reason,
+    this.model,
+    this.voice,
   });
 
   /// `chained` or `gpt-live`.
   final String mode;
   final bool gptLiveAvailable;
   final String? reason;
+  final String? model;
+  final String? voice;
 
-  factory LiveVoiceStatus.fromJson(Map<String, dynamic> j) => LiveVoiceStatus(
-    mode: (j['mode'] ?? 'chained').toString(),
-    gptLiveAvailable: j['available'] == true,
-    reason: j['reason']?.toString(),
-  );
+  /// The profile selected GPT-Live (Desktop and the official app follow
+  /// this host setting).
+  bool get gptLiveSelected => mode == 'gpt-live';
+
+  /// Selected and startable: the call goes over WebRTC.
+  bool get useWebRtc => gptLiveSelected && gptLiveAvailable;
+
+  factory LiveVoiceStatus.fromJson(Map<String, dynamic> j) {
+    final raw = (j['mode'] ?? 'chained').toString().trim().toLowerCase();
+    return LiveVoiceStatus(
+      mode: raw.replaceAll('_', '-') == 'gpt-live' ? 'gpt-live' : 'chained',
+      gptLiveAvailable: j['available'] == true,
+      reason: j['reason']?.toString(),
+      model: j['model']?.toString(),
+      voice: j['voice']?.toString(),
+    );
+  }
 }
 
 /// `POST /api/audio/speak`: one synthesized reply.
@@ -101,6 +119,12 @@ enum LiveMicAccess { granted, denied, unavailable }
 abstract interface class LiveHost {
   Future<LiveVoiceStatus> status();
   Future<LiveSpeech> speak(String text);
+
+  /// Exchanges a WebRTC SDP offer for the GPT-Live answer.
+  Future<LiveSessionAnswer> createSession(
+    String sdp, {
+    List<Map<String, Object?>> history,
+  });
 }
 
 /// The microphone and speech recognizer: one utterance per [listen].
@@ -169,6 +193,30 @@ class DashboardLiveHost implements LiveHost {
       ),
     ),
   );
+
+  @override
+  Future<LiveSessionAnswer> createSession(
+    String sdp, {
+    List<Map<String, Object?>> history = const [],
+  }) async {
+    final res = await dashboard.apiRequest(
+      'POST',
+      'audio/voice-live/session',
+      // The provider's SDP parser needs the offer byte-exact.
+      body: {'sdp': sdp, if (history.isNotEmpty) 'history': history},
+      queryParameters: _query,
+      // The host waits on the provider (30 s there); Desktop allows 45 s.
+      timeout: const Duration(seconds: 45),
+    );
+    if (res.statusCode == 404) {
+      throw const LiveCallSetupFailed(LiveText.gptLiveCouldNotConnect);
+    }
+    // 503: the host has no key for GPT-Live.
+    if (res.statusCode == 503) {
+      throw const LiveCallSetupFailed(LiveText.gptLiveNotConfigured);
+    }
+    return LiveSessionAnswer.fromJson(_ok(res));
+  }
 
   @override
   Future<LiveSpeech> speak(String text) async {

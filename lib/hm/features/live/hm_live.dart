@@ -1,7 +1,8 @@
 // Live Mode: a full-screen voice call with the bot (official S-LV1,
 // shots/official-s25/live-01.png): the bot pill at the top, a large glowing
 // orb, one status line, the call's transcript (You in muted italics, the bot
-// in full text) and round mic + close buttons at the bottom.
+// in full text) and round mic + close buttons at the bottom. The call runs
+// over GPT-Live (WebRTC) when the host offers it, else the chained loop.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ import '../../hm_ui.dart';
 import 'live_controller.dart';
 import 'live_strings.dart';
 import 'live_transport.dart';
+import 'live_webrtc.dart';
 
 Future<void> openHmLive(
   BuildContext context, {
@@ -34,6 +36,7 @@ Future<void> openHmLive(
           ear: DeviceLiveEar(createVoiceComposerAdapter()),
           brain: ChatLiveBrain(chat),
           voice: HostLiveVoice(host),
+          call: () => LiveCall(host: host, peer: FlutterWebRtcPeer.new),
         ),
       ),
     ),
@@ -100,7 +103,7 @@ class _HmLiveScreenState extends State<HmLiveScreen>
     LivePhase.connecting => LiveText.connecting,
     LivePhase.listening => LiveText.listening,
     LivePhase.thinking => LiveText.working,
-    LivePhase.speaking => LiveText.speaking,
+    LivePhase.speaking => live.webRtc ? LiveText.talkOver : LiveText.speaking,
     LivePhase.muted => LiveText.muted,
     LivePhase.ended => LiveText.stopped,
     LivePhase.failed => live.failure ?? LiveText.stopped,
@@ -125,7 +128,7 @@ class _HmLiveScreenState extends State<HmLiveScreen>
                 _BotPill(bot: widget.bot),
                 const SizedBox(height: 28),
                 Semantics(
-                  button: live.phase == LivePhase.speaking,
+                  button: live.phase == LivePhase.speaking && !live.webRtc,
                   label: widget.bot.displayName,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,

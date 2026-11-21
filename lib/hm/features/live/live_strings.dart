@@ -22,6 +22,19 @@ abstract final class LiveText {
       'Live mode paused while Hermes Agent is in the background.';
   static const you = 'You';
 
+  // GPT-Live (WebRTC) call (official, ui-text.txt).
+  static const talkOver = 'Talk over it to interrupt';
+  static const gptLiveNotConfigured = 'GPT-Live is not configured in Hermes.';
+  static const gptLiveCouldNotConnect = "GPT-Live couldn't connect. Try again.";
+  static const gptLiveNoConnection =
+      "Couldn't create the GPT-Live audio connection.";
+  static const gptLiveNoSession = 'Hermes returned no GPT-Live audio session.';
+  static const gptLiveError = 'GPT-Live reported an error.';
+  static const gptLiveClosed = 'GPT-Live closed';
+  static const gptLiveLost = 'The GPT-Live connection was lost. Try again.';
+  static const gptLiveRepliesStopped =
+      'The GPT-Live connection stopped accepting replies.';
+
   // Official (in-call screenshot).
   static const working = 'Working…';
 

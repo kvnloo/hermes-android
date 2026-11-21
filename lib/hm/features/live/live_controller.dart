@@ -9,12 +9,20 @@
 // end() from any state ▶ ended. Like Hermes Desktop's voice conversation,
 // ending stops the mic and the voice but leaves a running turn to finish,
 // so its reply still lands in the chat.
+//
+// When the host selects GPT-Live and can start it, the same states run off a
+// WebRTC [LiveCall] instead: the voice model listens and speaks, its
+// transcript deltas fill the transcript, each delegation is a turn in the
+// chat (thinking) whose final message goes back on the data channel. A setup
+// failure, or a setup slower than 35 s, falls back to the chained loop with
+// a notice.
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
 import 'live_strings.dart';
 import 'live_transport.dart';
+import 'live_webrtc.dart';
 
 enum LivePhase {
   connecting,
@@ -32,6 +40,10 @@ class LiveController extends ChangeNotifier {
     required this.ear,
     required this.brain,
     required this.voice,
+    this.call,
+    this.setupLimit = const Duration(seconds: 35),
+    this.callLimit = const Duration(minutes: 30),
+    this.speakingHold = const Duration(milliseconds: 1500),
   }) {
     brain.addListener(_changed);
   }
@@ -40,6 +52,20 @@ class LiveController extends ChangeNotifier {
   final LiveEar ear;
   final LiveBrain brain;
   final LiveVoice voice;
+
+  /// Builds the GPT-Live call when the host offers it; null keeps the call
+  /// on the chained loop.
+  final LiveCall Function()? call;
+
+  /// A GPT-Live call not up by then falls back to the chained loop.
+  final Duration setupLimit;
+
+  /// The longest a GPT-Live call runs.
+  final Duration callLimit;
+
+  /// How long after the voice's last transcript delta it still counts as
+  /// speaking.
+  final Duration speakingHold;
 
   LivePhase _phase = LivePhase.connecting;
   LivePhase get phase => _phase;
@@ -66,7 +92,23 @@ class LiveController extends ChangeNotifier {
   int _epoch = 0;
   int _earFailures = 0;
 
-  List<LiveLine> get lines => brain.lines;
+  // ── GPT-Live call state ──
+  LiveCall? _call;
+
+  /// The call is (or is being) carried over WebRTC.
+  bool get webRtc => _call != null;
+  bool _callUp = false;
+  bool _botSpeaking = false;
+  bool _working = false;
+  Timer? _speakingTimer;
+  Timer? _limitTimer;
+  Completer<void>? _callStarted;
+  final List<LiveLine> _callLines = [];
+  final Set<String> _delegationsSeen = {};
+  String? _activeDelegation;
+  Future<void>? _turn;
+
+  List<LiveLine> get lines => webRtc ? List.of(_callLines) : brain.lines;
 
   bool get isOver => _phase == LivePhase.ended || _phase == LivePhase.failed;
 
@@ -84,6 +126,8 @@ class LiveController extends ChangeNotifier {
     failure = message;
     partial = '';
     _set(LivePhase.failed);
+    _stopCallTimers();
+    unawaited(_call?.close());
     unawaited(ear.stop());
     unawaited(voice.stop());
   }
@@ -101,6 +145,15 @@ class LiveController extends ChangeNotifier {
       return;
     }
     if (epoch != _epoch) return;
+    final status = hostStatus!;
+    if (call != null && status.gptLiveSelected) {
+      if (status.useWebRtc) {
+        if (await _startCall(epoch)) return;
+        if (epoch != _epoch || isOver) return;
+      } else {
+        notice = LiveText.gptLiveNotConfigured;
+      }
+    }
     final LiveMicAccess access;
     try {
       access = await ear.open();
@@ -187,10 +240,193 @@ class LiveController extends ChangeNotifier {
     _listen();
   }
 
+  // ── GPT-Live ──
+
+  /// Opens the WebRTC call. True when the call is settled (up, or failed for
+  /// good); false, with [notice] set, to fall back to the chained loop.
+  Future<bool> _startCall(int epoch) async {
+    final c = _call = call!();
+    final started = _callStarted = Completer<void>();
+    // Awaited below; a close during setup must not surface as uncaught.
+    unawaited(started.future.catchError((Object _) {}));
+    c.onEvent = (event) => _onCallEvent(c, event);
+    try {
+      await Future(() async {
+        await c.connect(history: liveHistoryFrom(brain.lines));
+        await started.future;
+      }).timeout(setupLimit);
+    } on LiveCallMicDenied {
+      if (epoch == _epoch) _fail(LiveText.micOff);
+      return true;
+    } catch (e) {
+      await c.close();
+      if (!identical(_call, c)) return true;
+      _call = null;
+      _callLines.clear();
+      if (epoch != _epoch || isOver) return true;
+      notice = e is LiveCallSetupFailed
+          ? e.message
+          : LiveText.gptLiveCouldNotConnect;
+      return false;
+    }
+    if (epoch != _epoch || isOver) {
+      await c.close();
+      return true;
+    }
+    _callUp = true;
+    _limitTimer = Timer(callLimit, () => unawaited(end()));
+    if (_muted) c.setMuted(true);
+    _refreshCall();
+    return true;
+  }
+
+  void _onCallEvent(LiveCall c, LiveCallEvent event) {
+    if (!identical(_call, c) || _disposed) return;
+    switch (event) {
+      case LiveCallStarted():
+        final started = _callStarted;
+        if (started != null && !started.isCompleted) started.complete();
+      case LiveCallTranscript(:final fromUser, :final delta):
+        if (isOver) return;
+        _addTranscript(fromUser, delta);
+        _speakingTimer?.cancel();
+        if (fromUser) {
+          // The user talking over the voice cuts it off.
+          _botSpeaking = false;
+        } else {
+          _working = false;
+          _botSpeaking = true;
+          _speakingTimer = Timer(speakingHold, () {
+            _botSpeaking = false;
+            _refreshCall();
+          });
+        }
+        _refreshCall();
+      case LiveCallDelegation():
+        if (isOver) return;
+        _delegate(c, event);
+      case LiveCallWorking():
+        _working = true;
+        _refreshCall();
+      case LiveCallError():
+        notice = LiveText.gptLiveError;
+        _changed();
+      case LiveCallClosed(:final lost):
+        final started = _callStarted;
+        if (started != null && !started.isCompleted) {
+          started.completeError(
+            const LiveCallSetupFailed(LiveText.gptLiveCouldNotConnect),
+          );
+          return;
+        }
+        if (isOver) return;
+        _fail(lost ? LiveText.gptLiveLost : LiveText.gptLiveClosed);
+    }
+  }
+
+  void _addTranscript(bool fromUser, String delta) {
+    final last = _callLines.lastOrNull;
+    if (last != null && last.fromUser == fromUser) {
+      _callLines[_callLines.length - 1] = LiveLine(
+        key: last.key,
+        fromUser: fromUser,
+        text: '${last.text}$delta'.trimLeft(),
+      );
+    } else {
+      final text = delta.trimLeft();
+      if (text.isEmpty) return;
+      _callLines.add(
+        LiveLine(key: 'live-${_callLines.length}', fromUser: fromUser, text: text),
+      );
+    }
+  }
+
+  /// A delegation: run it as a turn in the chat and send the final message
+  /// back. A newer delegation supersedes one still waiting (its reply is not
+  /// spoken); a repeated id is ignored.
+  void _delegate(LiveCall c, LiveCallDelegation d) {
+    if (!_delegationsSeen.add(d.id)) return;
+    _activeDelegation = d.id;
+    _refreshCall();
+    final previous = _turn;
+    final turn = _turn = () async {
+      if (previous != null) await previous;
+      if (_activeDelegation != d.id) return;
+      if (d.prompt.trim().isEmpty) {
+        _settle(d.id);
+        return;
+      }
+      final String reply;
+      try {
+        reply = await brain.ask(d.prompt);
+      } catch (e) {
+        if (_activeDelegation != d.id) return;
+        notice = '$e';
+        c.reply(d.id, 'Sorry, I could not reach Hermes for that request.');
+        _settle(d.id);
+        return;
+      }
+      if (_activeDelegation != d.id) return;
+      final spoken = reply.trim();
+      if (spoken.isEmpty) {
+        c.think(d.id, 'Hermes finished that request without a spoken result.');
+      } else if (!c.reply(d.id, spoken) && !isOver) {
+        notice = LiveText.gptLiveRepliesStopped;
+      }
+      _settle(d.id);
+    }();
+    unawaited(turn.catchError((Object _) {}));
+  }
+
+  void _settle(String id) {
+    if (_activeDelegation == id) _activeDelegation = null;
+    _refreshCall();
+  }
+
+  void _refreshCall() {
+    if (!_callUp || isOver) {
+      _changed();
+      return;
+    }
+    _set(
+      _botSpeaking
+          ? LivePhase.speaking
+          : (_activeDelegation != null || _working)
+          ? LivePhase.thinking
+          : _muted
+          ? LivePhase.muted
+          : LivePhase.listening,
+    );
+  }
+
+  void _stopCallTimers() {
+    // A setup still waiting for the channel gives up now.
+    final started = _callStarted;
+    if (started != null && !started.isCompleted) {
+      started.completeError(
+        const LiveCallSetupFailed(LiveText.gptLiveCouldNotConnect),
+      );
+    }
+    _speakingTimer?.cancel();
+    _limitTimer?.cancel();
+    _speakingTimer = null;
+    _limitTimer = null;
+  }
+
   /// The mic button. While thinking or speaking it only takes effect when
   /// the call would next listen.
   void toggleMute() {
     if (isOver) return;
+    if (webRtc) {
+      _muted = !_muted;
+      if (!_muted) {
+        _paused = false;
+        if (notice == LiveText.paused) notice = null;
+      }
+      _call!.setMuted(_muted);
+      _refreshCall();
+      return;
+    }
     _muted = !_muted;
     if (_muted) {
       if (_phase == LivePhase.listening) {
@@ -214,7 +450,8 @@ class LiveController extends ChangeNotifier {
 
   /// Tapping the orb while the bot speaks cuts it off and listens.
   Future<void> interrupt() async {
-    if (_phase != LivePhase.speaking) return;
+    // On a GPT-Live call the user talks over the voice instead.
+    if (_phase != LivePhase.speaking || webRtc) return;
     _epoch++;
     await voice.stop();
     _listen();
@@ -226,6 +463,11 @@ class LiveController extends ChangeNotifier {
     _paused = true;
     _muted = true;
     notice = LiveText.paused;
+    if (webRtc) {
+      _call!.setMuted(true);
+      _refreshCall();
+      return;
+    }
     if (_phase == LivePhase.listening || _phase == LivePhase.speaking) {
       _epoch++;
       partial = '';
@@ -243,9 +485,11 @@ class LiveController extends ChangeNotifier {
     _epoch++;
     partial = '';
     _set(LivePhase.ended);
+    _stopCallTimers();
     await Future.wait([
       ear.stop().catchError((Object _) {}),
       voice.stop().catchError((Object _) {}),
+      if (_call != null) _call!.close().catchError((Object _) {}),
     ]);
   }
 
@@ -253,6 +497,8 @@ class LiveController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _epoch++;
+    _stopCallTimers();
+    unawaited(_call?.close());
     brain.removeListener(_changed);
     ear.dispose();
     voice.dispose();

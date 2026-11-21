@@ -1,24 +1,115 @@
 // Fakes for the four live-call seams: every test drives the call by hand.
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:hermes_android/hm/features/live/live_controller.dart';
 import 'package:hermes_android/hm/features/live/live_transport.dart';
+import 'package:hermes_android/hm/features/live/live_webrtc.dart';
 
 class FakeHost implements LiveHost {
-  FakeHost({this.statusError});
+  FakeHost({
+    this.statusError,
+    this.mode = 'chained',
+    this.available = false,
+    this.answer = const LiveSessionAnswer(sessionId: 'live_1', sdp: 'v=0 answer\r\n'),
+    this.sessionError,
+  });
   Object? statusError;
+  String mode;
+  bool available;
+  LiveSessionAnswer answer;
+  Object? sessionError;
   int statusCalls = 0;
+
+  /// Every `voice-live/session` request: the offer and the seed history.
+  final List<({String sdp, List<Map<String, Object?>> history})> sessions = [];
 
   @override
   Future<LiveVoiceStatus> status() async {
     statusCalls++;
     if (statusError != null) throw statusError!;
-    return const LiveVoiceStatus(mode: 'chained', gptLiveAvailable: false);
+    return LiveVoiceStatus(mode: mode, gptLiveAvailable: available);
   }
 
   @override
   Future<LiveSpeech> speak(String text) => throw UnimplementedError();
+
+  @override
+  Future<LiveSessionAnswer> createSession(
+    String sdp, {
+    List<Map<String, Object?>> history = const [],
+  }) async {
+    sessions.add((sdp: sdp, history: history));
+    if (sessionError != null) throw sessionError!;
+    return answer;
+  }
+}
+
+/// A WebRTC peer driven by hand: no media, frames recorded.
+class FakePeer implements LivePeer {
+  FakePeer({this.offerError, this.openOnAnswer = true});
+  Object? offerError;
+
+  /// Open the data channel as soon as the answer is applied.
+  bool openOnAnswer;
+
+  String? appliedAnswer;
+  bool micEnabled = true;
+  bool closed = false;
+  bool open = false;
+  final List<Map<String, dynamic>> sent = [];
+
+  void Function() _onOpen = () {};
+  void Function(String) _onMessage = (_) {};
+  void Function() _onLost = () {};
+
+  @override
+  set onOpen(void Function() handler) => _onOpen = handler;
+  @override
+  set onMessage(void Function(String text) handler) => _onMessage = handler;
+  @override
+  set onLost(void Function() handler) => _onLost = handler;
+
+  @override
+  Future<String> offer() async {
+    if (offerError != null) throw offerError!;
+    return 'v=0 offer\r\n';
+  }
+
+  @override
+  Future<void> answer(String sdp) async {
+    appliedAnswer = sdp;
+    if (openOnAnswer) openChannel();
+  }
+
+  void openChannel() {
+    open = true;
+    _onOpen();
+  }
+
+  /// A server event arriving on the data channel.
+  void event(Map<String, Object?> e) => _onMessage(jsonEncode(e));
+
+  void raw(String frame) => _onMessage(frame);
+
+  void lose() => _onLost();
+
+  @override
+  bool send(String text) {
+    if (!open || closed) return false;
+    sent.add(jsonDecode(text) as Map<String, dynamic>);
+    return true;
+  }
+
+  @override
+  void setMicEnabled(bool enabled) => micEnabled = enabled;
+
+  @override
+  Future<void> close() async {
+    closed = true;
+    open = false;
+  }
 }
 
 class FakeEar implements LiveEar {
@@ -125,7 +216,7 @@ class FakeVoice implements LiveVoice {
 }
 
 class LiveRig {
-  LiveRig({FakeHost? host, FakeEar? ear})
+  LiveRig({FakeHost? host, FakeEar? ear, this.peer, this.setupLimit})
     : host = host ?? FakeHost(),
       ear = ear ?? FakeEar();
   final FakeHost host;
@@ -133,6 +224,19 @@ class LiveRig {
   final FakeBrain brain = FakeBrain();
   final FakeVoice voice = FakeVoice();
 
-  LiveController build() =>
-      LiveController(host: host, ear: ear, brain: brain, voice: voice);
+  /// Set to give the call a GPT-Live (WebRTC) transport.
+  final FakePeer? peer;
+  final Duration? setupLimit;
+  LiveCall? call;
+
+  LiveController build() => LiveController(
+    host: host,
+    ear: ear,
+    brain: brain,
+    voice: voice,
+    call: peer == null
+        ? null
+        : () => call = LiveCall(host: host, peer: () => peer!),
+    setupLimit: setupLimit ?? const Duration(seconds: 35),
+  );
 }
