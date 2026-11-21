@@ -9,6 +9,11 @@ import '../../nextgen/data/chat_controller.dart';
 import '../../nextgen/data/nextgen_gateway.dart';
 import '../../nextgen/theme/nextgen_theme.dart';
 import '../../nextgen/ui/nextgen_scope.dart';
+import '../../nextgen/ui/scheduled_page.dart';
+import '../features/artifacts/hm_artifacts.dart';
+import '../features/live/hm_live.dart';
+import '../features/terminal/hm_terminal.dart';
+import '../features/work/hm_execution.dart';
 import '../hm_bots.dart';
 import '../avatar/hm_avatar.dart';
 import '../avatar/hm_avatar_state.dart';
@@ -142,12 +147,22 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
         if (ok != true) return;
         await _bots?.apiFor(bot).deleteSession(id).catchError((_) {});
         if (context.mounted) Navigator.of(context).pop();
-      default:
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('${a.name} is coming next')));
-        }
+      case HmChatAction.liveMode:
+        await openHmLive(context, bot: bot, bots: _bots!, chat: chat);
+      case HmChatAction.terminal:
+        await openHmTerminal(context, bot: bot, bots: _bots!, chat: chat);
+      case HmChatAction.execution:
+        await openHmExecution(context, bot: bot, bots: _bots!, chat: chat);
+      case HmChatAction.routines:
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (context) => NgScheduledPage(
+              onOpenSession: (_) => Navigator.of(context).pop(),
+            ),
+          ),
+        );
+      case HmChatAction.artifacts:
+        await openHmArtifacts(context, bot: bot, bots: _bots!, chat: chat);
     }
   }
 

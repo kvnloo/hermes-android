@@ -1,11 +1,18 @@
 // Agent settings: the bot's character and name, what it runs on, its
-// integrations and its work. Rows whose Hermes-style page isn't rebuilt yet
-// open the existing NextGen page for the same data.
+// integrations and its work.
 import 'package:flutter/material.dart';
 
 import '../../nextgen/theme/nextgen_theme.dart';
 import '../../nextgen/ui/capabilities_page.dart';
 import '../../nextgen/ui/scheduled_page.dart';
+import '../features/agent_model/hm_model_page.dart';
+import '../features/agent_model/hm_new_agent.dart';
+import '../features/artifacts/hm_artifacts.dart';
+import '../features/integrations/hm_connections.dart';
+import '../features/integrations/hm_mcp.dart';
+import '../features/integrations/hm_plugins.dart';
+import '../features/work/hm_kanban.dart';
+import '../features/work/hm_projects.dart';
 import '../hm_bots.dart';
 import '../avatar/hm_avatar.dart';
 import '../hm_ui.dart';
@@ -22,9 +29,6 @@ class HmAgentScreen extends StatelessWidget {
     void push(Widget page) => Navigator.of(
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => page));
-    void soon(String what) => ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$what is coming next')));
     return Scaffold(
       backgroundColor: c.background,
       body: Column(
@@ -35,7 +39,7 @@ class HmAgentScreen extends StatelessWidget {
               HmRoundButton(
                 icon: Icons.add,
                 label: 'New Agent',
-                onPressed: () => soon('New Agent'),
+                onPressed: () => openHmNewAgent(context, bots: bots),
               ),
             ],
           ),
@@ -64,7 +68,8 @@ class HmAgentScreen extends StatelessWidget {
                       value: _prettyModel(bot.model),
                       subValue: bot.provider.isEmpty ? null : bot.provider,
                       tall: true,
-                      onTap: () => soon('Model'),
+                      onTap: () =>
+                          openHmModelPage(context, bot: bot, bots: bots),
                     ),
                     HmRow(
                       icon: Icons.view_in_ar_outlined,
@@ -82,19 +87,20 @@ class HmAgentScreen extends StatelessWidget {
                       icon: Icons.hub_outlined,
                       label: 'Connections',
                       tall: true,
-                      onTap: () => soon('Connections'),
+                      onTap: () =>
+                          openHmConnections(context, bot: bot, bots: bots),
                     ),
                     HmRow(
                       icon: Icons.extension_outlined,
                       label: 'Plugins',
                       tall: true,
-                      onTap: () => soon('Plugins'),
+                      onTap: () => openHmPlugins(context, bot: bot, bots: bots),
                     ),
                     HmRow(
                       icon: Icons.power_outlined,
                       label: 'MCP',
                       tall: true,
-                      onTap: () => soon('MCP'),
+                      onTap: () => openHmMcp(context, bot: bot, bots: bots),
                     ),
                   ],
                 ),
@@ -105,7 +111,8 @@ class HmAgentScreen extends StatelessWidget {
                       icon: Icons.folder_special_outlined,
                       label: 'Projects',
                       tall: true,
-                      onTap: () => soon('Projects'),
+                      onTap: () =>
+                          openHmProjects(context, bot: bot, bots: bots),
                     ),
                     HmRow(
                       icon: Icons.schedule,
@@ -121,13 +128,14 @@ class HmAgentScreen extends StatelessWidget {
                       icon: Icons.inventory_2_outlined,
                       label: 'Artifacts',
                       tall: true,
-                      onTap: () => soon('Artifacts'),
+                      onTap: () =>
+                          openHmArtifacts(context, bot: bot, bots: bots),
                     ),
                     HmRow(
                       icon: Icons.view_kanban_outlined,
                       label: 'Kanban',
                       tall: true,
-                      onTap: () => soon('Kanban'),
+                      onTap: () => openHmKanban(context, bot: bot, bots: bots),
                     ),
                   ],
                 ),
