@@ -2,6 +2,7 @@
 // connection check), saved gateways, appearance, and the NextGen switch.
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -33,6 +34,20 @@ class NgSettingsPage extends StatefulWidget {
 
 class _NgSettingsPageState extends State<NgSettingsPage> {
   bool _switchingSurface = false;
+
+  Future<void> _openAssistantSurface(String action) async {
+    const channel = MethodChannel(
+      'com.hermesagent.hermes_android/system_assistant',
+    );
+    try {
+      if (await channel.invokeMethod<bool>(action) == true) return;
+    } on PlatformException {
+      // Settings and the projection picker can be absent on managed devices.
+    } on MissingPluginException {
+      // This surface is only supported by the Android host.
+    }
+    if (mounted) ngToast(context, 'This Android feature is unavailable.');
+  }
 
   Future<void> _changeSurface(NgScope scope, NgSurface surface) async {
     final window = GlassWindowService.shared;
@@ -469,6 +484,29 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                 ],
               ),
             ),
+            if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
+              const NgSectionLabel('Android assistant'),
+              NgCard(
+                child: Column(
+                  children: [
+                    NgRow(
+                      icon: Icons.assistant_outlined,
+                      title: 'Default digital assistant',
+                      subtitle:
+                          'Select z0 Agent in Android settings, or leave your current assistant selected.',
+                      onTap: () => _openAssistantSurface('assistantSettings'),
+                    ),
+                    NgRow(
+                      icon: Icons.screen_share_outlined,
+                      title: 'Local screen preview',
+                      subtitle:
+                          'Requires Android consent. No screen frames are sent to a host.',
+                      onTap: () => _openAssistantSurface('screenPreview'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             NgSectionLabel(ngL.ng_notifications),
             const NgNotificationSettings(),
             NgSectionLabel(ngL.ng_interface),
