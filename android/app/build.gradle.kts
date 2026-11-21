@@ -164,7 +164,6 @@ tasks.matching { it.name == "preBuild" || it.name.startsWith("merge") && it.name
 }
 
 dependencies {
-   implementation("androidx.health.connect:connect-client:1.1.0")
    implementation(voiceAar)
    // Open-source C2DM IPC transport, not Firebase SDK/GMS client libraries.
    val replacementEmbeddedPushAar = providers.gradleProperty("embeddedPushAar").orNull

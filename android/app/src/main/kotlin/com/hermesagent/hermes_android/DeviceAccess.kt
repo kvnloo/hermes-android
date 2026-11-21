@@ -10,10 +10,17 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.health.connect.AggregateRecordsRequest
+import android.health.connect.AggregateRecordsResponse
+import android.health.connect.HealthConnectException
+import android.health.connect.HealthConnectManager
+import android.health.connect.TimeInstantRangeFilter
+import android.health.connect.datatypes.StepsRecord
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.OutcomeReceiver
 import android.provider.CalendarContract.Instances
 import android.provider.ContactsContract
 import android.provider.Settings
@@ -24,11 +31,10 @@ import android.widget.Switch
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.PermissionController
-import androidx.health.connect.client.records.StepsRecord
-import androidx.health.connect.client.request.AggregateRequest
-import androidx.health.connect.client.time.TimeRangeFilter
+import androidx.annotation.RequiresApi
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -54,7 +60,7 @@ internal class DeviceAccess(private val context: Context) {
     }
 
     fun available(source: DeviceSource): Boolean = when (source) {
-        DeviceSource.HEALTH -> HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
+        DeviceSource.HEALTH -> Build.VERSION.SDK_INT >= 34 && PlatformHealth.available(context)
         DeviceSource.LOCATION -> context.getSystemService(LocationManager::class.java) != null
         DeviceSource.ALARM -> context.getSystemService(AlarmManager::class.java) != null
         else -> true
@@ -67,8 +73,6 @@ internal class DeviceAccess(private val context: Context) {
             alarms != null && (Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms()) &&
                 notifications?.areNotificationsEnabled() == true
         }
-        DeviceSource.HEALTH -> available(source) &&
-            requireNotNull(source.permission) in HealthConnectClient.getOrCreate(context).permissionController.getGrantedPermissions()
         else -> context.checkSelfPermission(requireNotNull(source.permission)) == PackageManager.PERMISSION_GRANTED
     }
 
@@ -91,12 +95,8 @@ internal class DeviceAccess(private val context: Context) {
             val data: Map<String, Any?> = when (source) {
                 DeviceSource.HEALTH -> {
                     require(args.isEmpty())
-                    val end = Instant.ofEpochMilli(now)
-                    val totals = HealthConnectClient.getOrCreate(context).aggregate(AggregateRequest(
-                        metrics = setOf(StepsRecord.COUNT_TOTAL),
-                        timeRangeFilter = TimeRangeFilter.between(end.minusSeconds(86400), end),
-                    ))
-                    mapOf("steps" to totals[StepsRecord.COUNT_TOTAL])
+                    if (Build.VERSION.SDK_INT < 34) return@withContext error("unavailable")
+                    mapOf("steps" to PlatformHealth.steps(context, Instant.ofEpochMilli(now)))
                 }
                 DeviceSource.CALENDAR -> {
                     val start = epoch(args["startMs"])
@@ -171,6 +171,34 @@ internal class DeviceAccess(private val context: Context) {
     }
 }
 
+// Keep platform Health Connect types out of paths used on API 24–33.
+@RequiresApi(34)
+private object PlatformHealth {
+    fun available(context: Context) = context.getSystemService(HealthConnectManager::class.java) != null
+
+    suspend fun steps(context: Context, end: Instant): Long? = suspendCancellableCoroutine { continuation ->
+        val manager = requireNotNull(context.getSystemService(HealthConnectManager::class.java))
+        val period = TimeInstantRangeFilter.Builder()
+            .setStartTime(end.minusSeconds(86400))
+            .setEndTime(end)
+            .build()
+        val metric = StepsRecord.STEPS_COUNT_TOTAL
+        manager.aggregate(AggregateRecordsRequest.Builder<Long>(period).addAggregationType(metric).build(),
+            context.mainExecutor, object : OutcomeReceiver<AggregateRecordsResponse<Long>, HealthConnectException> {
+                override fun onResult(result: AggregateRecordsResponse<Long>) {
+                    continuation.resume(result.get(metric))
+                }
+
+                override fun onError(error: HealthConnectException) {
+                    continuation.resumeWithException(
+                        if (error.errorCode == HealthConnectException.ERROR_SECURITY) SecurityException(error)
+                        else error
+                    )
+                }
+            })
+    }
+}
+
 class DeviceAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (!DeviceAccess(context).enabled(DeviceSource.ALARM)) return
@@ -193,7 +221,6 @@ class DeviceAccessActivity : ComponentActivity() {
     private var refreshJob: kotlinx.coroutines.Job? = null
     private val scope = kotlinx.coroutines.MainScope()
     private val permissions = registerForActivityResult(ActivityResultContracts.RequestPermission()) { refresh() }
-    private val health = registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { refresh() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -245,7 +272,6 @@ class DeviceAccessActivity : ComponentActivity() {
         val packageUri = Uri.parse("package:$packageName")
         try {
             when (source) {
-                DeviceSource.HEALTH -> health.launch(setOf(requireNotNull(source.permission)))
                 DeviceSource.ALARM -> {
                     val alarms = getSystemService(AlarmManager::class.java)
                     if (Build.VERSION.SDK_INT >= 31 && !alarms.canScheduleExactAlarms()) {

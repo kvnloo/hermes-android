@@ -36,7 +36,7 @@ is `{"ok":true,"data":{...}}`. Failure `result` is
 `cancelled`, `busy`, and `not_foreground`. None include sensitive data.
 
 Settings → Device access manages five independent sources, all off by default.
-Health Connect uses read-only step permission. Contacts/calendar use Android
+Health Connect uses the Android 14+ platform service and read-only step permission; the legacy standalone provider is unsupported. Contacts/calendar use Android
 read permission; location is coarse only. Exact alarms require Android's
 special access on Android 12+ and notification permission on Android 13+.
 An unavailable Health Connect provider leaves the source unavailable.
