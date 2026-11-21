@@ -43,6 +43,10 @@ void main() {
         .toList();
     await _font('Geist', files('Geist'));
     await _font('GeistMono', files('GeistMono'));
+    await _font('Nunito', [
+      'assets/fonts/nunito/Nunito-VariableFont_wght.ttf',
+      'assets/fonts/nunito/Nunito-Italic-VariableFont_wght.ttf',
+    ]);
   });
 
   for (final themeId in ['onyx', 'dash', 'settings']) {
