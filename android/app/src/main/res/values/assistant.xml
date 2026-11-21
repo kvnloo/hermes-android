@@ -1,0 +1,8 @@
+<resources>
+    <string name="assistant_open">Open a Hermes chat</string>
+    <string name="screen_preview">Local screen preview</string>
+    <string name="screen_preview_start">Choose a screen or app to preview</string>
+    <string name="screen_preview_stop">Stop preview</string>
+    <string name="screen_preview_unavailable">Screen preview is unavailable</string>
+    <string name="screen_preview_cancelled">Screen capture was not allowed</string>
+</resources>

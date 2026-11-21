@@ -53,6 +53,16 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "com.hermesagent.hermes_android/system_assistant").setMethodCallHandler { call, result ->
+            val destination = when (call.method) {
+                "assistantSettings" -> Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)
+                "screenPreview" -> Intent(this, ScreenPreviewActivity::class.java)
+                else -> null
+            }
+            if (destination == null) result.notImplemented()
+            else result.success(runCatching { startActivity(destination) }.isSuccess)
+        }
         glassWindow.attach(flutterEngine)
         VoiceDraftMedia.install(this, flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
