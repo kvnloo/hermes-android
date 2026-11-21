@@ -1188,30 +1188,10 @@ class HmGroupSettingsScreen extends StatelessWidget {
   final HmBotsModel? bots;
 
   Future<void> _rename(BuildContext context) async {
-    final field = TextEditingController(text: controller.room.name);
     final name = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Group name'),
-        content: TextField(
-          controller: field,
-          autofocus: true,
-          maxLength: 200,
-          decoration: const InputDecoration(hintText: 'Group name'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, field.text),
-            child: Text(MaterialLocalizations.of(context).saveButtonLabel),
-          ),
-        ],
-      ),
+      builder: (_) => _RenameDialog(initial: controller.room.name),
     );
-    field.dispose();
     if (name == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -1333,4 +1313,43 @@ class HmGroupSettingsScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RenameDialog extends StatefulWidget {
+  const _RenameDialog({required this.initial});
+  final String initial;
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  late final field = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    field.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Group name'),
+    content: TextField(
+      controller: field,
+      autofocus: true,
+      maxLength: 200,
+      decoration: const InputDecoration(hintText: 'Group name'),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+      ),
+      TextButton(
+        onPressed: () => Navigator.pop(context, field.text),
+        child: Text(MaterialLocalizations.of(context).saveButtonLabel),
+      ),
+    ],
+  );
 }
