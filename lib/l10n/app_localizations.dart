@@ -10001,6 +10001,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Load earlier messages'**
   String get ng_load_earlier_messages;
+
+  /// No description provided for @ng_memory_updated.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory updated'**
+  String get ng_memory_updated;
 }
 
 class _AppLocalizationsDelegate

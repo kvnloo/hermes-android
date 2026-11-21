@@ -214,6 +214,10 @@ class NgAssistantItem extends NgItem {
   bool get isEmpty => text.isEmpty && reasoning.isEmpty && tools.isEmpty;
 }
 
+class NgMemoryUpdatedItem extends NgItem {
+  NgMemoryUpdatedItem(super.key);
+}
+
 class NgNoticeItem extends NgItem {
   final String text;
   final bool error;
@@ -913,11 +917,21 @@ class NgChatController extends ChangeNotifier {
     return null;
   }
 
+  static bool _isMemoryUpdate(String text) {
+    final notice = text.trimLeft();
+    return notice.startsWith('💾') &&
+        RegExp(r'(?:^|[💾:·])\s*Memory updated\b').hasMatch(notice);
+  }
+
   /// A runtime notice: a centred line when short, else a collapsed card.
   void _addNotice(String text, {DateTime? time, List<NgItem>? into}) {
     final items = into ?? this.items;
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
+    if (_isMemoryUpdate(trimmed)) {
+      items.add(NgMemoryUpdatedItem(_key('memory')));
+      return;
+    }
     final at = time ?? DateTime.now();
     final report = ngSystemItemFor(_key('s'), {
       'role': 'user',
@@ -1069,6 +1083,12 @@ class NgChatController extends ChangeNotifier {
       final metadata = m['display_metadata'];
       if (displayKind == 'hidden' ||
           (metadata is Map && metadata['model_only'] == true)) {
+        continue;
+      }
+      if ((role != 'user' || displayKind?.isNotEmpty == true) &&
+          _isMemoryUpdate(text)) {
+        reply = null;
+        items.add(NgMemoryUpdatedItem(_key('memory')));
         continue;
       }
       // Background results, delegated-task batches, model switches and
@@ -1557,6 +1577,9 @@ class NgChatController extends ChangeNotifier {
       case 'notice':
         final message = s('message')?.trim();
         if (message != null && message.isNotEmpty) _addNotice(message);
+      case 'review.summary':
+        final text = s('text');
+        if (text != null && _isMemoryUpdate(text)) _addNotice(text);
       case 'error':
         error = s('message') ?? ngL.ng_the_turn_failed;
         _finishTurn(failed: true);
@@ -1602,7 +1625,8 @@ class NgChatController extends ChangeNotifier {
           'session.updated' ||
           'session.info' ||
           'session.title' ||
-          'notice':
+          'notice' ||
+          'review.summary':
         _changedNow();
       default:
         _changed();

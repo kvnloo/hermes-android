@@ -817,6 +817,22 @@ class _NgChatViewState extends State<NgChatView> {
         readAloud: _readAloud,
       ),
       NgSystemItem() => _SystemCard(item: item),
+      NgMemoryUpdatedItem() => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.save_outlined, size: 14, color: c.text3),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                ngL.ng_memory_updated,
+                style: NgType.caption.copyWith(color: c.text3),
+              ),
+            ),
+          ],
+        ),
+      ),
       NgNoticeItem() => Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Text(

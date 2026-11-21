@@ -5969,4 +5969,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get ng_load_earlier_messages => 'Завантажити попередні повідомлення';
+
+  @override
+  String get ng_memory_updated => 'Пам’ять оновлено';
 }

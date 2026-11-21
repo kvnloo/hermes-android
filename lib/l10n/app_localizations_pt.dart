@@ -5974,6 +5974,9 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get ng_load_earlier_messages => 'Carregar mensagens anteriores';
+
+  @override
+  String get ng_memory_updated => 'Memória atualizada';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -11704,4 +11707,7 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get ng_load_earlier_messages => 'Carregar mensagens anteriores';
+
+  @override
+  String get ng_memory_updated => 'Memória atualizada';
 }

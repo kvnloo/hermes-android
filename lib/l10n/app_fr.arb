@@ -1626,5 +1626,6 @@
   "theme_surface_reload_body": "Hermes redémarre sa fenêtre pour changer de surface. Les discussions et brouillons sont conservés.",
   "theme_surface_reload_action": "Redessiner",
   "ng_worked_for": "A travaillé pendant {duration}",
-  "ng_load_earlier_messages": "Charger les messages précédents"
+  "ng_load_earlier_messages": "Charger les messages précédents",
+  "ng_memory_updated": "Mémoire mise à jour"
 }

@@ -5807,4 +5807,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get ng_load_earlier_messages => '以前のメッセージを読み込む';
+
+  @override
+  String get ng_memory_updated => 'メモリを更新しました';
 }

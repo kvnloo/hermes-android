@@ -1626,5 +1626,6 @@
   "theme_surface_reload_body": "Hermes reinicia su ventana para cambiar de superficie. Se conservan los chats y borradores.",
   "theme_surface_reload_action": "Redibujar",
   "ng_worked_for": "Trabajó durante {duration}",
-  "ng_load_earlier_messages": "Cargar mensajes anteriores"
+  "ng_load_earlier_messages": "Cargar mensajes anteriores",
+  "ng_memory_updated": "Memoria actualizada"
 }

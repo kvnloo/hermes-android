@@ -5971,4 +5971,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get ng_load_earlier_messages => 'Cargar mensajes anteriores';
+
+  @override
+  String get ng_memory_updated => 'Memoria actualizada';
 }

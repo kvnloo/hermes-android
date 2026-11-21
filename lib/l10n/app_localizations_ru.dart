@@ -5970,4 +5970,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get ng_load_earlier_messages => 'Загрузить предыдущие сообщения';
+
+  @override
+  String get ng_memory_updated => 'Память обновлена';
 }

@@ -5811,4 +5811,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get ng_load_earlier_messages => '이전 메시지 불러오기';
+
+  @override
+  String get ng_memory_updated => '메모리 업데이트됨';
 }

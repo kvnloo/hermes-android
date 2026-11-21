@@ -5928,4 +5928,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ng_load_earlier_messages => 'Load earlier messages';
+
+  @override
+  String get ng_memory_updated => 'Memory updated';
 }

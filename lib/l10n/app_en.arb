@@ -2525,5 +2525,6 @@
       }
     }
   },
-  "ng_load_earlier_messages": "Load earlier messages"
+  "ng_load_earlier_messages": "Load earlier messages",
+  "ng_memory_updated": "Memory updated"
 }

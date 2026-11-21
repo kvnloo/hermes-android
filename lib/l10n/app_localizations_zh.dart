@@ -5721,6 +5721,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get ng_load_earlier_messages => '載入較早的訊息';
+
+  @override
+  String get ng_memory_updated => '已更新記憶';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -11206,4 +11209,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get ng_load_earlier_messages => '加载较早的消息';
+
+  @override
+  String get ng_memory_updated => '已更新记忆';
 }

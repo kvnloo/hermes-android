@@ -1626,5 +1626,6 @@
   "theme_surface_reload_body": "Hermes startet sein Fenster neu, um die Oberfläche zu wechseln. Chats und Entwürfe bleiben erhalten.",
   "theme_surface_reload_action": "Neu zeichnen",
   "ng_worked_for": "{duration} gearbeitet",
-  "ng_load_earlier_messages": "Frühere Nachrichten laden"
+  "ng_load_earlier_messages": "Frühere Nachrichten laden",
+  "ng_memory_updated": "Gedächtnis aktualisiert"
 }

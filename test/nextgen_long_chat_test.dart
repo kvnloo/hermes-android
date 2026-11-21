@@ -182,6 +182,33 @@ Future<void> _pumpChat(WidgetTester tester, NgChatController chat) async {
 }
 
 void main() {
+  testWidgets('memory updates show as compact system rows', (tester) async {
+    final gateway = NextGenGateway(_conn());
+    final chat = NgChatController(gateway, sessionId: 'stored');
+    addTearDown(gateway.dispose);
+    addTearDown(chat.dispose);
+    chat.debugApplyHistory([
+      {'role': 'assistant', 'content': 'Done'},
+      {'role': 'assistant', 'content': '💾 Memory updated'},
+    ]);
+    await _pumpChat(tester, chat);
+    expect(find.text('Memory updated'), findsOneWidget);
+    expect(find.byIcon(Icons.save_outlined), findsOneWidget);
+    expect(find.text('💾 Memory updated'), findsNothing);
+
+    gateway.debugEmit(
+      StreamEvent(
+        type: 'review.summary',
+        data: const {'text': '💾 Self-improvement review: Memory updated'},
+        sessionId: 'stored',
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Memory updated'), findsNWidgets(2));
+    expect(find.byIcon(Icons.save_outlined), findsNWidgets(2));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('completed turns show elapsed time when known', (tester) async {
     final gateway = NextGenGateway(_conn());
     final chat = NgChatController(gateway, sessionId: 'stored');
