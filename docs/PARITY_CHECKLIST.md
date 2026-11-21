@@ -7,7 +7,7 @@ An item is checked only if a screenshot shows it working. Evidence is one of two
 - `parity/<name>.jpg`: committed in this folder, downscaled.
 - `local <path> <sha256 prefix>`: kept off this public repo because it shows private data (hostnames, emails, profile, session or task names). The path is under the parity workspace `hermes-uiux/shots/`. The hash is the first 12 hex digits of the full PNG's sha256.
 
-Device: **S25** is Kevin's Galaxy S25 Ultra running the signed CI build of `11f4436` on a hidden display. **emu** is the Pixel 8-sized emulator from PR #16.
+Device: **S25** is Kevin's Galaxy S25 Ultra running the signed CI build of `11f4436`, then `10ce448`, on a hidden display. **emu** is the Pixel 8-sized emulator from PR #16.
 
 ## Hosts and sign-in
 
@@ -15,8 +15,9 @@ Device: **S25** is Kevin's Galaxy S25 Ultra running the signed CI build of `11f4
 - [x] Password sign-in to Studio: local `fork-s25/s25-003-signin.png` `64a8868e1eed`, then home at local `fork-s25/s25-004-signedin.png` `87f3c5852dab` (S25).
 - [x] Several saved instances, Settings → Self-Hosted Instances: local `fork-s25/s25-021-instances.png` `1dd8268a5ce1` (S25).
 - [x] **Studio round trip.** Sent "Reply with exactly A0262-PONG-S25 and nothing else" and got `A0262-PONG-S25` back: `parity/s25-010-studio-roundtrip.jpg` (S25). Studio's `state.db` has both turns in session `20261120_212958_380baa`.
-- [ ] Browser (Google OIDC) sign-in to groot. The Google step finished: local `fork-s25/s25-033-groot-oidc.png` `e7e83997d00a`. groot logged `login_success` and `native_code_issued`. The app was frozen behind the tab, so the redirect never landed: local `fork-s25/s25-036-groot-wait.png` `59c564ad98bb`. Fixed in `60a487a`; not yet re-run on the S25.
-- [ ] groot round trip. Waits on the item above.
+- [x] Browser (Google OIDC) sign-in to groot, on the build of `10ce448`. Google account step: local `fork-s25/s25-033-groot-oidc.png` `e7e83997d00a`. The app's loopback answers "Signed in": `parity/s25-044-groot-returned.jpg`. Home lists groot's bots: local `fork-s25/s25-045-groot-after-close.png` `26c3441ecd3f`. groot logged `native_token_success`. On the build of `11f4436` the app froze behind the tab and the redirect never landed (local `fork-s25/s25-036-groot-wait.png` `59c564ad98bb`); `60a487a` fixed that.
+- [x] **groot round trip.** Sent "Reply with exactly A0262-PONG-GROOT and nothing else" and got `A0262-PONG-GROOT` back: `parity/s25-050-groot-roundtrip.jpg` (S25). groot's `state.db` has both turns in session `20261120_215716_0db3ab`.
+- [ ] After a browser sign-in the tab stays open on "Signed in" until the user closes it. Not compared with the official app.
 
 ## Home
 
