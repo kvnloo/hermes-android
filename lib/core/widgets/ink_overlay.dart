@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../controllers/annotation_controller.dart';
 import '../models/annotation_ink.dart';
 
-/// Composable annotation surface; deliberately not connected to chat_screen.
+/// Composable annotation surface, mounted by ChatScreen only when active.
 ///
 /// Raw pointer events retain pressure and device kind. The stylus-only pan
 /// recognizer competes with scroll gestures, while a finger in pen mode is

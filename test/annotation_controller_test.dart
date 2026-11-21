@@ -144,6 +144,20 @@ void main() {
     expect(c.drawing.strokes, hasLength(1));
   });
 
+  test('confirmed send preserves new ink and cannot undo old ink', () {
+    final c = AnnotationController();
+    addTearDown(c.dispose);
+    c.enter();
+    _drag(c);
+    final sentId = c.drawing.strokes.single.id;
+    _drag(c);
+    final newerId = c.drawing.strokes.last.id;
+    c.removeSubmittedStrokeIds({sentId});
+    expect(c.drawing.strokes.map((stroke) => stroke.id), [newerId]);
+    c.undoStroke();
+    expect(c.drawing.strokes.map((stroke) => stroke.id), [newerId]);
+  });
+
   test('multi-touch cancellation does not destroy committed ink', () {
     final c = AnnotationController();
     addTearDown(c.dispose);

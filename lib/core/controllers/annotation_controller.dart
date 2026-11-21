@@ -182,6 +182,23 @@ class AnnotationController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Remove only confirmed sent strokes. Clear undo history so sent ink
+  /// cannot be resurrected while newer, independently drawn ink survives.
+  void removeSubmittedStrokeIds(Set<int> sentIds) {
+    if (_disposed || sentIds.isEmpty) return;
+    _commitLive();
+    final kept = _drawing.strokes
+        .where((stroke) => !sentIds.contains(stroke.id))
+        .toList(growable: false);
+    if (kept.length == _drawing.strokes.length) return;
+    _drawing = Drawing(
+      strokes: List<Stroke>.unmodifiable(kept),
+      nextId: _drawing.nextId,
+      past: const <List<Stroke>>[],
+    );
+    notifyListeners();
+  }
+
   /// Explicitly abandon the draft; mode switches never call this.
   void discard() {
     if (_disposed) return;
