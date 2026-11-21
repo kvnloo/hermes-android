@@ -51,61 +51,57 @@ class _ImmediatePort implements AnnotationSendPort {
   );
 }
 
-const _screen = ScreenInfo(
-  id: 'chat',
-  route: '/chat',
-  width: 400,
-  height: 800,
-);
+const _screen = ScreenInfo(id: 'chat', route: '/chat', width: 400, height: 800);
 
 void main() {
-  testWidgets('typed annotation sends once and speaks only with hands-free on', (
-    tester,
-  ) async {
-    final port = _ImmediatePort();
-    final store = _MemoryStore();
-    final fakeVoice = FakeVoiceComposerAdapter();
-    var confirmed = 0;
-    var spoken = 0;
-    await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: AnnotationVoiceTray(
-            conversationId: 'test-chat',
-            screen: _screen,
-            currentStrokes: () => <Stroke>[],
-            sender: AnnotationVoiceSendController(store: store, port: port),
-            beforeRecording: () async {},
-            onConfirmed: (submitted, receipt) async {
-              confirmed++;
-            },
-            handsFreeSpeechEnabled: () => true,
-            speakReply: (reply) async {
-              expect(reply, 'It is done.');
-              spoken++;
-            },
-            voiceAdapter: fakeVoice,
+  testWidgets(
+    'typed annotation sends once and speaks only with hands-free on',
+    (tester) async {
+      final port = _ImmediatePort();
+      final store = _MemoryStore();
+      final fakeVoice = FakeVoiceComposerAdapter();
+      var confirmed = 0;
+      var spoken = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AnnotationVoiceTray(
+              conversationId: 'test-chat',
+              screen: _screen,
+              currentStrokes: () => <Stroke>[],
+              sender: AnnotationVoiceSendController(store: store, port: port),
+              beforeRecording: () async {},
+              onConfirmed: (submitted, receipt) async {
+                confirmed++;
+              },
+              handsFreeSpeechEnabled: () => true,
+              speakReply: (reply) async {
+                expect(reply, 'It is done.');
+                spoken++;
+              },
+              voiceAdapter: fakeVoice,
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.enterText(
-      find.byKey(const Key('annotation-typed-note')),
-      'Please explain this screen',
-    );
-    await tester.tap(find.byKey(const Key('annotation-voice-send')));
-    await tester.pump();
-    await tester.pump();
+      await tester.enterText(
+        find.byKey(const Key('annotation-typed-note')),
+        'Please explain this screen',
+      );
+      await tester.tap(find.byKey(const Key('annotation-voice-send')));
+      await tester.pump();
+      await tester.pump();
 
-    expect(port.sent, 1);
-    expect(confirmed, 1);
-    expect(spoken, 1);
-    expect(store.pending, isNull);
-    expect(tester.takeException(), isNull);
-  });
+      expect(port.sent, 1);
+      expect(confirmed, 1);
+      expect(spoken, 1);
+      expect(store.pending, isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('hold-to-talk records a segment and aligns with a stroke', (
     tester,
@@ -159,68 +155,66 @@ void main() {
 
     expect(fakeVoice.listenCount, 1);
     expect(fakeVoice.stopCount, 1);
-    expect(
-      find.textContaining('⟦stroke 4⟧'),
-      findsWidgets,
-    );
+    expect(find.textContaining('⟦stroke 4⟧'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('inactive annotation editor is absent even offstage; draft survives', (
-    tester,
-  ) async {
-    final fakeVoice = FakeVoiceComposerAdapter();
-    final sender = AnnotationVoiceSendController(
-      store: _MemoryStore(),
-      port: _ImmediatePort(),
-    );
+  testWidgets(
+    'inactive annotation editor is absent even offstage; draft survives',
+    (tester) async {
+      final fakeVoice = FakeVoiceComposerAdapter();
+      final sender = AnnotationVoiceSendController(
+        store: _MemoryStore(),
+        port: _ImmediatePort(),
+      );
 
-    Widget screen(bool active) => MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: Offstage(
-          offstage: !active,
-          child: AnnotationVoiceTray(
-            key: const Key('persistent-annotation-tray'),
-            active: active,
-            conversationId: 'test-chat',
-            screen: _screen,
-            currentStrokes: () => <Stroke>[],
-            sender: sender,
-            beforeRecording: () async {},
-            onConfirmed: (_, _) async {},
-            handsFreeSpeechEnabled: () => false,
-            speakReply: (_) async {},
-            voiceAdapter: fakeVoice,
+      Widget screen(bool active) => MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Offstage(
+            offstage: !active,
+            child: AnnotationVoiceTray(
+              key: const Key('persistent-annotation-tray'),
+              active: active,
+              conversationId: 'test-chat',
+              screen: _screen,
+              currentStrokes: () => <Stroke>[],
+              sender: sender,
+              beforeRecording: () async {},
+              onConfirmed: (_, _) async {},
+              handsFreeSpeechEnabled: () => false,
+              speakReply: (_) async {},
+              voiceAdapter: fakeVoice,
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.pumpWidget(screen(true));
-    await tester.enterText(
-      find.byKey(const Key('annotation-typed-note')),
-      'Keep annotation note',
-    );
-    await tester.pumpWidget(screen(false));
+      await tester.pumpWidget(screen(true));
+      await tester.enterText(
+        find.byKey(const Key('annotation-typed-note')),
+        'Keep annotation note',
+      );
+      await tester.pumpWidget(screen(false));
 
-    // The alias viewer inspects even offstage fields; none may leak in.
-    expect(
-      find.byKey(const Key('annotation-typed-note'), skipOffstage: false),
-      findsNothing,
-    );
-    expect(find.byType(TextField, skipOffstage: false), findsNothing);
+      // The alias viewer inspects even offstage fields; none may leak in.
+      expect(
+        find.byKey(const Key('annotation-typed-note'), skipOffstage: false),
+        findsNothing,
+      );
+      expect(find.byType(TextField, skipOffstage: false), findsNothing);
 
-    await tester.pumpWidget(screen(true));
-    expect(find.byType(TextField, skipOffstage: false), findsOneWidget);
-    expect(
-      tester
-          .widget<TextField>(find.byKey(const Key('annotation-typed-note')))
-          .controller!
-          .text,
-      'Keep annotation note',
-    );
-    expect(tester.takeException(), isNull);
-  });
+      await tester.pumpWidget(screen(true));
+      expect(find.byType(TextField, skipOffstage: false), findsOneWidget);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const Key('annotation-typed-note')))
+            .controller!
+            .text,
+        'Keep annotation note',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

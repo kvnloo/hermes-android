@@ -72,7 +72,9 @@ void main() {
       subscribe: source.subscribe,
       unsubscribe: source.unsubscribe,
       speechEnabled: () => true,
-      speakReply: (text) async { spoken.add(text); },
+      speakReply: (text) async {
+        spoken.add(text);
+      },
     );
     observer.watch('turn-1');
     source.emit(_snapshot(turnId: 'other', terminal: _terminal('other')));
@@ -98,7 +100,9 @@ void main() {
       subscribe: source.subscribe,
       unsubscribe: source.unsubscribe,
       speechEnabled: () => true,
-      speakReply: (text) async { spoken.add(text); },
+      speakReply: (text) async {
+        spoken.add(text);
+      },
     );
     observer.watch('turn-2');
     expect(spoken, ['Read this.']);
@@ -116,17 +120,27 @@ void main() {
       subscribe: source.subscribe,
       unsubscribe: source.unsubscribe,
       speechEnabled: () => enabled,
-      speakReply: (text) async { spoken.add(text); },
+      speakReply: (text) async {
+        spoken.add(text);
+      },
     );
     observer.watch('disabled');
     source.emit(_snapshot(turnId: 'disabled', terminal: _terminal('disabled')));
     enabled = true;
     observer.watch('failed');
-    source.emit(_snapshot(turnId: 'failed',
-      terminal: _terminal('failed', completed: false)));
+    source.emit(
+      _snapshot(
+        turnId: 'failed',
+        terminal: _terminal('failed', completed: false),
+      ),
+    );
     observer.watch('empty');
-    source.emit(_snapshot(turnId: 'empty',
-      terminal: _terminal('empty', text: '  ')));
+    source.emit(
+      _snapshot(
+        turnId: 'empty',
+        terminal: _terminal('empty', text: '  '),
+      ),
+    );
     expect(spoken, isEmpty);
     observer.dispose();
   });
@@ -139,7 +153,9 @@ void main() {
       subscribe: source.subscribe,
       unsubscribe: source.unsubscribe,
       speechEnabled: () => true,
-      speakReply: (text) async { spoken.add(text); },
+      speakReply: (text) async {
+        spoken.add(text);
+      },
     );
     observer.watch('turn-3');
     observer.dispose();

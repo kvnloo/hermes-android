@@ -26,36 +26,41 @@ void main() {
       points: <StrokePoint>[_a],
     );
     expect(identical(tap, EMPTY_DRAWING), isTrue);
-    expect(() => EMPTY_DRAWING.strokes.add(_add(EMPTY_DRAWING).strokes.single),
-        throwsUnsupportedError);
+    expect(
+      () => EMPTY_DRAWING.strokes.add(_add(EMPTY_DRAWING).strokes.single),
+      throwsUnsupportedError,
+    );
   });
 
-  test('add records stable IDs, timestamps, pressure and independent points', () {
-    final points = <StrokePoint>[_a, _b];
-    final targets = <String>['component-1'];
-    final first = addStroke(
-      EMPTY_DRAWING,
-      tool: DrawTool.highlighter,
-      color: InkColor.red,
-      pointer: InkPointerKind.touch,
-      points: points,
-      targets: targets,
-    );
-    points.clear();
-    targets.clear();
-    final second = _add(first);
-    expect(first.strokes.single.points, hasLength(2));
-    expect(second.strokes.map((stroke) => stroke.id), <int>[1, 2]);
-    expect(second.nextId, 3);
-    expect(first.strokes.single.startedAt, 100);
-    expect(first.strokes.single.endedAt, 120);
-    expect(first.strokes.single.color, InkColor.red);
-    expect(first.strokes.single.targets, <String>['component-1']);
-    expect(first.strokes.single.tool, DrawTool.highlighter);
-    expect(first.strokes.single.pointer, InkPointerKind.touch);
-    expect(first.past, hasLength(1));
-    expect(second.past.last, same(first.strokes));
-  });
+  test(
+    'add records stable IDs, timestamps, pressure and independent points',
+    () {
+      final points = <StrokePoint>[_a, _b];
+      final targets = <String>['component-1'];
+      final first = addStroke(
+        EMPTY_DRAWING,
+        tool: DrawTool.highlighter,
+        color: InkColor.red,
+        pointer: InkPointerKind.touch,
+        points: points,
+        targets: targets,
+      );
+      points.clear();
+      targets.clear();
+      final second = _add(first);
+      expect(first.strokes.single.points, hasLength(2));
+      expect(second.strokes.map((stroke) => stroke.id), <int>[1, 2]);
+      expect(second.nextId, 3);
+      expect(first.strokes.single.startedAt, 100);
+      expect(first.strokes.single.endedAt, 120);
+      expect(first.strokes.single.color, InkColor.red);
+      expect(first.strokes.single.targets, <String>['component-1']);
+      expect(first.strokes.single.tool, DrawTool.highlighter);
+      expect(first.strokes.single.pointer, InkPointerKind.touch);
+      expect(first.past, hasLength(1));
+      expect(second.past.last, same(first.strokes));
+    },
+  );
 
   test('undo restores last snapshot without reusing stroke IDs', () {
     final first = _add(EMPTY_DRAWING);
@@ -88,12 +93,13 @@ void main() {
         StrokePoint(0.9, 0.8, t: 220),
       ],
     );
-    final unchanged = eraseAlong(other, const <InkPosition>[InkPosition(0.5, 0.5)]);
+    final unchanged = eraseAlong(other, const <InkPosition>[
+      InkPosition(0.5, 0.5),
+    ]);
     expect(identical(unchanged, other), isTrue);
-    final erased = eraseAlong(
-      other,
-      const <InkPosition>[InkPosition(0.5, 0.21)],
-    );
+    final erased = eraseAlong(other, const <InkPosition>[
+      InkPosition(0.5, 0.21),
+    ]);
     expect(erased.strokes.map((stroke) => stroke.id), <int>[2]);
     expect(erased.past.length, other.past.length + 1);
     expect(undo(erased).strokes, hasLength(2));
@@ -109,12 +115,30 @@ void main() {
   });
 
   test('pointer routing, contact and pressure match Dash palm rejection', () {
-    expect(routePointer(InkPointerKind.stylus, penMode: true, pointers: 1), isTrue);
-    expect(routePointer(InkPointerKind.touch, penMode: true, pointers: 1), isFalse);
-    expect(routePointer(InkPointerKind.mouse, penMode: true, pointers: 1), isFalse);
-    expect(routePointer(InkPointerKind.touch, penMode: false, pointers: 1), isTrue);
-    expect(routePointer(InkPointerKind.other, penMode: false, pointers: 1), isFalse);
-    expect(routePointer(InkPointerKind.stylus, penMode: true, pointers: 2), isFalse);
+    expect(
+      routePointer(InkPointerKind.stylus, penMode: true, pointers: 1),
+      isTrue,
+    );
+    expect(
+      routePointer(InkPointerKind.touch, penMode: true, pointers: 1),
+      isFalse,
+    );
+    expect(
+      routePointer(InkPointerKind.mouse, penMode: true, pointers: 1),
+      isFalse,
+    );
+    expect(
+      routePointer(InkPointerKind.touch, penMode: false, pointers: 1),
+      isTrue,
+    );
+    expect(
+      routePointer(InkPointerKind.other, penMode: false, pointers: 1),
+      isFalse,
+    );
+    expect(
+      routePointer(InkPointerKind.stylus, penMode: true, pointers: 2),
+      isFalse,
+    );
     expect(stylusEnters(InkPointerKind.stylus), isFalse);
     expect(pressureOf(InkPointerKind.touch, 0.9), 0.5);
     expect(pressureOf(InkPointerKind.stylus, -1), 0.5);
@@ -145,8 +169,14 @@ void main() {
     expect(strokeWidth(DrawTool.highlighter, 0), 18);
     expect(strokeWidth(DrawTool.box, 0.5), 3);
     expect(drawingTool(Tool.eraser), isNull);
-    expect(strokeOutline(DrawTool.box, <StrokePoint>[_a, _b]).single, hasLength(5));
-    expect(strokeOutline(DrawTool.circle, <StrokePoint>[_a, _b]).single, hasLength(33));
+    expect(
+      strokeOutline(DrawTool.box, <StrokePoint>[_a, _b]).single,
+      hasLength(5),
+    );
+    expect(
+      strokeOutline(DrawTool.circle, <StrokePoint>[_a, _b]).single,
+      hasLength(33),
+    );
     expect(strokeOutline(DrawTool.arrow, <StrokePoint>[_a, _b]), hasLength(2));
     expect(meanPressure(<StrokePoint>[_a, _b]), closeTo(0.5, 0.00001));
   });

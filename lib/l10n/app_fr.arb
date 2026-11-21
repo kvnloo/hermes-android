@@ -1612,5 +1612,10 @@
   "openui_board_unavailable": "Impossible d’afficher ce tableau. Le code source est ci-dessous.",
   "openui_board_incomplete": "Ce tableau est incomplet. Le code source est ci-dessous.",
   "openui_board_unsupported": "Ce tableau contient un élément non encore pris en charge sur Android. Le code source est ci-dessous.",
-  "openui_read_only": "Lecture seule · les sélections restent locales"
+  "openui_read_only": "Lecture seule · les sélections restent locales",
+  "annotation_mode": "Annoter l’écran",
+  "annotation_undo": "Annuler l’annotation",
+  "annotation_clear": "Effacer les marques",
+  "annotation_snapshot": "Joindre la capture annotée",
+  "annotation_exit": "Quitter le mode annotation"
 }

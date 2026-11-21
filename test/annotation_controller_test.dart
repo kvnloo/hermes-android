@@ -5,60 +5,69 @@ import 'package:hermes_android/core/models/annotation_ink.dart';
 const _first = StrokePoint(0.1, 0.2, p: 0.4, t: 100);
 const _last = StrokePoint(0.7, 0.2, p: 0.7, t: 120);
 
-void _drag(AnnotationController controller, {InkPointerKind kind = InkPointerKind.stylus}) {
+void _drag(
+  AnnotationController controller, {
+  InkPointerKind kind = InkPointerKind.stylus,
+}) {
   controller.startStroke(pointer: kind, point: _first, pointers: 1);
   controller.appendStrokePoint(_last);
   controller.finishStroke();
 }
 
 void main() {
-  test('each controller starts closed, unlatched and without persisted ink', () {
-    final old = AnnotationController();
-    addTearDown(old.dispose);
-    old.enter();
-    _drag(old);
-    old.setPenMode(true);
-    expect(old.drawing.strokes, hasLength(1));
+  test(
+    'each controller starts closed, unlatched and without persisted ink',
+    () {
+      final old = AnnotationController();
+      addTearDown(old.dispose);
+      old.enter();
+      _drag(old);
+      old.setPenMode(true);
+      expect(old.drawing.strokes, hasLength(1));
 
-    final fresh = AnnotationController();
-    addTearDown(fresh.dispose);
-    expect(fresh.active, isFalse);
-    expect(fresh.buttonDown, isFalse);
-    expect(fresh.penMode, isFalse);
-    expect(fresh.tool, Tool.pen);
-    expect(fresh.color, InkColor.accent);
-    expect(identical(fresh.drawing, EMPTY_DRAWING), isTrue);
-    expect(fresh.live, isNull);
-  });
+      final fresh = AnnotationController();
+      addTearDown(fresh.dispose);
+      expect(fresh.active, isFalse);
+      expect(fresh.buttonDown, isFalse);
+      expect(fresh.penMode, isFalse);
+      expect(fresh.tool, Tool.pen);
+      expect(fresh.color, InkColor.accent);
+      expect(identical(fresh.drawing, EMPTY_DRAWING), isTrue);
+      expect(fresh.live, isNull);
+    },
+  );
 
-  test('button rising edges toggle exactly once; release and repeats do not', () {
-    final c = AnnotationController();
-    addTearDown(c.dispose);
-    var notifications = 0;
-    c.addListener(() => notifications++);
+  test(
+    'button rising edges toggle exactly once; release and repeats do not',
+    () {
+      final c = AnnotationController();
+      addTearDown(c.dispose);
+      var notifications = 0;
+      c.addListener(() => notifications++);
 
-    c.stylusButton(true);
-    expect(c.active, isTrue);
-    expect(c.penMode, isTrue);
-    expect(c.buttonDown, isTrue);
-    c.stylusButton(true);
-    expect(c.active, isTrue);
-    expect(notifications, 1);
+      c.stylusButton(true);
+      expect(c.active, isTrue);
+      expect(c.penMode, isTrue);
+      expect(c.buttonDown, isTrue);
+      c.stylusButton(true);
+      expect(c.active, isTrue);
+      expect(notifications, 1);
 
-    c.toggle();
-    expect(c.active, isFalse);
-    expect(c.buttonDown, isTrue);
-    c.stylusButton(false);
-    expect(c.active, isFalse);
-    expect(c.buttonDown, isFalse);
-    c.stylusButton(false);
-    expect(notifications, 3);
+      c.toggle();
+      expect(c.active, isFalse);
+      expect(c.buttonDown, isTrue);
+      c.stylusButton(false);
+      expect(c.active, isFalse);
+      expect(c.buttonDown, isFalse);
+      c.stylusButton(false);
+      expect(notifications, 3);
 
-    c.stylusButton(true);
-    expect(c.active, isTrue);
-    expect(c.buttonDown, isTrue);
-    expect(notifications, 4);
-  });
+      c.stylusButton(true);
+      expect(c.active, isTrue);
+      expect(c.buttonDown, isTrue);
+      expect(notifications, 4);
+    },
+  );
 
   test('contact cannot open the mode, and penMode rejects touch and mouse', () {
     final c = AnnotationController();

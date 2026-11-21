@@ -5928,6 +5928,21 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get turbo_description_other => 'Routed through vLLM Semantic Router';
+
+  @override
+  String get annotation_mode => 'Anotar ecrã';
+
+  @override
+  String get annotation_undo => 'Desfazer anotação';
+
+  @override
+  String get annotation_clear => 'Limpar marcações';
+
+  @override
+  String get annotation_snapshot => 'Anexar captura anotada';
+
+  @override
+  String get annotation_exit => 'Sair do modo de anotação';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -11612,4 +11627,19 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   @override
   String get openui_read_only =>
       'Somente leitura · os toques selecionam valores localmente';
+
+  @override
+  String get annotation_mode => 'Anotar a tela';
+
+  @override
+  String get annotation_undo => 'Desfazer anotação';
+
+  @override
+  String get annotation_clear => 'Limpar marcações';
+
+  @override
+  String get annotation_snapshot => 'Anexar captura anotada';
+
+  @override
+  String get annotation_exit => 'Sair do modo de anotação';
 }

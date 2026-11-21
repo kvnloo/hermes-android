@@ -1612,5 +1612,10 @@
   "openui_board_unavailable": "このボードを表示できません。元のソースを以下に表示します。",
   "openui_board_incomplete": "このボードは未完成です。元のソースを以下に表示します。",
   "openui_board_unsupported": "このボードには Android で未対応のパネルがあります。元のソースを以下に表示します。",
-  "openui_read_only": "読み取り専用 · タップによる選択は端末内のみ"
+  "openui_read_only": "読み取り専用 · タップによる選択は端末内のみ",
+  "annotation_mode": "画面に書き込む",
+  "annotation_undo": "注釈を元に戻す",
+  "annotation_clear": "書き込みを消去",
+  "annotation_snapshot": "注釈付きスクリーンショットを添付",
+  "annotation_exit": "注釈モードを終了"
 }

@@ -5677,6 +5677,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get turbo_description_other => 'Routed through vLLM Semantic Router';
+
+  @override
+  String get annotation_mode => '标注屏幕';
+
+  @override
+  String get annotation_undo => '撤销标注';
+
+  @override
+  String get annotation_clear => '清除标记';
+
+  @override
+  String get annotation_snapshot => '附加带标注的截屏';
+
+  @override
+  String get annotation_exit => '退出标注模式';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -11118,4 +11133,19 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get openui_read_only => '只读 · 点按选择仅保留在本机';
+
+  @override
+  String get annotation_mode => '标注屏幕';
+
+  @override
+  String get annotation_undo => '撤销标注';
+
+  @override
+  String get annotation_clear => '清除标记';
+
+  @override
+  String get annotation_snapshot => '附加带标注的截屏';
+
+  @override
+  String get annotation_exit => '退出标注模式';
 }
