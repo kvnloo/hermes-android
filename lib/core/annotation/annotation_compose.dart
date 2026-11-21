@@ -102,7 +102,8 @@ String strokeLegend(List<Stroke> strokes) {
     final on = targets != null && targets.isNotEmpty
         ? ' on ${targets.join(', ')}'
         : '';
-    return '${marker(stroke.id)} ${stroke.tool}$red at ${center[0].toStringAsFixed(0)}%,${center[1].toStringAsFixed(0)}%$on';
+    return '${marker(stroke.id)} ${stroke.tool}$red at '
+        '${center[0].toStringAsFixed(0)}%,${center[1].toStringAsFixed(0)}%$on';
   }).join('\n');
 }
 
@@ -120,12 +121,12 @@ String composeMessage({
   ].join('\n');
   final count = strokes.length;
   final plural = count == 1 ? '' : 's';
-  final head =
-      'Annotated ${screen.route} ($count stroke$plural). Screenshot with the marks and the strokes JSON are attached.';
+  final head = 'Annotated ${screen.route} ($count stroke$plural). '
+      'Screenshot with the marks and the strokes JSON are attached.';
   final silent = alignment.unspoken.isNotEmpty
       ? '\nAlso marked without speaking: ${alignment.unspoken.map(marker).join(' ')}'
       : '';
-  final body = said.isNotEmpty ? said + silent : '';
+  final body = said.isNotEmpty ? '$said$silent' : '';
   final legend = count > 0 ? strokeLegend(strokes) : '';
   return <String>[
     head,
