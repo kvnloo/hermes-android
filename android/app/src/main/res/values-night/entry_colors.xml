@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="hm_widget_surface">@android:color/background_dark</color>
+</resources>

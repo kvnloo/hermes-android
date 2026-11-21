@@ -2,4 +2,6 @@
 <resources>
     <string name="tile_new_chat">새 채팅</string>
     <string name="tile_live_voice">실시간 음성</string>
+    <string name="widget_label">Hermes Agent 작업</string>
+    <string name="widget_description">Hermes Agent에서 새 채팅이나 핸즈프리 대화를 시작하세요.</string>
 </resources>

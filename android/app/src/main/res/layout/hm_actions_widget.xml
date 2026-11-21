@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/hm_widget_background"
+    android:gravity="center"
+    android:orientation="horizontal"
+    android:padding="4dp">
+    <Button
+        android:id="@+id/entry_new_chat"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:minHeight="48dp"
+        android:text="@string/tile_new_chat"
+        android:textAllCaps="false" />
+    <Button
+        android:id="@+id/entry_live_voice"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:minHeight="48dp"
+        android:text="@string/tile_live_voice"
+        android:textAllCaps="false" />
+</LinearLayout>

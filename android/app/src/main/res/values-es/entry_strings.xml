@@ -2,4 +2,6 @@
 <resources>
     <string name="tile_new_chat">Nuevo chat</string>
     <string name="tile_live_voice">Voz en directo</string>
+    <string name="widget_label">Acciones de Hermes Agent</string>
+    <string name="widget_description">Inicia un chat nuevo o una conversación manos libres en Hermes Agent.</string>
 </resources>

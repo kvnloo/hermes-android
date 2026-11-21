@@ -2,4 +2,6 @@
 <resources>
     <string name="tile_new_chat">新建聊天</string>
     <string name="tile_live_voice">实时语音</string>
+    <string name="widget_label">Hermes Agent 操作</string>
+    <string name="widget_description">在 Hermes Agent 中开始新聊天或免提对话。</string>
 </resources>

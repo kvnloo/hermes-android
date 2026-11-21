@@ -2,4 +2,6 @@
 <resources>
     <string name="tile_new_chat">新しいチャット</string>
     <string name="tile_live_voice">ライブ音声</string>
+    <string name="widget_label">Hermes Agent の操作</string>
+    <string name="widget_description">Hermes Agent で新しいチャットやハンズフリーの会話を始めます。</string>
 </resources>

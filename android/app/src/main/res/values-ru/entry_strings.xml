@@ -2,4 +2,6 @@
 <resources>
     <string name="tile_new_chat">Новый чат</string>
     <string name="tile_live_voice">Живой голос</string>
+    <string name="widget_label">Действия Hermes Agent</string>
+    <string name="widget_description">Начните новый чат или голосовой разговор без помощи рук в Hermes Agent.</string>
 </resources>
