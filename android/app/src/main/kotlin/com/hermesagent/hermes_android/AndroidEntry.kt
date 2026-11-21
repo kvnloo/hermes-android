@@ -9,7 +9,8 @@ internal object AndroidEntry {
     const val NEW_CHAT = PREFIX + "QUICK_CHAT"
     const val LIVE_VOICE = PREFIX + "LIVE_VOICE"
     const val SESSIONS = PREFIX + "SESSIONS"
-    val actions = setOf(NEW_CHAT, LIVE_VOICE, SESSIONS)
+    const val ROUTINES = PREFIX + "ROUTINES"
+    val actions = setOf(NEW_CHAT, LIVE_VOICE, SESSIONS, ROUTINES)
 
     fun intent(context: Context, action: String) =
         Intent(context, MainActivity::class.java).setAction(action)

@@ -10,6 +10,13 @@ pluginManagement {
 
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "com.android.application" &&
+                System.getenv("ARES_APP_FUNCTIONS") == "true") useVersion("9.1.1")
+        }
+    }
+
     repositories {
         google()
         mavenCentral()

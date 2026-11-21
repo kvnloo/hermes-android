@@ -2,6 +2,18 @@ import com.android.build.gradle.internal.api.ApkVariantOutputImpl
 import java.io.FileInputStream
 import java.util.Properties
 
+buildscript {
+    if (System.getenv("ARES_APP_FUNCTIONS") == "true") {
+        repositories {
+            mavenCentral()
+            google()
+        }
+        dependencies {
+            classpath("com.google.devtools.ksp:symbol-processing-gradle-plugin:2.3.10")
+        }
+    }
+}
+
 plugins {
    id("com.android.application")
    id("dev.flutter.flutter-gradle-plugin")
@@ -12,6 +24,9 @@ val keystorePath = rootProject.projectDir.parentFile.resolve("key.properties")
 val minimumInstalledVersionCode = 2127
 // Google Play builds use Play-managed updates. The ordinary GitHub release keeps
 // its verified APK updater. CI sets this only for the separate Play AAB.
+val appFunctions = System.getenv("ARES_APP_FUNCTIONS") == "true"
+if (appFunctions) apply(plugin = "com.google.devtools.ksp")
+
 val playBuild = System.getenv("ARES_PLAY_BUILD") == "true"
 if (keystorePath.exists()) {
    keystoreProperties.load(FileInputStream(keystorePath))
@@ -19,7 +34,14 @@ if (keystorePath.exists()) {
 
 android {
    namespace = "com.hermesagent.hermes_android"
-   compileSdk = 36
+   compileSdk = if (appFunctions) 37 else 36
+   if (appFunctions) {
+       sourceSets.getByName("debug").apply {
+           manifest.srcFile("src/appFunctions/AndroidManifest.xml")
+           java.srcDir("src/appFunctions/kotlin")
+           res.srcDir("src/appFunctions/res")
+       }
+   }
 
    compileOptions {
        sourceCompatibility = JavaVersion.VERSION_17
@@ -164,6 +186,10 @@ tasks.matching { it.name == "preBuild" || it.name.startsWith("merge") && it.name
 }
 
 dependencies {
+   if (appFunctions) {
+       debugImplementation("androidx.appfunctions:appfunctions:1.0.0")
+       add("kspDebug", "androidx.appfunctions:appfunctions-compiler:1.0.0")
+   }
    implementation(voiceAar)
    // Open-source C2DM IPC transport, not Firebase SDK/GMS client libraries.
    val replacementEmbeddedPushAar = providers.gradleProperty("embeddedPushAar").orNull
