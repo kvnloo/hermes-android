@@ -45,6 +45,8 @@ class NgChatView extends StatefulWidget {
     this.readAloudFactory,
     this.appBar,
     this.botName,
+    this.dictation,
+    this.voiceFactory,
   });
 
   final NgChatController chat;
@@ -63,6 +65,15 @@ class NgChatView extends StatefulWidget {
 
   /// The bot this chat talks to, named in the composer hint.
   final String? botName;
+
+  /// Whether the composer is dictating. Pass one to watch it from outside
+  /// (the bot header's avatar listens); the view writes it, nothing else
+  /// should. Without one the view keeps its own.
+  final ValueNotifier<bool>? dictation;
+
+  /// Test hook: supplies the speech recognizer (e.g. a fake dictation source).
+  @visibleForTesting
+  final VoiceComposerAdapter Function()? voiceFactory;
 
   @override
   State<NgChatView> createState() => _NgChatViewState();
@@ -92,7 +103,13 @@ class _NgChatViewState extends State<NgChatView> {
   final _imagePicker = ImagePicker();
 
   VoiceComposerAdapter? _voice;
-  bool _listening = false;
+
+  /// The one dictation flag: the parent's notifier when it passed one.
+  ValueNotifier<bool>? _ownDictation;
+  ValueNotifier<bool> get _dictation =>
+      widget.dictation ?? (_ownDictation ??= ValueNotifier(false));
+  bool get _listening => _dictation.value;
+  set _listening(bool value) => _dictation.value = value;
   String _beforeDictation = '';
 
   /// One read-aloud engine for this transcript: the reading reply's action
@@ -134,6 +151,16 @@ class _NgChatViewState extends State<NgChatView> {
       _wasRunning = chat.running;
       // A reply being read belongs to the chat we left.
       unawaited(_readAloud.stop());
+    }
+    if (old.dictation != widget.dictation) {
+      final was = (old.dictation ?? _ownDictation)?.value ?? false;
+      if (was != _listening) {
+        // The flag moved to another notifier mid-dictation: carry it over
+        // after this build, so its listeners don't rebuild during one.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _listening = was;
+        });
+      }
     }
   }
 
@@ -195,6 +222,7 @@ class _NgChatViewState extends State<NgChatView> {
     _focus.dispose();
     _scroll.dispose();
     _voice?.dispose();
+    _ownDictation?.dispose();
     // Unsent picks only live in the app cache.
     if (_drafts.isNotEmpty) {
       unawaited(chat.attachmentService.removeAll(List.of(_drafts)));
@@ -320,6 +348,7 @@ class _NgChatViewState extends State<NgChatView> {
     final text = _input.text.trim();
     if (text.isEmpty && _drafts.isEmpty) return;
     NgHaptics.tap();
+    _settleDictation();
     if (_drafts.isNotEmpty && !chat.running) {
       final drafts = List.of(_drafts);
       _input.clear();
@@ -386,13 +415,27 @@ class _NgChatViewState extends State<NgChatView> {
     );
   }
 
+  /// Bumped when a message goes out, so a dictation still finishing can't
+  /// write its words back into the cleared composer.
+  int _dictationRound = 0;
+
+  /// Sending ends dictation: the words are in the message now.
+  void _settleDictation() {
+    _dictationRound++;
+    if (!_listening) return;
+    final voice = _voice;
+    if (voice != null) unawaited(voice.stop());
+    setState(() => _listening = false);
+  }
+
   Future<void> _toggleDictation() async {
     if (_listening) {
       await _voice?.stop();
       setState(() => _listening = false);
       return;
     }
-    final voice = _voice ??= createVoiceComposerAdapter();
+    final voice = _voice ??=
+        (widget.voiceFactory ?? createVoiceComposerAdapter)();
     final ok = await voice.initialize(
       onStatus: (status) {
         if ((status == 'done' || status == 'notListening') && mounted) {
@@ -411,8 +454,10 @@ class _NgChatViewState extends State<NgChatView> {
     }
     _beforeDictation = _input.text.trim();
     setState(() => _listening = true);
+    final round = _dictationRound;
     await voice.listen(
       onResult: ({required transcript, required isFinal}) {
+        if (round != _dictationRound || !mounted) return;
         final joined = [
           if (_beforeDictation.isNotEmpty) _beforeDictation,
           transcript,
