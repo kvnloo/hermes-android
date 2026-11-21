@@ -31,6 +31,8 @@ abstract final class HmTerminalText {
   static const showKeyboard = 'Show Keyboard';
   static const hideKeyboard = 'Hide Keyboard';
   static const workingDirectory = 'Working directory';
+  static const addSshOrMosh = 'Add SSH or Mosh';
+  static const connectionSettings = 'Terminal Connection';
 }
 
 enum HmTerminalPhase {
@@ -46,9 +48,13 @@ enum HmTerminalPhase {
 enum _Action { copy, paste, selectAll, keyboard }
 
 class HmTerminalPage extends StatefulWidget {
-  const HmTerminalPage({super.key, required this.backend});
+  const HmTerminalPage({super.key, required this.backend, this.onOpenSettings});
 
   final HmTerminalBackend backend;
+
+  /// Opens this instance's Terminal Connection; resolves true when it
+  /// changed, and the terminal connects again.
+  final Future<bool> Function(BuildContext context)? onOpenSettings;
 
   @override
   State<HmTerminalPage> createState() => _HmTerminalPageState();
@@ -149,6 +155,13 @@ class _HmTerminalPageState extends State<HmTerminalPage> {
     _set(HmTerminalPhase.connected);
   }
 
+  Future<void> _openSettings() async {
+    final open = widget.onOpenSettings;
+    if (open == null) return;
+    final changed = await open(context);
+    if (changed && !_disposed) _retry();
+  }
+
   void _retry() {
     final cwd = _cwd;
     unawaited(cwd == null ? _start() : _connect(cwd));
@@ -246,6 +259,10 @@ class _HmTerminalPageState extends State<HmTerminalPage> {
       icon: Icons.terminal,
       title: HmTerminalText.connectTitle,
       body: HmTerminalText.connectBody,
+      action: widget.onOpenSettings == null
+          ? null
+          : HmTerminalText.addSshOrMosh,
+      onAction: _openSettings,
     ),
     _ => _Notice(
       c: c,
@@ -254,6 +271,10 @@ class _HmTerminalPageState extends State<HmTerminalPage> {
       body: _error == null || _error == HmTerminalText.failed ? null : _error,
       action: HmTerminalText.tryAgain,
       onAction: _retry,
+      secondary: widget.onOpenSettings == null
+          ? null
+          : HmTerminalText.connectionSettings,
+      onSecondary: _openSettings,
     ),
   };
 
@@ -392,6 +413,8 @@ class _Notice extends StatelessWidget {
     this.body,
     this.action,
     this.onAction,
+    this.secondary,
+    this.onSecondary,
   });
 
   final NgColors c;
@@ -400,6 +423,8 @@ class _Notice extends StatelessWidget {
   final String? body;
   final String? action;
   final VoidCallback? onAction;
+  final String? secondary;
+  final VoidCallback? onSecondary;
 
   @override
   Widget build(BuildContext context) => Center(
@@ -435,6 +460,14 @@ class _Notice extends StatelessWidget {
               ),
               onPressed: onAction,
               child: Text(action!, style: HmType.pill),
+            ),
+          ],
+          if (secondary != null) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: c.accentText),
+              onPressed: onSecondary,
+              child: Text(secondary!, style: HmType.pill),
             ),
           ],
         ],
