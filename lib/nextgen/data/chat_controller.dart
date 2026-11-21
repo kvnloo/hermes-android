@@ -1048,10 +1048,16 @@ class NgChatController extends ChangeNotifier {
     return null;
   }
 
+  /// Whether a "💾 …" runtime notice reports a memory write. The host labels
+  /// a MEMORY.md write "Memory updated" and a USER.md write "User profile
+  /// updated" (`display.review.label.{memory,user}`); a background review
+  /// that wrote either logs `result=memory`, and both draw the one row.
   static bool _isMemoryUpdate(String text) {
     final notice = text.trimLeft();
     return notice.startsWith('💾') &&
-        RegExp(r'(?:^|[💾:·])\s*Memory updated\b').hasMatch(notice);
+        RegExp(
+          r'(?:^|💾|:|·)\s*(?:Memory|User profile) updated\b',
+        ).hasMatch(notice);
   }
 
   /// A runtime notice: a centred line when short, else a collapsed card.

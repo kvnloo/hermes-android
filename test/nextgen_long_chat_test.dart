@@ -333,6 +333,68 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  // The live frame from a disposable host (memory.nudge_interval: 1): a
+  // background review that wrote USER.md logs result=memory and publishes
+  // its summary under the runtime session id with the "User profile" label
+  // (agent/background_review.py display.review.label.user), not "Memory".
+  testWidgets('a user-profile review summary shows the memory row', (
+    tester,
+  ) async {
+    final gateway = NextGenGateway(_conn());
+    final chat = NgChatController(gateway, sessionId: 'stored');
+    addTearDown(gateway.dispose);
+    addTearDown(chat.dispose);
+    chat.runtimeId = '511e3787';
+    chat.debugApplyHistory([
+      {'role': 'assistant', 'content': 'Done'},
+    ]);
+    await _pumpChat(tester, chat);
+    expect(find.text('Memory updated'), findsNothing);
+
+    for (final text in const [
+      '💾 Self-improvement review: User profile updated',
+      "💾 Self-improvement review: Skill 'x' created · User profile updated",
+    ]) {
+      gateway.debugEmit(
+        StreamEvent(
+          type: 'review.summary',
+          data: {'text': text},
+          sessionId: '511e3787',
+        ),
+      );
+    }
+    await tester.pump();
+    expect(find.text('Memory updated'), findsNWidgets(2));
+    expect(find.byIcon(Icons.save_outlined), findsNWidgets(2));
+
+    // Summaries that changed no memory still draw no memory row: a skill-only
+    // review, and a consolidation the host staged for approval.
+    for (final text in const [
+      "💾 Self-improvement review: Skill 'x' created",
+      '💾 Self-improvement review: Background review may not delete memory '
+          'entries unattended. The proposed batch was staged for your approval',
+    ]) {
+      gateway.debugEmit(
+        StreamEvent(
+          type: 'review.summary',
+          data: {'text': text},
+          sessionId: '511e3787',
+        ),
+      );
+    }
+    // A summary for another chat never lands here.
+    gateway.debugEmit(
+      StreamEvent(
+        type: 'review.summary',
+        data: const {'text': '💾 Self-improvement review: Memory updated'},
+        sessionId: 'other',
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Memory updated'), findsNWidgets(2));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('completed turns show elapsed time when known', (tester) async {
     final gateway = NextGenGateway(_conn());
     final chat = NgChatController(gateway, sessionId: 'stored');
