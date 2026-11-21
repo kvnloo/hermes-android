@@ -307,18 +307,23 @@ void _collectFromMessage(Map<String, dynamic> m, _Push push) {
   final producer = _producerTool.hasMatch(name) || name.startsWith('bfl_flux3_');
   final terminal = name == 'terminal';
 
-  if (text.isNotEmpty && (producer || terminal)) _collectFromText(text, push);
-  if (name == 'browser_vision' && text.isNotEmpty) {
-    for (final s in _screenshotPath.allMatches(text)) {
-      push(s.group(1) ?? '');
-    }
-  }
-
   final payloads = <Object?>[];
   for (final candidate in [text, _untrustedToolPayload(text)]) {
     if (candidate == null) continue;
     final parsed = _parseJson(candidate);
     if (parsed != null) payloads.add(parsed);
+  }
+
+  // A JSON result is read key by key below; scanning its raw text too would
+  // run paths and URLs together across escaped newlines.
+  final rawIsJson = payloads.isNotEmpty;
+  if (text.isNotEmpty && !rawIsJson && (producer || terminal)) {
+    _collectFromText(text, push);
+  }
+  if (name == 'browser_vision' && text.isNotEmpty) {
+    for (final s in _screenshotPath.allMatches(text)) {
+      push(s.group(1) ?? '');
+    }
   }
   final content = m['content'];
   if (content is Map) {
