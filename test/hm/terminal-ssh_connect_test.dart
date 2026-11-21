@@ -17,8 +17,12 @@ import 'terminal-ssh_fakes.dart';
 const _id = 'conn-1';
 
 class _Harness {
-  _Harness(List<FakeDial> dials, {HmSshConfig? config, this.fallback})
-    : connector = FakeConnector(dials) {
+  _Harness(
+    List<FakeDial> dials, {
+    HmSshConfig? config,
+    this.fallback,
+    Duration? handshakeBudget,
+  }) : connector = FakeConnector(dials, handshakeBudget: handshakeBudget) {
     if (config != null) {
       mem.values[HmSshStore.keyFor(_id)] = _encode(config);
     }
@@ -154,8 +158,15 @@ void main() {
   testWidgets('first connection asks to trust the server fingerprint, saves '
       'it, then cds into the chat folder and shows output', (tester) async {
     final shell = FakeShell();
+    // A person reads the fingerprint for longer than an SSH handshake waits
+    // (measured on a device: the server dropped the first connection). The
+    // first dial only fetches the key; the second connects as trusted.
     final h = _Harness(
-      [FakeDial.shell(shell, fingerprint: 'SHA256:firstSeenKey')],
+      [
+        FakeDial.shell(FakeShell(), fingerprint: 'SHA256:firstSeenKey'),
+        FakeDial.shell(shell, fingerprint: 'SHA256:firstSeenKey'),
+      ],
+      handshakeBudget: const Duration(seconds: 15),
       config: const HmSshConfig(
         host: 'studio.local',
         port: 2222,
@@ -174,11 +185,14 @@ void main() {
     expect(find.text('SHA256:firstSeenKey'), findsOneWidget);
     expect(find.text('studio.local'), findsOneWidget);
 
+    // Longer than the handshake budget.
+    await tester.pump(const Duration(seconds: 20));
     await tester.tap(find.text('Trust and Connect'));
     await _settle(tester);
 
     expect(find.byType(TerminalView), findsOneWidget);
-    final target = h.connector.targets.single;
+    expect(h.connector.targets, hasLength(2));
+    final target = h.connector.targets.last;
     expect(
       (target.host, target.port, target.username, target.password),
       ('studio.local', 2222, 'kevin', 'pw'),

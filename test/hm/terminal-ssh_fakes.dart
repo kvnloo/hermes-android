@@ -88,9 +88,13 @@ class FakeDial {
 }
 
 class FakeConnector implements HmSshConnector {
-  FakeConnector(this.dials);
+  FakeConnector(this.dials, {this.handshakeBudget});
 
   final List<FakeDial> dials;
+
+  /// Like dartssh2's handshake timeout: a host-key check that takes longer
+  /// than this drops the connection, as a real server's does.
+  final Duration? handshakeBudget;
   final targets = <HmSshTarget>[];
   final sizes = <(int, int)>[];
 
@@ -105,7 +109,14 @@ class FakeConnector implements HmSshConnector {
     sizes.add((cols, rows));
     final dial = dials.removeAt(0);
     // Like the real client: the host key is checked before sign-in.
-    final trusted = await verifyHostKey(dial.hostKeyType, dial.fingerprint);
+    final check = verifyHostKey(dial.hostKeyType, dial.fingerprint);
+    final budget = handshakeBudget;
+    final trusted = budget == null
+        ? await check
+        : await check.timeout(
+            budget,
+            onTimeout: () => throw const HmSshError(HmSshErrorKind.closed),
+          );
     if (!trusted) throw const HmSshError(HmSshErrorKind.hostKeyRejected);
     if (dial.error != null) throw HmSshError(dial.error!);
     return dial.shell!;

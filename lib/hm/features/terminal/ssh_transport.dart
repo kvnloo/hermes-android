@@ -317,23 +317,20 @@ class SshTerminalBackend implements HmTerminalBackend {
       }
     }
     var changed = false;
-    var declined = false;
+    (String, String)? unseen;
     final saved = config;
     Future<bool> verify(String type, String fingerprint) async {
       final known = saved.hostKeyFingerprint;
-      if (known != null) {
-        final same =
-            known == fingerprint && (saved.hostKeyType ?? type) == type;
-        if (!same) changed = true;
-        return same;
-      }
-      final ok = await trustPrompt(saved.host, type, fingerprint);
-      if (!ok) {
-        declined = true;
+      if (known == null) {
+        // Never ask inside the handshake: reading a fingerprint takes longer
+        // than the server and client wait, so the connection would drop.
+        // Refuse now, ask below, then reconnect as trusted.
+        unseen = (type, fingerprint);
         return false;
       }
-      await store.save(connectionId, saved.trusting(type, fingerprint));
-      return true;
+      final same = known == fingerprint && (saved.hostKeyType ?? type) == type;
+      if (!same) changed = true;
+      return same;
     }
 
     final HmSshShell shell;
@@ -351,15 +348,24 @@ class SshTerminalBackend implements HmTerminalBackend {
         rows: rows,
       );
     } on HmSshError catch (e) {
-      throw HmTerminalFailure(
-        changed
-            ? HmSshText.hostKeyChanged
-            : declined
-            ? HmSshText.trustBody
-            : _message(e.kind, usesKey: saved.usesKey),
-      );
-    } on HmSshStoreError catch (e) {
-      throw HmTerminalFailure(e.message);
+      final key = unseen;
+      if (key == null) {
+        throw HmTerminalFailure(
+          changed
+              ? HmSshText.hostKeyChanged
+              : _message(e.kind, usesKey: saved.usesKey),
+        );
+      }
+      final (type, fingerprint) = key;
+      if (!await trustPrompt(saved.host, type, fingerprint)) {
+        throw const HmTerminalFailure(HmSshText.trustBody);
+      }
+      try {
+        await store.save(connectionId, saved.trusting(type, fingerprint));
+      } on HmSshStoreError catch (e) {
+        throw HmTerminalFailure(e.message);
+      }
+      return open(cwd: cwd, cols: cols, rows: rows);
     }
     // No folder: a fresh SSH shell already starts in the home folder.
     final session = _SshTerminalSession(shell, cwd.isEmpty ? '~' : cwd);
