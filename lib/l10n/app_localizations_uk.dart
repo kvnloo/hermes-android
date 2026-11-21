@@ -5938,4 +5938,27 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get annotation_exit => 'Exit annotation mode';
+
+  @override
+  String get theme_surface => 'Поверхня';
+
+  @override
+  String get theme_surface_solid => 'Суцільна';
+
+  @override
+  String get theme_surface_glass => 'Скло';
+
+  @override
+  String get theme_surface_glass_hint =>
+      'Крізь Hermes видно шпалери. Розмиття й тонування допомагають читати текст.';
+
+  @override
+  String get theme_surface_reload_title => 'Перезапустити вікно?';
+
+  @override
+  String get theme_surface_reload_body =>
+      'Hermes перезапустить вікно, щоб змінити поверхню. Чати й чернетки буде збережено.';
+
+  @override
+  String get theme_surface_reload_action => 'Перезапустити';
 }

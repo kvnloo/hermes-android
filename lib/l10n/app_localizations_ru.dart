@@ -5939,4 +5939,27 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get annotation_exit => 'Выйти из режима аннотаций';
+
+  @override
+  String get theme_surface => 'Поверхность';
+
+  @override
+  String get theme_surface_solid => 'Сплошная';
+
+  @override
+  String get theme_surface_glass => 'Стекло';
+
+  @override
+  String get theme_surface_glass_hint =>
+      'Обои просвечивают сквозь Hermes — размытые и затонированные, чтобы текст оставался читаемым.';
+
+  @override
+  String get theme_surface_reload_title => 'Перерисовать окно?';
+
+  @override
+  String get theme_surface_reload_body =>
+      'Hermes перезапустит окно, чтобы сменить поверхность. Чаты и черновики сохранятся.';
+
+  @override
+  String get theme_surface_reload_action => 'Перерисовать';
 }

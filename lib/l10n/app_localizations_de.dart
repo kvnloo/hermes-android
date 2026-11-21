@@ -5944,4 +5944,27 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get annotation_exit => 'Anmerkungsmodus beenden';
+
+  @override
+  String get theme_surface => 'Oberfläche';
+
+  @override
+  String get theme_surface_solid => 'Massiv';
+
+  @override
+  String get theme_surface_glass => 'Glas';
+
+  @override
+  String get theme_surface_glass_hint =>
+      'Dein Hintergrund scheint durch Hermes, unscharf und getönt, damit Text lesbar bleibt.';
+
+  @override
+  String get theme_surface_reload_title => 'Fenster neu zeichnen?';
+
+  @override
+  String get theme_surface_reload_body =>
+      'Hermes startet sein Fenster neu, um die Oberfläche zu wechseln. Chats und Entwürfe bleiben erhalten.';
+
+  @override
+  String get theme_surface_reload_action => 'Neu zeichnen';
 }

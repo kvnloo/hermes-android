@@ -5943,6 +5943,29 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get annotation_exit => 'Sair do modo de anotação';
+
+  @override
+  String get theme_surface => 'Superfície';
+
+  @override
+  String get theme_surface_solid => 'Sólida';
+
+  @override
+  String get theme_surface_glass => 'Vidro';
+
+  @override
+  String get theme_surface_glass_hint =>
+      'O seu fundo aparece através do Hermes, desfocado e tingido para o texto continuar legível.';
+
+  @override
+  String get theme_surface_reload_title => 'Redesenhar a janela?';
+
+  @override
+  String get theme_surface_reload_body =>
+      'O Hermes reinicia a janela para mudar de superfície. As conversas e rascunhos são mantidos.';
+
+  @override
+  String get theme_surface_reload_action => 'Redesenhar';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -11642,4 +11665,27 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get annotation_exit => 'Sair do modo de anotação';
+
+  @override
+  String get theme_surface => 'Superfície';
+
+  @override
+  String get theme_surface_solid => 'Sólida';
+
+  @override
+  String get theme_surface_glass => 'Vidro';
+
+  @override
+  String get theme_surface_glass_hint =>
+      'Seu papel de parede aparece através do Hermes, desfocado e tingido para o texto continuar legível.';
+
+  @override
+  String get theme_surface_reload_title => 'Redesenhar a janela?';
+
+  @override
+  String get theme_surface_reload_body =>
+      'O Hermes reinicia a janela para trocar de superfície. Conversas e rascunhos são mantidos.';
+
+  @override
+  String get theme_surface_reload_action => 'Redesenhar';
 }

@@ -1617,5 +1617,12 @@
   "annotation_undo": "撤销标注",
   "annotation_clear": "清除标记",
   "annotation_snapshot": "附加带标注的截屏",
-  "annotation_exit": "退出标注模式"
+  "annotation_exit": "退出标注模式",
+  "theme_surface": "表面",
+  "theme_surface_solid": "实色",
+  "theme_surface_glass": "玻璃",
+  "theme_surface_glass_hint": "壁纸会透过 Hermes 显示，并加上模糊和色调，让文字保持清晰。",
+  "theme_surface_reload_title": "重绘窗口？",
+  "theme_surface_reload_body": "Hermes 将重启窗口以切换表面。聊天和草稿会保留。",
+  "theme_surface_reload_action": "重绘"
 }

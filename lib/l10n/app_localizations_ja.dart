@@ -5776,4 +5776,27 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get annotation_exit => '注釈モードを終了';
+
+  @override
+  String get theme_surface => 'サーフェス';
+
+  @override
+  String get theme_surface_solid => 'ソリッド';
+
+  @override
+  String get theme_surface_glass => 'ガラス';
+
+  @override
+  String get theme_surface_glass_hint =>
+      '壁紙が Hermes の背後に透けて見えます。文字が読めるようにぼかしと色調を加えます。';
+
+  @override
+  String get theme_surface_reload_title => 'ウィンドウを再描画しますか？';
+
+  @override
+  String get theme_surface_reload_body =>
+      'サーフェスを切り替えるため Hermes のウィンドウを再起動します。チャットと下書きは保持されます。';
+
+  @override
+  String get theme_surface_reload_action => '再描画';
 }

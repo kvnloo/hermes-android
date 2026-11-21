@@ -1617,5 +1617,12 @@
   "annotation_undo": "Desfazer anotação",
   "annotation_clear": "Limpar marcações",
   "annotation_snapshot": "Anexar captura anotada",
-  "annotation_exit": "Sair do modo de anotação"
+  "annotation_exit": "Sair do modo de anotação",
+  "theme_surface": "Superfície",
+  "theme_surface_solid": "Sólida",
+  "theme_surface_glass": "Vidro",
+  "theme_surface_glass_hint": "O seu fundo aparece através do Hermes, desfocado e tingido para o texto continuar legível.",
+  "theme_surface_reload_title": "Redesenhar a janela?",
+  "theme_surface_reload_body": "O Hermes reinicia a janela para mudar de superfície. As conversas e rascunhos são mantidos.",
+  "theme_surface_reload_action": "Redesenhar"
 }

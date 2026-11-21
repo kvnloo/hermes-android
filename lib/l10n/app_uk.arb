@@ -1759,5 +1759,12 @@
   "ng_notify_permission_granted": "Дозвіл надано",
   "ng_notify_permission_denied": "У дозволі відмовлено",
   "ng_notify_master_on": "Сповіщення ввімкнено",
-  "ng_notify_master_off": "Сповіщення вимкнено"
+  "ng_notify_master_off": "Сповіщення вимкнено",
+  "theme_surface": "Поверхня",
+  "theme_surface_solid": "Суцільна",
+  "theme_surface_glass": "Скло",
+  "theme_surface_glass_hint": "Крізь Hermes видно шпалери. Розмиття й тонування допомагають читати текст.",
+  "theme_surface_reload_title": "Перезапустити вікно?",
+  "theme_surface_reload_body": "Hermes перезапустить вікно, щоб змінити поверхню. Чати й чернетки буде збережено.",
+  "theme_surface_reload_action": "Перезапустити"
 }
