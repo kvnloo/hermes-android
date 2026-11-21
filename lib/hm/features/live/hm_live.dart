@@ -128,6 +128,7 @@ class _HmLiveScreenState extends State<HmLiveScreen>
                   button: live.phase == LivePhase.speaking,
                   label: widget.bot.displayName,
                   child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: live.interrupt,
                     child: _GlowOrb(bot: widget.bot, state: _avatar, size: 180),
                   ),
@@ -249,7 +250,10 @@ class _GlowOrb extends StatelessWidget {
           ),
         ],
       ),
-      child: HmAvatar(spec: bot.character, size: size, state: state),
+      // The Syn face pokes on tap; here a tap interrupts the bot instead.
+      child: IgnorePointer(
+        child: HmAvatar(spec: bot.character, size: size, state: state),
+      ),
     );
   }
 }

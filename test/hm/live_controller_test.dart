@@ -29,31 +29,33 @@ void main() {
       expect(rig.ear.listening, isTrue);
     });
 
-    test('a heard utterance becomes a turn, is spoken, then listens again',
-        () async {
-      final rig = LiveRig();
-      final live = rig.build();
-      await live.start();
+    test(
+      'a heard utterance becomes a turn, is spoken, then listens again',
+      () async {
+        final rig = LiveRig();
+        final live = rig.build();
+        await live.start();
 
-      rig.ear.hearPartial('what is');
-      expect(live.partial, 'what is');
+        rig.ear.hearPartial('what is');
+        expect(live.partial, 'what is');
 
-      rig.ear.hear('what is the weather');
-      expect(live.phase, LivePhase.thinking);
-      expect(rig.brain.asked, ['what is the weather']);
-      expect(live.partial, isEmpty);
+        rig.ear.hear('what is the weather');
+        expect(live.phase, LivePhase.thinking);
+        expect(rig.brain.asked, ['what is the weather']);
+        expect(live.partial, isEmpty);
 
-      rig.brain.reply('Sunny and warm.');
-      await _settle();
-      expect(live.phase, LivePhase.speaking);
-      expect(rig.voice.spoken, ['Sunny and warm.']);
+        rig.brain.reply('Sunny and warm.');
+        await _settle();
+        expect(live.phase, LivePhase.speaking);
+        expect(rig.voice.spoken, ['Sunny and warm.']);
 
-      rig.voice.finish();
-      await _settle();
-      expect(live.phase, LivePhase.listening);
-      expect(rig.ear.listens, 2);
-      expect(live.lines.map((l) => l.fromUser), [true, false]);
-    });
+        rig.voice.finish();
+        await _settle();
+        expect(live.phase, LivePhase.listening);
+        expect(rig.ear.listens, 2);
+        expect(live.lines.map((l) => l.fromUser), [true, false]);
+      },
+    );
 
     test('silence re-arms the mic without sending a turn', () async {
       final rig = LiveRig();
@@ -65,21 +67,23 @@ void main() {
       expect(rig.ear.listens, 2);
     });
 
-    test('tapping the orb while it speaks stops playback and listens',
-        () async {
-      final rig = LiveRig();
-      final live = rig.build();
-      await live.start();
-      rig.ear.hear('tell me a story');
-      rig.brain.reply('Once upon a time…');
-      await _settle();
-      expect(live.phase, LivePhase.speaking);
+    test(
+      'tapping the orb while it speaks stops playback and listens',
+      () async {
+        final rig = LiveRig();
+        final live = rig.build();
+        await live.start();
+        rig.ear.hear('tell me a story');
+        rig.brain.reply('Once upon a time…');
+        await _settle();
+        expect(live.phase, LivePhase.speaking);
 
-      await live.interrupt();
-      expect(rig.voice.stops, 1);
-      expect(live.phase, LivePhase.listening);
-      expect(rig.ear.listens, 2);
-    });
+        await live.interrupt();
+        expect(rig.voice.stops, 1);
+        expect(live.phase, LivePhase.listening);
+        expect(rig.ear.listens, 2);
+      },
+    );
 
     test('mute stops the mic; unmute listens again', () async {
       final rig = LiveRig();
@@ -170,18 +174,20 @@ void main() {
       expect(live.failure, LiveText.reconnect);
     });
 
-    test('three recognizer errors in a row end in the restart failure',
-        () async {
-      final rig = LiveRig();
-      final live = rig.build();
-      await live.start();
-      rig.ear.fail('busy');
-      rig.ear.fail('busy');
-      expect(live.phase, LivePhase.listening);
-      rig.ear.fail('busy');
-      expect(live.phase, LivePhase.failed);
-      expect(live.failure, LiveText.micCouldNotRestart);
-    });
+    test(
+      'three recognizer errors in a row end in the restart failure',
+      () async {
+        final rig = LiveRig();
+        final live = rig.build();
+        await live.start();
+        rig.ear.fail('busy');
+        rig.ear.fail('busy');
+        expect(live.phase, LivePhase.listening);
+        rig.ear.fail('busy');
+        expect(live.phase, LivePhase.failed);
+        expect(live.failure, LiveText.micCouldNotRestart);
+      },
+    );
 
     test('backgrounding releases the mic and says so', () async {
       final rig = LiveRig();
@@ -212,8 +218,10 @@ void main() {
 
   group('DashboardLiveHost', () {
     late List<http.Request> sent;
-    DashboardLiveHost host(http.Response Function(http.Request) reply,
-        {String? profile}) {
+    DashboardLiveHost host(
+      http.Response Function(http.Request) reply, {
+      String? profile,
+    }) {
       sent = [];
       final client = MockClient((request) async {
         sent.add(request);
@@ -290,11 +298,13 @@ void main() {
       final brain = ChatLiveBrain(chat);
       await expectLater(
         brain.ask('hi'),
-        throwsA(isA<LiveTurnFailed>().having(
-          (e) => e.message,
-          'message',
-          'Not delivered. Retry',
-        )),
+        throwsA(
+          isA<LiveTurnFailed>().having(
+            (e) => e.message,
+            'message',
+            'Not delivered. Retry',
+          ),
+        ),
       );
     });
   });
