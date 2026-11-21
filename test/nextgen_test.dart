@@ -172,6 +172,35 @@ void main() {
     expect(ngEffortLabel(null), 'Default');
   });
 
+  test('parseModelOptions leads with Turbo routes in router order', () {
+    final providers = parseModelOptions({
+      'providers': [
+        {
+          'slug': 'openrouter',
+          'models': ['a/b'],
+        },
+        {
+          'slug': 'vllm-sr',
+          'name': 'vLLM Semantic Router',
+          'models': [
+            'vllm-sr/free-public',
+            'vllm-sr/custom',
+            'vllm-sr/turbo',
+            'vllm-sr/free-reasoning',
+          ],
+        },
+      ],
+    });
+    expect(providers.map((p) => p.name), ['Turbo', 'openrouter']);
+    expect(providers.first.slug, 'vllm-sr');
+    expect(providers.first.models, [
+      'vllm-sr/turbo',
+      'vllm-sr/free-reasoning',
+      'vllm-sr/free-public',
+      'vllm-sr/custom',
+    ]);
+  });
+
   group('NgChatController', () {
     late NextGenGateway gateway;
     late NgChatController chat;

@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/screens/model_management_screen.dart';
+import '../../core/services/turbo_model_catalog.dart';
 
 import '../data/chat_controller.dart';
 import '../nextgen_preferences.dart';
@@ -59,6 +60,13 @@ List<NgProviderModels> parseModelOptions(Map<String, dynamic> data) {
     }
     if (models.isEmpty) continue;
     final name = row['name']?.toString();
+    if (isTurboModelRoute(slug, '')) {
+      // The vLLM Semantic Router's virtual routes lead the list as "Turbo",
+      // in the router's documented order.
+      models.sort(compareTurboModelIds);
+      out.insert(0, NgProviderModels(slug, 'Turbo', models));
+      continue;
+    }
     out.add(
       NgProviderModels(
         slug,
