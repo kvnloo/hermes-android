@@ -84,7 +84,7 @@ Built in PR #27 unless a reason is given.
 - [x] Launcher shortcuts New Chat, Start Live Voice, Open Sessions, the same set as the official app: `parity/a3-shortcuts.jpg` (emu-s).
 - [x] Share target: shared text lands as a NextGen new-chat draft: `parity/a3-share-text.jpg` (emu-s).
 - [ ] System assistant: role setup, assist overlay and consented local screen preview implemented; needs emulator/S25 screenshot. Host screen streaming is not wired; no current Live wire contract for screen frames.
-- [ ] Device access: Health Connect, calendar, contacts, location, exact alarms. Reason: not built. Each source needs a permission flow on the phone and a tool contract with the host. Follow-up card.
+- [ ] Device access: opt-in controls, Android permission flows and local tool implementations added; needs emulator/S25 screenshot and a matching host implementation before enabling remote requests. See [device tool contract](device-tools.md).
 - [ ] App Functions ("Ask your Hermes bots, run their routines…"). Reason: not built. It needs the AndroidX AppFunctions service and its generated schema, which no installed agent on Kevin's devices calls yet. Follow-up card.
 - [x] Bot directory import (`application/vnd.ai.nousresearch.hermes.mobile.bot+json`): opening a bot file shows Import bot with name, title and description: local `fork/a3-bot-import.png` `5a5afe92d2c5` (emu-s). Fields beyond `name`, `title` and `description` aren't confirmed from the official app.
 - [ ] Document scanner. Reason: not built. The official app uses the ML Kit document scanner, which adds a Google Play services dependency. Follow-up card.

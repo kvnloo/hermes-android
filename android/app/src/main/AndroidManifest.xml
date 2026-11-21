@@ -13,6 +13,12 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <queries><package android:name="com.google.android.apps.healthdata" /></queries>
     <application
         android:label="${appLabel}"
         android:name="${applicationName}"
@@ -44,6 +50,21 @@
         <activity android:name=".ScreenPreviewActivity" android:exported="false" />
         <service android:name=".ScreenShareService" android:exported="false"
             android:foregroundServiceType="mediaProjection" />
+        <activity android:name=".DeviceAccessActivity" android:exported="false" />
+        <receiver android:name=".DeviceAlarmReceiver" android:exported="false" />
+        <activity android:name=".HealthPermissionRationaleActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+        <activity-alias android:name=".HealthPermissionUsageActivity" android:exported="true"
+            android:targetActivity=".HealthPermissionRationaleActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
         <activity
             android:name=".MainActivity"
             android:exported="true"
