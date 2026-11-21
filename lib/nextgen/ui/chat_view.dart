@@ -806,10 +806,14 @@ class _NgChatViewState extends State<NgChatView> {
     return switch (item) {
       NgUserItem() => _UserBubble(
         item: item,
+        showReactions: chat.supportsReactions,
+        onReact: chat.canReactTo(item) ? () => _pickReaction(item) : null,
         onRetry: i == lastUserIndex && !chat.running ? chat.retryLast : null,
       ),
       NgAssistantItem() => _AssistantBlock(
         item: item,
+        showReactions: chat.supportsReactions,
+        onReact: chat.canReactTo(item) ? () => _pickReaction(item) : null,
         files: _filesClient,
         filesIdentity: (NgScope.of(context).connection.id, chat.storedId),
         last: i == items.length - 1,
@@ -846,6 +850,33 @@ class _NgChatViewState extends State<NgChatView> {
         ),
       ),
     };
+  }
+
+  Future<void> _pickReaction(NgMessageItem item) async {
+    final owner = chat;
+    if (!owner.canSendReaction) {
+      ngToast(context, ngL.ng_reconnect_before_reacting);
+      return;
+    }
+
+    final selected = await showNgSheet<String>(
+      context,
+      builder: (_) => _ReactionPicker(reactions: item.reactions),
+    );
+    if (selected == null || !mounted || chat != owner) return;
+    if (!owner.canSendReaction) {
+      ngToast(context, ngL.ng_reconnect_before_reacting);
+      return;
+    }
+    final ok = await owner.react(item, selected.isEmpty ? null : selected);
+    if (!ok && mounted && chat == owner) {
+      ngToast(
+        context,
+        owner.canSendReaction
+            ? ngL.ng_could_not_add_reaction
+            : ngL.ng_reconnect_before_reacting,
+      );
+    }
   }
 
   Widget _statusLine(NgColors c) {
@@ -1196,9 +1227,142 @@ ngChatDisplay() {
   );
 }
 
+class _ReactionPicker extends StatefulWidget {
+  const _ReactionPicker({required this.reactions});
+  final List<NgMessageReaction> reactions;
+
+  @override
+  State<_ReactionPicker> createState() => _ReactionPickerState();
+}
+
+class _ReactionPickerState extends State<_ReactionPicker> {
+  static const _tones = ['', '🏻', '🏼', '🏽', '🏾', '🏿'];
+  static const _emoji = ['👍', '👎', '❤️', '😂', '😮', '😢', '🙏', '🎉'];
+  static const _modifiable = {'👍', '👎', '🙏'};
+
+  String _tone = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final c = NgColors.of(context);
+    final mine = widget.reactions.where((r) => r.author == 'user').firstOrNull;
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              ngL.ng_add_reaction,
+              style: NgType.body.copyWith(color: c.text),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              ngL.ng_reactions_description,
+              style: NgType.bodySmall.copyWith(color: c.text2),
+            ),
+            const SizedBox(height: 12),
+            Semantics(
+              container: true,
+              label: ngL.ng_react_to_messages,
+              child: Wrap(
+                children: [
+                  for (final emoji in _emoji.map(_withTone))
+                    _emojiButton(
+                      emoji,
+                      selected: mine?.emoji == emoji,
+                      onTap: (emoji) => Navigator.pop(
+                        context,
+                        emoji == mine?.emoji ? '' : emoji,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              ngL.ng_skin_tone,
+              style: NgType.caption.copyWith(color: c.text3),
+            ),
+            Wrap(
+              children: [
+                for (final tone in _tones)
+                  _emojiButton(
+                    '✋$tone',
+                    selected: tone == _tone,
+                    onTap: (_) => setState(() => _tone = tone),
+                  ),
+              ],
+            ),
+            if (mine != null)
+              TextButton(
+                style: TextButton.styleFrom(foregroundColor: c.text2),
+                onPressed: () => Navigator.pop(context, ''),
+                child: Text(ngL.ng_remove_reaction),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _withTone(String emoji) =>
+      _modifiable.contains(emoji) ? '$emoji$_tone' : emoji;
+
+  Widget _emojiButton(
+    String emoji, {
+    required bool selected,
+    required ValueChanged<String> onTap,
+  }) {
+    final c = NgColors.of(context);
+    return IconButton(
+      isSelected: selected,
+      onPressed: () => onTap(emoji),
+      style: IconButton.styleFrom(
+        backgroundColor: selected ? c.accentSoft : c.surface,
+      ),
+      icon: Text(
+        emoji,
+        style: NgType.body.copyWith(fontSize: 22, color: c.text),
+      ),
+    );
+  }
+}
+
+class _ReactionPills extends StatelessWidget {
+  const _ReactionPills(this.reactions, {this.onReact});
+  final List<NgMessageReaction> reactions;
+  final VoidCallback? onReact;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 4),
+    child: Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: [
+        for (final reaction in reactions)
+          NgPill(
+            reaction.emoji,
+            tone: reaction.author == 'user' ? NgTone.accent : NgTone.neutral,
+            onTap: onReact,
+          ),
+      ],
+    ),
+  );
+}
+
 class _UserBubble extends StatelessWidget {
-  const _UserBubble({required this.item, this.onRetry});
+  const _UserBubble({
+    required this.item,
+    required this.showReactions,
+    this.onReact,
+    this.onRetry,
+  });
   final NgUserItem item;
+  final bool showReactions;
+  final VoidCallback? onReact;
   final VoidCallback? onRetry;
 
   @override
@@ -1285,6 +1449,14 @@ class _UserBubble extends StatelessWidget {
                     ),
                 ],
               ),
+            ),
+          if (showReactions && item.reactions.isNotEmpty)
+            _ReactionPills(item.reactions, onReact: onReact),
+          if (onReact != null)
+            _ActionIcon(
+              icon: Icons.add_reaction_outlined,
+              tooltip: ngL.ng_add_reaction,
+              onTap: onReact!,
             ),
           if (item.time != null && !item.pending)
             Padding(
@@ -1441,9 +1613,13 @@ class _AssistantBlock extends StatefulWidget {
     required this.files,
     required this.filesIdentity,
     required this.readAloud,
+    required this.showReactions,
+    this.onReact,
     this.onRetry,
   });
   final NgAssistantItem item;
+  final bool showReactions;
+  final VoidCallback? onReact;
 
   /// Opens a files client for this chat, for `MEDIA:` deliveries.
   final RemoteFilesDataSource Function() files;
@@ -1697,6 +1873,8 @@ class _AssistantBlockState extends State<_AssistantBlock> {
                 ),
               ),
             ),
+          if (widget.showReactions && item.reactions.isNotEmpty)
+            _ReactionPills(item.reactions, onReact: widget.onReact),
           if (item.workedFor case final Duration duration when !item.open)
             Padding(
               padding: const EdgeInsets.only(top: 4),
@@ -1737,6 +1915,12 @@ class _AssistantBlockState extends State<_AssistantBlock> {
                     tooltip: ngL.report_ai_output,
                     onTap: reportAresAiOutput,
                   ),
+                  if (widget.onReact != null)
+                    _ActionIcon(
+                      icon: Icons.add_reaction_outlined,
+                      tooltip: ngL.ng_add_reaction,
+                      onTap: widget.onReact!,
+                    ),
                   if (widget.onRetry != null)
                     _ActionIcon(
                       icon: Icons.refresh_rounded,

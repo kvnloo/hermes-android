@@ -5977,6 +5977,29 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get ng_memory_updated => 'Memória atualizada';
+
+  @override
+  String get ng_add_reaction => 'Adicionar reação';
+
+  @override
+  String get ng_skin_tone => 'TOM DE PELE';
+
+  @override
+  String get ng_could_not_add_reaction => 'Não foi possível adicionar a reação';
+
+  @override
+  String get ng_reconnect_before_reacting =>
+      'Volte a ligar esta conversa antes de reagir.';
+
+  @override
+  String get ng_remove_reaction => 'Remover reação';
+
+  @override
+  String get ng_react_to_messages => 'Reagir a mensagens';
+
+  @override
+  String get ng_reactions_description =>
+      'O Hermes vê as suas reações e pode reagir às suas mensagens com um emoji.';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -11710,4 +11733,27 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get ng_memory_updated => 'Memória atualizada';
+
+  @override
+  String get ng_add_reaction => 'Adicionar reação';
+
+  @override
+  String get ng_skin_tone => 'TOM DE PELE';
+
+  @override
+  String get ng_could_not_add_reaction => 'Não foi possível adicionar a reação';
+
+  @override
+  String get ng_reconnect_before_reacting =>
+      'Reconecte esta conversa antes de reagir.';
+
+  @override
+  String get ng_remove_reaction => 'Remover reação';
+
+  @override
+  String get ng_react_to_messages => 'Reagir a mensagens';
+
+  @override
+  String get ng_reactions_description =>
+      'O Hermes vê suas reações e pode reagir às suas mensagens com um emoji.';
 }

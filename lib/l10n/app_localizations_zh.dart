@@ -5724,6 +5724,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get ng_memory_updated => '已更新記憶';
+
+  @override
+  String get ng_add_reaction => '新增反應';
+
+  @override
+  String get ng_skin_tone => '膚色';
+
+  @override
+  String get ng_could_not_add_reaction => '無法新增反應';
+
+  @override
+  String get ng_reconnect_before_reacting => '請重新連線至這段對話，再加入反應。';
+
+  @override
+  String get ng_remove_reaction => '移除反應';
+
+  @override
+  String get ng_react_to_messages => '對訊息加入反應';
+
+  @override
+  String get ng_reactions_description => 'Hermes 看得到你的反應，也可以用表情符號回應你的訊息。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -11212,4 +11233,25 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get ng_memory_updated => '已更新记忆';
+
+  @override
+  String get ng_add_reaction => '添加回应';
+
+  @override
+  String get ng_skin_tone => '肤色';
+
+  @override
+  String get ng_could_not_add_reaction => '无法添加回应';
+
+  @override
+  String get ng_reconnect_before_reacting => '请重新连接此对话后再添加回应。';
+
+  @override
+  String get ng_remove_reaction => '移除回应';
+
+  @override
+  String get ng_react_to_messages => '回应消息';
+
+  @override
+  String get ng_reactions_description => 'Hermes 能看到你的回应，也可以用表情符号回应你的消息。';
 }

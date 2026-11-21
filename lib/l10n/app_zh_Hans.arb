@@ -1627,5 +1627,12 @@
   "theme_surface_reload_action": "重绘",
   "ng_worked_for": "处理时间 {duration}",
   "ng_load_earlier_messages": "加载较早的消息",
-  "ng_memory_updated": "已更新记忆"
+  "ng_memory_updated": "已更新记忆",
+  "ng_add_reaction": "添加回应",
+  "ng_skin_tone": "肤色",
+  "ng_could_not_add_reaction": "无法添加回应",
+  "ng_reconnect_before_reacting": "请重新连接此对话后再添加回应。",
+  "ng_remove_reaction": "移除回应",
+  "ng_react_to_messages": "回应消息",
+  "ng_reactions_description": "Hermes 能看到你的回应，也可以用表情符号回应你的消息。"
 }

@@ -5814,4 +5814,26 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get ng_memory_updated => '메모리 업데이트됨';
+
+  @override
+  String get ng_add_reaction => '반응 추가';
+
+  @override
+  String get ng_skin_tone => '피부색';
+
+  @override
+  String get ng_could_not_add_reaction => '반응을 추가할 수 없습니다';
+
+  @override
+  String get ng_reconnect_before_reacting => '반응하기 전에 이 대화를 다시 연결하세요.';
+
+  @override
+  String get ng_remove_reaction => '반응 삭제';
+
+  @override
+  String get ng_react_to_messages => '메시지에 반응하기';
+
+  @override
+  String get ng_reactions_description =>
+      'Hermes는 내 반응을 볼 수 있으며 내 메시지에 이모지로 반응할 수 있습니다.';
 }

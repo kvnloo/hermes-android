@@ -1627,5 +1627,12 @@
   "theme_surface_reload_action": "重绘",
   "ng_worked_for": "處理時間 {duration}",
   "ng_load_earlier_messages": "載入較早的訊息",
-  "ng_memory_updated": "已更新記憶"
+  "ng_memory_updated": "已更新記憶",
+  "ng_add_reaction": "新增反應",
+  "ng_skin_tone": "膚色",
+  "ng_could_not_add_reaction": "無法新增反應",
+  "ng_reconnect_before_reacting": "請重新連線至這段對話，再加入反應。",
+  "ng_remove_reaction": "移除反應",
+  "ng_react_to_messages": "對訊息加入反應",
+  "ng_reactions_description": "Hermes 看得到你的反應，也可以用表情符號回應你的訊息。"
 }

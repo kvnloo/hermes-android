@@ -30,6 +30,30 @@ SavedConnection _conn() => SavedConnection(
   signInMethod: 'none',
 );
 
+class _ReactionGateway extends NextGenGateway {
+  _ReactionGateway() : super(_conn());
+  final requests = <Map<String, dynamic>>[];
+  bool reject = false;
+
+  @override
+  Future<Map<String, dynamic>> call(
+    String method,
+    Map<String, dynamic> params, {
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    expect(method, 'message.react');
+    requests.add({...params});
+    if (reject) throw StateError('Rejected');
+    return {
+      'row_id': params['row_id'] ?? 43,
+      'reactions': [
+        if (params['emoji'] != null)
+          {'emoji': params['emoji'], 'author': 'user'},
+      ],
+    };
+  }
+}
+
 /// Serves [rows] (oldest first) newest-first by offset, as the dashboard's
 /// `order=latest` paging does.
 class _PagedApi extends DashboardApiClient {
@@ -182,6 +206,106 @@ Future<void> _pumpChat(WidgetTester tester, NgChatController chat) async {
 }
 
 void main() {
+  testWidgets('reaction actions send skin tones and show live agent reactions', (
+    tester,
+  ) async {
+    final gateway = _ReactionGateway();
+    final chat = NgChatController(gateway, sessionId: 'stored')
+      ..runtimeId = 'runtime';
+    addTearDown(gateway.dispose);
+    addTearDown(chat.dispose);
+    chat.debugApplyHistory([
+      {
+        'row_id': 41,
+        'role': 'user',
+        'content': 'Question',
+        'display_metadata': {
+          'reactions': [
+            {'emoji': '💡', 'author': 'agent'},
+          ],
+        },
+      },
+      {'row_id': 42, 'role': 'assistant', 'content': 'Answer'},
+    ]);
+    await _pumpChat(tester, chat);
+    final actions = find.byTooltip('Add Reaction');
+    expect(actions, findsNothing);
+    expect(find.text('💡'), findsNothing);
+
+    gateway.readyFrame = const {'replay_epoch': 'test'};
+    gateway.debugSetPhase(NgConnectionPhase.connected);
+    await tester.pump();
+    expect(find.text('💡'), findsOneWidget);
+    // The transcript is reversed: the assistant's action is built first.
+    await tester.tap(actions.first);
+    await tester.pumpAndSettle();
+    expect(find.text('SKIN TONE'), findsOneWidget);
+    expect(
+      find.text(
+        'Hermes sees your reactions and can react to your messages with an emoji.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('✋🏽'));
+    await tester.pump();
+    await tester.tap(find.text('👍🏽'));
+    await tester.pumpAndSettle();
+    expect(gateway.requests.single, {
+      'session_id': 'runtime',
+      'row_id': 42,
+      'emoji': '👍🏽',
+      'author': 'user',
+    });
+    expect(find.text('👍🏽'), findsOneWidget);
+
+    gateway.debugEmit(
+      StreamEvent(
+        type: 'message.reaction',
+        sessionId: 'runtime',
+        data: const {
+          'row_id': 42,
+          'role': 'assistant',
+          'reactions': [
+            {'emoji': '👍🏽', 'author': 'user'},
+            {'emoji': '🎉', 'author': 'agent'},
+          ],
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('🎉'), findsOneWidget);
+
+    await tester.tap(actions.first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove reaction'));
+    await tester.pumpAndSettle();
+    expect(gateway.requests.last, {
+      'session_id': 'runtime',
+      'row_id': 42,
+      'emoji': null,
+      'author': 'user',
+    });
+    expect(find.text('👍🏽'), findsNothing);
+
+    gateway.reject = true;
+    await tester.tap(actions.first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('❤️'));
+    await tester.pumpAndSettle();
+    expect(find.text('Could not add reaction'), findsOneWidget);
+
+    gateway.debugSetPhase(NgConnectionPhase.reconnecting);
+    await tester.pump();
+    await tester.tap(actions.first);
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Reconnect this conversation before reacting.'),
+      findsOneWidget,
+    );
+    expect(gateway.requests, hasLength(3));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('memory updates show as compact system rows', (tester) async {
     final gateway = NextGenGateway(_conn());
     final chat = NgChatController(gateway, sessionId: 'stored');

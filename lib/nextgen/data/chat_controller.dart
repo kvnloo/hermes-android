@@ -165,7 +165,34 @@ sealed class NgItem {
   NgItem(this.key);
 }
 
-class NgUserItem extends NgItem {
+class NgMessageReaction {
+  const NgMessageReaction(this.emoji, this.author);
+
+  final String emoji;
+  final String author;
+
+  static List<NgMessageReaction> parse(Object? raw) {
+    if (raw is! List) return const [];
+    return [
+      for (final reaction in raw)
+        if (reaction case {
+          'emoji': final String emoji,
+          'author': final String author,
+        } when emoji.trim().isNotEmpty)
+          NgMessageReaction(emoji, author),
+    ];
+  }
+}
+
+sealed class NgMessageItem extends NgItem {
+  NgMessageItem(super.key);
+
+  int? rowId;
+  List<NgMessageReaction> reactions = const [];
+  bool fromHistory = false;
+}
+
+class NgUserItem extends NgMessageItem {
   String text;
   final DateTime? time;
 
@@ -197,7 +224,7 @@ class NgUserItem extends NgItem {
   });
 }
 
-class NgAssistantItem extends NgItem {
+class NgAssistantItem extends NgMessageItem {
   String text = '';
   String reasoning = '';
   final List<NgTool> tools = [];
@@ -614,6 +641,110 @@ class NgChatController extends ChangeNotifier {
     await _api.getMessagesBytes(id, limit: limit, offset: offset, latest: true),
   );
   String? historyError;
+
+  // Events can precede the submit receipt or the final persisted-turn IDs.
+  final _liveReactions = <int, List<NgMessageReaction>>{};
+  bool _reactionMethodUnavailable = false;
+  final _reacting = <NgMessageItem>{};
+
+  bool get supportsReactions =>
+      !_reactionMethodUnavailable &&
+      (gateway.readyFrame != null || gateway.state.isConnected);
+
+  bool get canSendReaction => gateway.state.isConnected && runtimeId != null;
+
+  NgMessageItem? _latestMessage(String role) => role == 'user'
+      ? items.whereType<NgUserItem>().lastOrNull
+      : items.whereType<NgAssistantItem>().lastOrNull;
+
+  static String _messageRole(NgMessageItem item) =>
+      item is NgUserItem ? 'user' : 'assistant';
+
+  bool canReactTo(NgMessageItem item) {
+    if (!supportsReactions) return false;
+    if (item is NgUserItem && (item.pending || item.failure != null)) {
+      return false;
+    }
+    if (item is NgAssistantItem && (item.open || item.text.isEmpty)) {
+      return false;
+    }
+    return item.rowId != null ||
+        (!item.fromHistory &&
+            !running &&
+            identical(item, _latestMessage(_messageRole(item))));
+  }
+
+  Future<bool> react(NgMessageItem item, String? emoji) async {
+    if (!canSendReaction || !canReactTo(item) || !_reacting.add(item)) {
+      return false;
+    }
+    final rowId = item.rowId;
+    final before = _liveReactions[rowId];
+    try {
+      final result = await _call('message.react', {
+        'session_id': runtimeId,
+        if (rowId != null)
+          'row_id': rowId
+        else
+          'newest_role': _messageRole(item),
+        'emoji': emoji,
+        'author': 'user',
+      });
+      final id = _messageRowId(result['row_id']);
+      if (id == null || result['reactions'] is! List) return false;
+      if (_disposed) return true;
+      final resultReactions = NgMessageReaction.parse(result['reactions']);
+      final latest = _liveReactions[id];
+      _liveReactions[id] = latest != null && !identical(latest, before)
+          ? [
+              ...resultReactions.where((reaction) => reaction.author == 'user'),
+              ...latest.where((reaction) => reaction.author != 'user'),
+            ]
+          : resultReactions;
+      _bindReactionRow(item, id);
+      for (final message in items.whereType<NgMessageItem>()) {
+        if (message.rowId == id) _bindReactionRow(message, id);
+      }
+      _changedNow();
+      return true;
+    } on JsonRpcError catch (error) {
+      if (error.code == -32601 && !_disposed) {
+        _reactionMethodUnavailable = true;
+        _changedNow();
+      }
+      return false;
+    } catch (_) {
+      return false;
+    } finally {
+      _reacting.remove(item);
+    }
+  }
+
+  static int? _messageRowId(Object? raw) {
+    final id = int.tryParse(raw?.toString() ?? '');
+    return id != null && id > 0 ? id : null;
+  }
+
+  void _bindReactionRow(NgMessageItem item, Object? raw) {
+    final id = _messageRowId(raw);
+    if (id == null) return;
+    item.rowId = id;
+    item.reactions = _liveReactions[id] ?? item.reactions;
+  }
+
+  T _withHistoryReactions<T extends NgMessageItem>(
+    T item,
+    Map<String, dynamic> row,
+  ) {
+    final metadata = row['display_metadata'];
+    item.fromHistory = true;
+    item.rowId = null;
+    item.reactions = NgMessageReaction.parse(
+      row['reactions'] ?? (metadata is Map ? metadata['reactions'] : null),
+    );
+    _bindReactionRow(item, row['row_id'] ?? row['id']);
+    return item;
+  }
 
   /// The session's working folder as the gateway reports it
   /// (`SessionInfo.cwd`), known even before the chat is stored.
@@ -1117,18 +1248,21 @@ class NgChatController extends ChangeNotifier {
           if (role == 'user') {
             final (body, files) = splitFileRefs(split.$2);
             items.add(
-              NgUserItem(
-                _key('u'),
-                body,
-                time: _time(m['timestamp']),
-                files: files,
+              _withHistoryReactions(
+                NgUserItem(
+                  _key('u'),
+                  body,
+                  time: _time(m['timestamp']),
+                  files: files,
+                ),
+                m,
               ),
             );
           } else {
             reply = NgAssistantItem(_key('a'), open: false);
             reply.text = split.$2;
             reply.workedFor = _workedFor(m);
-            items.add(reply);
+            items.add(_withHistoryReactions(reply, m));
           }
           continue;
         }
@@ -1147,12 +1281,15 @@ class NgChatController extends ChangeNotifier {
         reply = null;
         final (body, files) = splitFileRefs(text);
         items.add(
-          NgUserItem(
-            _key('u'),
-            body,
-            time: _time(m['timestamp']),
-            steered: displayKind == 'steer',
-            files: files,
+          _withHistoryReactions(
+            NgUserItem(
+              _key('u'),
+              body,
+              time: _time(m['timestamp']),
+              steered: displayKind == 'steer',
+              files: files,
+            ),
+            m,
           ),
         );
       } else if (role == 'assistant') {
@@ -1169,6 +1306,7 @@ class NgChatController extends ChangeNotifier {
               : '${reply.reasoning}\n\n$reasoning';
         }
         if (text.trim().isNotEmpty) {
+          _withHistoryReactions(reply, m);
           reply.text = reply.text.isEmpty ? text : '${reply.text}\n\n$text';
         }
         reply.time = _time(m['timestamp']) ?? reply.time;
@@ -1577,6 +1715,14 @@ class NgChatController extends ChangeNotifier {
       case 'notice':
         final message = s('message')?.trim();
         if (message != null && message.isNotEmpty) _addNotice(message);
+      case 'message.reaction':
+        final id = _messageRowId(p['row_id']);
+        if (id != null && p['reactions'] is List) {
+          _liveReactions[id] = NgMessageReaction.parse(p['reactions']);
+          for (final item in items.whereType<NgMessageItem>()) {
+            if (item.rowId == id) _bindReactionRow(item, id);
+          }
+        }
       case 'review.summary':
         final text = s('text');
         if (text != null && _isMemoryUpdate(text)) _addNotice(text);
@@ -1591,6 +1737,18 @@ class NgChatController extends ChangeNotifier {
         if (u != null) {
           reply.inputTokens = u.input;
           reply.outputTokens = u.output;
+        }
+        final persisted = p['persisted_turn'];
+        if (persisted is Map) {
+          _bindReactionRow(reply, persisted['final_assistant_row_id']);
+          final submission = persisted['submission_id'];
+          final user = submission is String
+              ? items
+                    .whereType<NgUserItem>()
+                    .where((item) => item.submissionId == submission)
+                    .lastOrNull
+              : null;
+          if (user != null) _bindReactionRow(user, persisted['user_row_id']);
         }
         reply.time = DateTime.now();
         reply.workedFor = _workedFor(p) ?? _observedTurn?.elapsed;
@@ -1626,7 +1784,8 @@ class NgChatController extends ChangeNotifier {
           'session.info' ||
           'session.title' ||
           'notice' ||
-          'review.summary':
+          'review.summary' ||
+          'message.reaction':
         _changedNow();
       default:
         _changed();
@@ -2101,6 +2260,7 @@ class NgChatController extends ChangeNotifier {
         'session_id': runtimeId,
         'text': prompt,
       }, submissionId: effectiveSubmissionId);
+      _bindReactionRow(item, result['user_row_id']);
       item.pending = false;
       final status = result['status']?.toString();
       if (status == 'queued') item.text = trimmed;

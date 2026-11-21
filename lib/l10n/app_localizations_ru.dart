@@ -5973,4 +5973,27 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get ng_memory_updated => 'Память обновлена';
+
+  @override
+  String get ng_add_reaction => 'Добавить реакцию';
+
+  @override
+  String get ng_skin_tone => 'ТОН КОЖИ';
+
+  @override
+  String get ng_could_not_add_reaction => 'Не удалось добавить реакцию';
+
+  @override
+  String get ng_reconnect_before_reacting =>
+      'Подключите этот разговор заново, прежде чем реагировать.';
+
+  @override
+  String get ng_remove_reaction => 'Удалить реакцию';
+
+  @override
+  String get ng_react_to_messages => 'Реагировать на сообщения';
+
+  @override
+  String get ng_reactions_description =>
+      'Hermes видит ваши реакции и может реагировать на ваши сообщения с помощью эмодзи.';
 }

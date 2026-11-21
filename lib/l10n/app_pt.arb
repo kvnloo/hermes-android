@@ -1627,5 +1627,12 @@
   "theme_surface_reload_action": "Redesenhar",
   "ng_worked_for": "Trabalhou durante {duration}",
   "ng_load_earlier_messages": "Carregar mensagens anteriores",
-  "ng_memory_updated": "Memória atualizada"
+  "ng_memory_updated": "Memória atualizada",
+  "ng_add_reaction": "Adicionar reação",
+  "ng_skin_tone": "TOM DE PELE",
+  "ng_could_not_add_reaction": "Não foi possível adicionar a reação",
+  "ng_reconnect_before_reacting": "Volte a ligar esta conversa antes de reagir.",
+  "ng_remove_reaction": "Remover reação",
+  "ng_react_to_messages": "Reagir a mensagens",
+  "ng_reactions_description": "O Hermes vê as suas reações e pode reagir às suas mensagens com um emoji."
 }
