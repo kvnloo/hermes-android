@@ -108,7 +108,6 @@ class _NavigationServer {
         held.entered.complete();
         await held.release.future;
       }
-      listReplies++;
       request.response.write(
         jsonEncode({
           'data': [
@@ -133,6 +132,7 @@ class _NavigationServer {
       request.response.statusCode = 404;
     }
     await request.response.close();
+    if (path == '/api/sessions') listReplies++;
   }
 
   Future<void> close() async {
@@ -159,7 +159,7 @@ class _Credentials implements CredentialStore {
 }
 
 Future<void> _until(WidgetTester tester, bool Function() predicate) async {
-  for (var i = 0; i < 400; i++) {
+  for (var i = 0; i < 2000; i++) {
     await tester.pump();
     if (predicate()) return;
     await tester.runAsync(
@@ -185,7 +185,14 @@ class _Root {
   );
   static const tts = MethodChannel('flutter_tts');
   static const picker = MethodChannel('plugins.flutter.io/image_picker');
-  final push = MobilePushService(supported: true, channel: nativeChannel);
+  // Production expiry checks read this clock; no wall-time sleeps or races.
+  DateTime now = DateTime.utc(2030, 1, 1);
+  late final push = MobilePushService(
+    supported: true,
+    channel: nativeChannel,
+    clock: () => now,
+  );
+  int settledNavigations = 0;
   final native = <String, dynamic>{'enabled': false};
   final controller = GatewayTurnApplicationController(
     journalFactory: () => GatewayTurnJournal(store: MemoryTurnJournalStore()),
@@ -242,6 +249,7 @@ class _Root {
         connManager: manager,
         turnApplicationController: controller,
         mobilePush: push,
+        testNotificationNavigationSettled: () => settledNavigations++,
       ),
     );
     await _drain(tester);
@@ -260,7 +268,7 @@ class _Root {
     num? expiry,
     int revision = 1,
   }) async {
-    expiry ??= DateTime.now().millisecondsSinceEpoch / 1000 + 3600;
+    expiry ??= now.millisecondsSinceEpoch / 1000 + 3600;
     native.addAll({
       'enabled': true,
       'active': true,
@@ -375,9 +383,11 @@ void main() {
           if (replacement == 'other') f.tap('other');
           held.complete();
           await _until(tester, () => f.server.listReplies > 0);
-          for (var i = 0; i < 4; i++) {
-            await _drain(tester);
-          }
+          await _until(
+            tester,
+            () => f.settledNavigations >= (replacement == 'none' ? 1 : 2),
+          );
+          await _drain(tester);
           f.expectChat(
             tester,
             replacement == 'none'
@@ -402,21 +412,19 @@ void main() {
         await f.mount(tester);
         final held = f.server.holdNextList();
         try {
-          final expiry = DateTime.now().millisecondsSinceEpoch / 1000 + 0.5;
+          final expiry = f.now.millisecondsSinceEpoch / 1000 + 0.5;
           await f.pushTap(tester, expiry: expiry);
           await _until(tester, () => held.entered.isCompleted);
-          // Flutter pump time is not the production expiry clock.
-          await tester.runAsync(() async {
-            while (DateTime.now().millisecondsSinceEpoch / 1000 <= expiry) {
-              await Future<void>.delayed(const Duration(milliseconds: 10));
-            }
-          });
+          // Advance the same clock that validates native tap, event and route.
+          f.now = f.now.add(const Duration(seconds: 1));
           if (ordinary) f.tap();
           held.complete();
           await _until(tester, () => f.server.listReplies > 0);
-          for (var i = 0; i < 4; i++) {
-            await _drain(tester);
-          }
+          await _until(
+            tester,
+            () => f.settledNavigations >= (ordinary ? 2 : 1),
+          );
+          await _drain(tester);
           f.expectChat(tester, ordinary ? 'shared' : null);
         } finally {
           held.complete();
@@ -441,7 +449,10 @@ void main() {
       }
       expect(f.server.listRequests, 1);
       held.complete();
-      await _until(tester, () => f.server.listReplies == 1);
+      // The continuation page can finish before the next pump observes reply 1.
+      // Wait for progress, then use settlement and offsets as completion proof.
+      await _until(tester, () => f.server.listReplies >= 1);
+      await _until(tester, () => f.settledNavigations >= 1);
       await _drain(tester);
       f.expectChat(tester, 'shared');
       expect(f.server.listOffsets, [0, 50]);
@@ -467,6 +478,7 @@ void main() {
       await tester.runAsync(f.push.disable);
       old.complete();
       await _until(tester, () => f.server.listReplies == 1);
+      await _until(tester, () => f.settledNavigations >= 1);
       await _drain(tester);
       for (var i = 0; i < 4; i++) {
         f.tap();
@@ -475,9 +487,13 @@ void main() {
       expect(f.server.listRequests, 2);
       f.expectChat(tester, null);
       newer.complete();
-      await _until(tester, () => f.server.listReplies == 2);
+      // The newer ordinary lookup also reads its continuation page, so reply 2
+      // is transient even though no extra ordinary navigation was started.
+      await _until(tester, () => f.server.listReplies >= 2);
+      await _until(tester, () => f.settledNavigations >= 2);
       await _drain(tester);
       f.expectChat(tester, 'shared');
+      expect(f.server.listOffsets, [0, 0, 50]);
     } finally {
       old.complete();
       newer?.complete();
@@ -528,9 +544,11 @@ void main() {
           old.complete();
           ordinary.complete();
           await _until(tester, () => f.server.listReplies >= 2);
-          for (var i = 0; i < 4; i++) {
-            await _drain(tester);
-          }
+          await _until(
+            tester,
+            () => f.settledNavigations >= (boundary == 'other' ? 3 : 2),
+          );
+          await _drain(tester);
           f.expectChat(tester, boundary == 'other' ? 'other' : null);
           if (boundary == 'pause') {
             for (final state in [
@@ -544,6 +562,7 @@ void main() {
               tester,
               () => find.byType(ChatScreen).evaluate().isNotEmpty,
             );
+            await _until(tester, () => f.settledNavigations >= 3);
             await _drain(tester);
             f.expectChat(tester, 'shared');
             expect(f.server.listOffsets, [0, 0, 0, 50]);
@@ -573,14 +592,16 @@ void main() {
           await _until(tester, () => push!.entered.isCompleted);
           ordinary.complete();
           await _until(tester, () => f.server.listReplies == 1);
+          await _until(tester, () => f.settledNavigations >= 1);
           await _drain(tester);
           f.expectChat(tester, null);
           if (revoke) await tester.runAsync(f.push.disable);
           push.complete();
-          await _until(tester, () => f.server.listReplies == 2);
-          for (var i = 0; i < 4; i++) {
-            await _drain(tester);
-          }
+          // A live push lookup also scans offset 50 for continuations. That
+          // reply can arrive before a pump observes the transient count of 2.
+          await _until(tester, () => f.server.listReplies >= 2);
+          await _until(tester, () => f.settledNavigations >= 2);
+          await _drain(tester);
           f.expectChat(tester, revoke ? null : 'shared');
         } finally {
           ordinary.complete();

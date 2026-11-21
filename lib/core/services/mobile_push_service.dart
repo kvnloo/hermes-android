@@ -41,15 +41,20 @@ class MobilePushService extends ChangeNotifier with WidgetsBindingObserver {
     MethodChannel? channel,
     DashboardClient Function(SavedConnection)? clientFactory,
     bool? supported,
+    DateTime Function()? clock,
   }) : _channel = channel ?? const MethodChannel(channelName),
+       _clock = clock ?? DateTime.now,
        _clientFactory = clientFactory ?? _dashboard,
-       supported =
-           supported ??
-           (!kIsWeb && defaultTargetPlatform == TargetPlatform.android);
+       supported = supported ?? _supportedByDefault;
+
+  static bool get _supportedByDefault =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
   static const channelName = 'com.hermesagent.hermes_android/mobile_push';
   static final shared = MobilePushService();
   final MethodChannel _channel;
   final DashboardClient Function(SavedConnection) _clientFactory;
+  final DateTime Function() _clock;
   final bool supported;
   ConnectionManager? _manager;
   Future<void>? _initialization;
@@ -579,7 +584,7 @@ class MobilePushService extends ChangeNotifier with WidgetsBindingObserver {
               hint['registration_nonce'] != state['nonce'] ||
               hint['expires_at'] is! int ||
               (hint['expires_at'] as int) <=
-                  DateTime.now().millisecondsSinceEpoch ~/ 1000) {
+                  _clock().millisecondsSinceEpoch ~/ 1000) {
             continue;
           }
           state = await _call('beginConfirmation', state);
@@ -636,7 +641,7 @@ class MobilePushService extends ChangeNotifier with WidgetsBindingObserver {
       return true;
     }
     if (state['generation'] == 0) return false;
-    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final now = _clock().millisecondsSinceEpoch ~/ 1000;
     var hasLiveProof = false;
     for (final raw in state['challenges'] as List? ?? []) {
       final hint = Map<String, dynamic>.from(raw as Map);
@@ -690,7 +695,7 @@ class MobilePushService extends ChangeNotifier with WidgetsBindingObserver {
             ].contains(event['kind']) ||
             event['expires_at'] is! num ||
             (event['expires_at'] as num) <=
-                DateTime.now().millisecondsSinceEpoch / 1000) {
+                _clock().millisecondsSinceEpoch / 1000) {
           continue;
         }
         result[event['event_id'] as String] = event;
@@ -716,7 +721,7 @@ class MobilePushService extends ChangeNotifier with WidgetsBindingObserver {
         tap['generation'] != state['generation'] ||
         tap['expires_at'] is! num ||
         (tap['expires_at'] as num) <=
-            DateTime.now().millisecondsSinceEpoch / 1000 ||
+            _clock().millisecondsSinceEpoch / 1000 ||
         !await _current(state, epoch)) {
       return null;
     }
@@ -769,7 +774,7 @@ class MobilePushService extends ChangeNotifier with WidgetsBindingObserver {
         notificationPrefs.value.enabled &&
         _kindEnabled(route.authority['route_kind']) &&
         (route.authority['route_expires_at'] as num) >
-            DateTime.now().millisecondsSinceEpoch / 1000;
+            _clock().millisecondsSinceEpoch / 1000;
   }
 
   static String _message(Object error) {
