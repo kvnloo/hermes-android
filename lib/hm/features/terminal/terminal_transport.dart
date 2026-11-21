@@ -108,7 +108,8 @@ abstract class HmTerminalBackend {
   /// The chat's working directory, or null when it isn't known yet.
   Future<String?> workingDirectory();
 
-  /// Opens a shell in [cwd]. Throws [HmTerminalUnavailable] or
+  /// Opens a shell in [cwd]; an empty [cwd] opens it in the home folder.
+  /// Throws [HmTerminalUnavailable] or
   /// [HmTerminalFailure].
   Future<HmTerminalSession> open({
     required String cwd,
@@ -151,6 +152,7 @@ class HostTerminalBackend implements HmTerminalBackend {
     this.profile,
     this.storedSessionId,
     this.requestedCwd,
+    this.liveCwd,
     this.openTimeout = const Duration(seconds: 20),
   });
 
@@ -160,6 +162,10 @@ class HostTerminalBackend implements HmTerminalBackend {
   final String? profile;
   final String? storedSessionId;
   final String? requestedCwd;
+
+  /// The attached session's folder (`session.info.cwd`), read when Terminal
+  /// opens; known once the chat has attached this app session.
+  final String? Function()? liveCwd;
   final Duration openTimeout;
 
   /// Host terminal ids by chat, so reopening Terminal reattaches to the
@@ -175,6 +181,8 @@ class HostTerminalBackend implements HmTerminalBackend {
   Future<String?> workingDirectory() async {
     final requested = requestedCwd?.trim();
     if (requested != null && requested.isNotEmpty) return requested;
+    final live = liveCwd?.call()?.trim();
+    if (live != null && live.isNotEmpty) return live;
     final id = storedSessionId?.trim();
     if (id == null || id.isEmpty) return null;
     final res = await request(
@@ -227,7 +235,8 @@ class HostTerminalBackend implements HmTerminalBackend {
     return Uri.parse('$base/api/host-terminal').replace(
       queryParameters: {
         'ticket': ticket,
-        'cwd': cwd,
+        // No folder: the host opens its shell in the home folder.
+        if (cwd.isNotEmpty) 'cwd': cwd,
         'cols': '$cols',
         'rows': '$rows',
         'attach': ?attach,

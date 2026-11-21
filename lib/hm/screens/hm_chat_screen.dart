@@ -136,49 +136,51 @@ class _HmChatHeader extends StatelessWidget implements PreferredSizeWidget {
                   onTap: onOpenBot,
                   child: IgnorePointer(
                     child: ListenableBuilder(
-                    listenable: Listenable.merge([chat, dictation]),
-                    builder: (context, _) {
-                      final title = chat.title.trim().isEmpty
-                          ? bot.displayName
-                          : chat.title.trim();
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          HmAvatar(
-                            spec: bot.character,
-                            size: 44,
-                            state: hmAvatarStateOf(
-                              chat,
-                              listening: dictation.value,
-                              reducedMotion: MediaQuery.of(
-                                context,
-                              ).disableAnimations,
-                            ),
-                          ),
-                          Transform.translate(
-                            offset: const Offset(0, -6),
-                            child: Container(
-                              constraints: const BoxConstraints(maxWidth: 220),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: c.surface,
-                                borderRadius: BorderRadius.circular(999),
-                                boxShadow: hmShadow(c),
-                              ),
-                              child: Text(
-                                title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: HmType.pill.copyWith(color: c.text),
+                      listenable: Listenable.merge([chat, dictation]),
+                      builder: (context, _) {
+                        final title = chat.title.trim().isEmpty
+                            ? bot.displayName
+                            : chat.title.trim();
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            HmAvatar(
+                              spec: bot.character,
+                              size: 44,
+                              state: hmAvatarStateOf(
+                                chat,
+                                listening: dictation.value,
+                                reducedMotion: MediaQuery.of(
+                                  context,
+                                ).disableAnimations,
                               ),
                             ),
-                          ),
-                        ],
-                      );
-                    },
+                            Transform.translate(
+                              offset: const Offset(0, -6),
+                              child: Container(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 220,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: c.surface,
+                                  borderRadius: BorderRadius.circular(999),
+                                  boxShadow: hmShadow(c),
+                                ),
+                                child: Text(
+                                  title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: HmType.pill.copyWith(color: c.text),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),
