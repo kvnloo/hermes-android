@@ -1117,5 +1117,4 @@ community-edition status.
 ### Reviewable voice-message drafts
 
 Record a message in short sections, pause while reading a long reply, continue recording, preview, then submit one combined message. See [Voice message drafts](docs/VOICE_MESSAGE_DRAFTS.md).
-
 For this fork’s identity, branch policy, and release process, see [FORK.md](FORK.md).
