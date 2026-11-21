@@ -7,8 +7,12 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
+import android.media.Image
+import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
@@ -16,25 +20,17 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.view.Surface
-import android.view.SurfaceHolder
-import android.view.SurfaceView
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.FileProvider
+import java.io.File
+import java.util.UUID
 
-// The preview is a local sink only. Do not hook this up to a remote transport
-// without showing the destination and asking the user to approve it separately.
-class ScreenPreviewActivity : Activity(), SurfaceHolder.Callback {
+class ScreenPreviewActivity : Activity() {
     private var requestPending = false
-    private var pendingConsent: Intent? = null
-    private var visible = false
-    private var serviceStarted = false
-    private var surface: Surface? = null
-    private var width = 0
-    private var height = 0
-    private val manager get() = getSystemService(MediaProjectionManager::class.java)
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -42,31 +38,52 @@ class ScreenPreviewActivity : Activity(), SurfaceHolder.Callback {
         requestPending = state?.getBoolean("pending") == true
         setContentView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            addView(TextView(context).apply { setText(R.string.screen_preview_help) })
             addView(Button(context).apply {
                 setText(R.string.screen_preview_start)
-                setOnClickListener {
-                    if (requestPending || ScreenShareService.active) return@setOnClickListener
-                    val projectionManager = manager
-                    if (projectionManager == null) {
-                        message(R.string.screen_preview_unavailable)
-                        return@setOnClickListener
-                    }
-                    try {
-                        startActivityForResult(projectionManager.createScreenCaptureIntent(), CONSENT)
-                        requestPending = true
-                    } catch (_: RuntimeException) {
-                        message(R.string.screen_preview_unavailable)
-                    }
-                }
+                setOnClickListener { begin() }
             })
             addView(Button(context).apply {
-                setText(R.string.screen_preview_stop)
+                setText(android.R.string.cancel)
                 setOnClickListener { finish() }
             })
-            addView(SurfaceView(context).apply {
-                holder.addCallback(this@ScreenPreviewActivity)
-            }, LinearLayout.LayoutParams(-1, 0, 1f))
         })
+    }
+
+    private fun begin() {
+        if (requestPending) return
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), NOTIFICATIONS)
+            return
+        }
+        if (!getSystemService(NotificationManager::class.java).areNotificationsEnabled()) {
+            message(R.string.screen_preview_notifications)
+            return
+        }
+        val manager = getSystemService(MediaProjectionManager::class.java)
+        if (manager == null) {
+            message(R.string.screen_preview_unavailable)
+            return
+        }
+        try {
+            startActivityForResult(manager.createScreenCaptureIntent(), CONSENT)
+            requestPending = true
+        } catch (_: RuntimeException) {
+            message(R.string.screen_preview_unavailable)
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, results: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, results)
+        if (requestCode == NOTIFICATIONS) {
+            // Do not chain OS dialogs. Require another explicit tap.
+            if (results.firstOrNull() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                message(R.string.screen_preview_notifications)
+            }
+        }
     }
 
     override fun onSaveInstanceState(state: Bundle) {
@@ -82,100 +99,91 @@ class ScreenPreviewActivity : Activity(), SurfaceHolder.Callback {
             message(R.string.screen_preview_cancelled)
             return
         }
-        pendingConsent = data
-        startIfReady()
-    }
-
-    override fun onPostResume() {
-        super.onPostResume()
-        visible = true
-        startIfReady()
-    }
-
-    private fun startIfReady() {
-        val consent = pendingConsent ?: return
-        val sink = surface ?: return
-        if (!visible || !sink.isValid || width <= 0 || height <= 0) return
-        pendingConsent = null
-        val command = Intent(this, ScreenShareService::class.java)
-            .putExtra("consent", consent)
-            .putExtra("sink", sink)
-            .putExtra("width", width)
-            .putExtra("height", height)
+        val command = Intent(this, ScreenShareService::class.java).putExtra(CONSENT_EXTRA, data)
         try {
             if (Build.VERSION.SDK_INT >= 26) startForegroundService(command) else startService(command)
-            serviceStarted = true
+            finish()
         } catch (_: RuntimeException) {
             message(R.string.screen_preview_unavailable)
         }
     }
 
-    private fun message(id: Int) = Toast.makeText(this, id, Toast.LENGTH_SHORT).show()
+    private fun message(id: Int) = Toast.makeText(this, id, Toast.LENGTH_LONG).show()
 
-    override fun surfaceCreated(holder: SurfaceHolder) { surface = holder.surface }
-    override fun surfaceChanged(holder: SurfaceHolder, format: Int, w: Int, h: Int) {
-        width = w
-        height = h
-        startIfReady()
+    private companion object {
+        const val CONSENT = 6091
+        const val NOTIFICATIONS = 6092
     }
-    override fun surfaceDestroyed(holder: SurfaceHolder) {
-        surface = null
-        stopPreview()
-    }
-
-    override fun onStop() {
-        visible = false
-        pendingConsent = null
-        stopPreview()
-        super.onStop()
-    }
-
-    private fun stopPreview() {
-        if (serviceStarted) {
-            stopService(Intent(this, ScreenShareService::class.java))
-            serviceStarted = false
-        }
-    }
-
-    private companion object { const val CONSENT = 6091 }
 }
 
 internal fun hasProjectionConsent(result: Int, data: Intent?) =
     result == Activity.RESULT_OK && data != null
 
+internal fun screenShareSize(width: Int, height: Int): Pair<Int, Int> {
+    require(width > 0 && height > 0)
+    val scale = minOf(1.0, 1280.0 / maxOf(width, height))
+    return maxOf(1, (width * scale).toInt()) to maxOf(1, (height * scale).toInt())
+}
+
+private const val CONSENT_EXTRA = "projection_consent"
+
+// Allow one still image per consent. No microphone, disk recording, or
+// network transport; the image is offered to the existing chat draft flow.
 class ScreenShareService : Service() {
+    private val handler = Handler(Looper.getMainLooper())
     private var projection: MediaProjection? = null
     private var display: VirtualDisplay? = null
-    private var sink: Surface? = null
+    private var reader: ImageReader? = null
+    private var captureAt: Long? = null
+    private var completed = false
     private val callback = object : MediaProjection.Callback() {
         override fun onStop() { stopSelf() }
+        override fun onCapturedContentResize(width: Int, height: Int) {
+            if (display == null || completed) return
+            try { resize(width, height) } catch (_: RuntimeException) { stopSelf() }
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     @Suppress("DEPRECATION")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == STOP) {
-            stopSelf()
-            return START_NOT_STICKY
+        when (intent?.action) {
+            STOP -> { stopSelf(); return START_NOT_STICKY }
+            CAPTURE -> {
+                if (projection != null && captureAt == null && !completed) {
+                    // Allow time to close the notification shade before capturing.
+                    captureAt = android.os.SystemClock.elapsedRealtime() + 2500
+                }
+                return START_NOT_STICKY
+            }
         }
-        if (active) return START_NOT_STICKY
+        if (projection != null || completed) return START_NOT_STICKY
         try {
-            startForeground(37101, notification())
-            val consent = requireNotNull(intent?.getParcelableExtra<Intent>("consent"))
-            val surface = requireNotNull(intent.getParcelableExtra<Surface>("sink"))
-            sink = surface
-            check(surface.isValid)
-            val manager = getSystemService(MediaProjectionManager::class.java)
-            val session = requireNotNull(manager?.getMediaProjection(Activity.RESULT_OK, consent))
+            setupChannels()
+            startForeground(ONGOING, ongoingNotification())
+            val consent = requireNotNull(intent?.getParcelableExtra<Intent>(CONSENT_EXTRA))
+            val system = getSystemService(MediaProjectionManager::class.java)
+            val session = requireNotNull(system?.getMediaProjection(Activity.RESULT_OK, consent))
             projection = session
-            session.registerCallback(callback, Handler(Looper.getMainLooper()))
+            session.registerCallback(callback, handler)
+            val windowManager = getSystemService(WindowManager::class.java)
+            val dimensions = if (Build.VERSION.SDK_INT >= 30) {
+                val bounds = windowManager.maximumWindowMetrics.bounds
+                bounds.width() to bounds.height()
+            } else {
+                val metrics = android.util.DisplayMetrics()
+                windowManager.defaultDisplay.getRealMetrics(metrics)
+                metrics.widthPixels to metrics.heightPixels
+            }
+            val (width, height) = screenShareSize(dimensions.first, dimensions.second)
+            val frames = newReader(width, height)
+            reader = frames
             display = requireNotNull(session.createVirtualDisplay(
-                "Hermes local screen preview", intent.getIntExtra("width", 0),
-                intent.getIntExtra("height", 0), resources.displayMetrics.densityDpi,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, surface, null, null,
+                "Hermes screen capture", width, height, resources.displayMetrics.densityDpi,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, frames.surface, null, handler,
             ))
-            active = true
+            handler.postDelayed({ stopSelf() }, 90_000)
         } catch (_: RuntimeException) {
             Toast.makeText(this, R.string.screen_preview_unavailable, Toast.LENGTH_SHORT).show()
             stopSelf()
@@ -183,42 +191,134 @@ class ScreenShareService : Service() {
         return START_NOT_STICKY
     }
 
+    private fun newReader(width: Int, height: Int): ImageReader =
+        ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2).apply {
+            setOnImageAvailableListener({ source ->
+                try {
+                    source.acquireLatestImage()?.use { image ->
+                        val threshold = captureAt
+                        if (source == reader && !completed && threshold != null &&
+                            android.os.SystemClock.elapsedRealtime() >= threshold
+                        ) {
+                            completed = true
+                            publish(image)
+                            stopSelf()
+                        }
+                    }
+                } catch (_: Exception) {
+                    Toast.makeText(this@ScreenShareService, R.string.screen_preview_unavailable, Toast.LENGTH_SHORT).show()
+                    stopSelf()
+                }
+            }, handler)
+        }
+
+    private fun resize(contentWidth: Int, contentHeight: Int) {
+        val target = display ?: return
+        val (width, height) = screenShareSize(contentWidth, contentHeight)
+        val old = reader
+        if (old?.width == width && old.height == height) return
+        val replacement = newReader(width, height)
+        reader = replacement
+        try {
+            target.resize(width, height, resources.displayMetrics.densityDpi)
+            target.surface = replacement.surface
+        } finally {
+            old?.close()
+        }
+    }
+
+    private fun publish(image: Image) {
+        val directory = File(cacheDir, "screen_share").apply { mkdirs() }
+        directory.listFiles()?.forEach { it.delete() }
+        val file = File(directory, "Screen-${UUID.randomUUID()}.png")
+        try {
+            val plane = image.planes.single()
+            val paddedWidth = plane.rowStride / plane.pixelStride
+            val padded = Bitmap.createBitmap(paddedWidth, image.height, Bitmap.Config.ARGB_8888)
+            try {
+                padded.copyPixelsFromBuffer(plane.buffer)
+                val cropped = Bitmap.createBitmap(padded, 0, 0, image.width, image.height)
+                try {
+                    file.outputStream().use { check(cropped.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+                } finally {
+                    if (cropped !== padded) cropped.recycle()
+                }
+            } finally {
+                padded.recycle()
+            }
+
+            val uri = FileProvider.getUriForFile(this, "$packageName.screen_share", file)
+            val review = AndroidEntry.intent(this, Intent.ACTION_SEND)
+                .setDataAndType(uri, "image/png")
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            val click = PendingIntent.getActivity(this, 0, review,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_ONE_SHOT)
+            getSystemService(NotificationManager::class.java).notify(REVIEW,
+                notification(REVIEW_CHANNEL)
+                    .setContentTitle(getString(R.string.screen_preview_review))
+                    .setContentIntent(click)
+                    .setAutoCancel(true)
+                    .build())
+        } catch (e: Exception) {
+            file.delete()
+            throw e
+        }
+    }
+
+    private fun setupChannels() {
+        if (Build.VERSION.SDK_INT < 26) return
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(NotificationChannel(CHANNEL,
+            getString(R.string.screen_preview), NotificationManager.IMPORTANCE_LOW))
+        manager.createNotificationChannel(NotificationChannel(REVIEW_CHANNEL,
+            getString(R.string.screen_preview_review), NotificationManager.IMPORTANCE_DEFAULT))
+    }
+
     @Suppress("DEPRECATION")
-    private fun notification(): Notification {
-        val builder = if (Build.VERSION.SDK_INT >= 26) {
-            getSystemService(NotificationManager::class.java).createNotificationChannel(
-                NotificationChannel(CHANNEL, getString(R.string.screen_preview), NotificationManager.IMPORTANCE_LOW)
-            )
-            Notification.Builder(this, CHANNEL)
-        } else Notification.Builder(this)
-        val stop = PendingIntent.getService(this, 0, Intent(this, javaClass).setAction(STOP),
+    private fun notification(channel: String): Notification.Builder =
+        (if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, channel) else Notification.Builder(this))
+            .setSmallIcon(android.R.drawable.ic_menu_view)
+            .setVisibility(Notification.VISIBILITY_PRIVATE)
+
+    private fun ongoingNotification(): Notification = notification(CHANNEL)
+        .setContentTitle(getString(R.string.screen_preview))
+        .setContentText(getString(R.string.screen_preview_notification))
+        .setOngoing(true)
+        .addAction(action(CAPTURE, R.string.screen_preview_capture))
+        .addAction(action(STOP, R.string.screen_preview_stop))
+        .build()
+
+    private fun action(name: String, label: Int): Notification.Action {
+        val click = PendingIntent.getService(this, 0, Intent(this, javaClass).setAction(name),
             PendingIntent.FLAG_IMMUTABLE)
-        return builder.setSmallIcon(android.R.drawable.ic_menu_view)
-            .setContentTitle(getString(R.string.screen_preview))
-            .setOngoing(true)
-            .addAction(Notification.Action.Builder(null, getText(R.string.screen_preview_stop), stop).build())
-            .build()
+        return Notification.Action.Builder(null, getText(label), click).build()
     }
 
     override fun onDestroy() {
-        active = false
+        completed = true
+        handler.removeCallbacksAndMessages(null)
         display?.release()
         display = null
+        reader?.close()
+        reader = null
         projection?.let {
             it.unregisterCallback(callback)
             it.stop()
         }
         projection = null
-        sink?.release()
-        sink = null
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
 
-    companion object {
-        private const val CHANNEL = "local_screen_preview"
-        private const val STOP = "stop_preview"
-        var active = false
-            private set
+    private companion object {
+        const val CHANNEL = "screen_share"
+        const val REVIEW_CHANNEL = "screen_share_review"
+        const val STOP = "stop_capture"
+        const val CAPTURE = "capture_one_frame"
+        const val ONGOING = 37101
+        const val REVIEW = 37102
     }
 }
+
+class ScreenShareFileProvider : FileProvider()
