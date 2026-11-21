@@ -186,7 +186,6 @@ tasks.matching { it.name == "preBuild" || it.name.startsWith("merge") && it.name
 }
 
 dependencies {
-   implementation("androidx.health.connect:connect-client:1.1.0")
    if (appFunctions) {
        debugImplementation("androidx.appfunctions:appfunctions:1.0.0")
        add("kspDebug", "androidx.appfunctions:appfunctions-compiler:1.0.0")

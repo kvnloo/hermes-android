@@ -18,7 +18,6 @@
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <queries><package android:name="com.google.android.apps.healthdata" /></queries>
     <application
         android:label="${appLabel}"
         android:name="${applicationName}"
@@ -58,11 +57,7 @@
             android:foregroundServiceType="mediaProjection" />
         <activity android:name=".DeviceAccessActivity" android:exported="false" />
         <receiver android:name=".DeviceAlarmReceiver" android:exported="false" />
-        <activity android:name=".HealthPermissionRationaleActivity" android:exported="true">
-            <intent-filter>
-                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
-            </intent-filter>
-        </activity>
+        <activity android:name=".HealthPermissionRationaleActivity" android:exported="false" />
         <activity-alias android:name=".HealthPermissionUsageActivity" android:exported="true"
             android:targetActivity=".HealthPermissionRationaleActivity"
             android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
