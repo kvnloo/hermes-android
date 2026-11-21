@@ -1625,5 +1625,6 @@
   "theme_surface_reload_title": "ウィンドウを再描画しますか？",
   "theme_surface_reload_body": "サーフェスを切り替えるため Hermes のウィンドウを再起動します。チャットと下書きは保持されます。",
   "theme_surface_reload_action": "再描画",
-  "ng_worked_for": "作業時間 {duration}"
+  "ng_worked_for": "作業時間 {duration}",
+  "ng_load_earlier_messages": "以前のメッセージを読み込む"
 }

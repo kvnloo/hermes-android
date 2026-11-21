@@ -956,8 +956,7 @@ class NgChatController extends ChangeNotifier {
       ..addAll(_itemsFrom(rows));
   }
 
-  /// Loads the page of rows before the oldest one shown, as Kyllene does
-  /// when the transcript is scrolled near its top.
+  /// Loads the page of rows before the oldest one shown.
   Future<void> loadOlder() async {
     final id = storedId;
     if (id == null || !hasOlder || loadingOlder || loadingHistory) return;
@@ -971,7 +970,7 @@ class NgChatController extends ChangeNotifier {
       if (_disposed) return;
       // Adoption or a window rebuild during the fetch moved the accounting
       // this page's offset was computed from. Applying it would double-count
-      // the adopted rows in the shift; drop it and let the next scroll retry
+      // the adopted rows in the shift; drop it and let the next request retry
       // against the current window.
       if (_rowIds.length != guardLength || _olderShift != guardShift) return;
       final full = page.length >= ngHistoryPage;
@@ -997,7 +996,7 @@ class NgChatController extends ChangeNotifier {
         items.insertAll(0, _itemsFrom(fresh));
       }
     } catch (_) {
-      // Scrolling to the top again retries.
+      // The load button remains available for a retry.
     } finally {
       loadingOlder = false;
       _changed();

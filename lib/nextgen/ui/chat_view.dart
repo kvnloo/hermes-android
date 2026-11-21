@@ -5,7 +5,6 @@ import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -131,13 +130,6 @@ class _NgChatViewState extends State<NgChatView> {
       }
     };
     _input.addListener(() => setState(() {}));
-    _scroll.addListener(() {
-      if (_scroll.hasClients &&
-          _scroll.position.userScrollDirection != ScrollDirection.idle) {
-        _autoPages = 0;
-      }
-      _maybeLoadOlder();
-    });
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (chat.running && mounted) setState(() {});
     });
@@ -195,23 +187,6 @@ class _NgChatViewState extends State<NgChatView> {
     }
     setState(() {});
   }
-
-  /// The transcript is reversed, so its top is the scroll's far end: fetch
-  /// the page before when the reader gets near it.
-  void _maybeLoadOlder({bool auto = false}) {
-    if (!_scroll.hasClients || !chat.hasOlder || chat.loadingOlder) return;
-    if (_scroll.position.extentAfter >= 800) return;
-    if (auto) {
-      // Pages of tool rows can add little to show: fetch a few on our own
-      // to fill the screen, then wait for the reader to scroll.
-      if (_autoPages >= 3) return;
-      _autoPages++;
-    }
-    unawaited(chat.loadOlder());
-  }
-
-  /// Older pages fetched since the reader last scrolled.
-  int _autoPages = 0;
 
   @override
   void dispose() {
@@ -765,7 +740,7 @@ class _NgChatViewState extends State<NgChatView> {
     if (chat.loadingHistory && chat.items.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (chat.items.isEmpty) {
+    if (chat.items.isEmpty && !chat.hasOlder && !chat.loadingOlder) {
       return NgGlow(
         child: NgEmpty(
           icon: Icons.auto_awesome,
@@ -786,12 +761,6 @@ class _NgChatViewState extends State<NgChatView> {
       for (var i = 0; i < items.length; i++)
         ValueKey(items[i].key): items.length - 1 - i + lead,
     };
-    if (older == 1 && chat.hasOlder && !chat.loadingOlder) {
-      // A short first page may not fill the screen to scroll.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _maybeLoadOlder(auto: true);
-      });
-    }
     return ListView.builder(
       key: const ValueKey('ng-transcript'),
       controller: _scroll,
@@ -802,14 +771,22 @@ class _NgChatViewState extends State<NgChatView> {
       itemBuilder: (context, index) {
         if (chat.running && index == 0) return _statusLine(c);
         if (older == 1 && index == items.length + lead) {
-          return const Padding(
-            key: ValueKey('ng-loading-older'),
-            padding: EdgeInsets.symmetric(vertical: 16),
+          return SizedBox(
+            height: 48,
             child: Center(
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+              child: TextButton(
+                onPressed: chat.loadingOlder ? null : chat.loadOlder,
+                style: TextButton.styleFrom(foregroundColor: c.text2),
+                child: chat.loadingOlder
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: c.accent,
+                        ),
+                      )
+                    : Text(ngL.ng_load_earlier_messages),
               ),
             ),
           );

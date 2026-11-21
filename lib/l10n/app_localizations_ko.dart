@@ -5808,4 +5808,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String ng_worked_for(String duration) {
     return '$duration 동안 작업함';
   }
+
+  @override
+  String get ng_load_earlier_messages => '이전 메시지 불러오기';
 }

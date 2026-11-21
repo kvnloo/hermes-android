@@ -1625,5 +1625,6 @@
   "theme_surface_reload_title": "Перерисовать окно?",
   "theme_surface_reload_body": "Hermes перезапустит окно, чтобы сменить поверхность. Чаты и черновики сохранятся.",
   "theme_surface_reload_action": "Перерисовать",
-  "ng_worked_for": "Время работы: {duration}"
+  "ng_worked_for": "Время работы: {duration}",
+  "ng_load_earlier_messages": "Загрузить предыдущие сообщения"
 }

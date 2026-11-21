@@ -5966,4 +5966,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String ng_worked_for(String duration) {
     return 'Час роботи: $duration';
   }
+
+  @override
+  String get ng_load_earlier_messages => 'Завантажити попередні повідомлення';
 }

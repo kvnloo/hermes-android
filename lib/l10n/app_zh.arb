@@ -1625,5 +1625,6 @@
   "theme_surface_reload_title": "重绘窗口？",
   "theme_surface_reload_body": "Hermes 将重启窗口以切换表面。聊天和草稿会保留。",
   "theme_surface_reload_action": "重绘",
-  "ng_worked_for": "處理時間 {duration}"
+  "ng_worked_for": "處理時間 {duration}",
+  "ng_load_earlier_messages": "載入較早的訊息"
 }

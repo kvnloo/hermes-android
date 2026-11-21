@@ -5979,4 +5979,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String ng_worked_for(String duration) {
     return 'A travaillé pendant $duration';
   }
+
+  @override
+  String get ng_load_earlier_messages => 'Charger les messages précédents';
 }

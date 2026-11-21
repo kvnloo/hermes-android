@@ -5972,4 +5972,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String ng_worked_for(String duration) {
     return '$duration gearbeitet';
   }
+
+  @override
+  String get ng_load_earlier_messages => 'Frühere Nachrichten laden';
 }

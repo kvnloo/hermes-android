@@ -9995,6 +9995,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Worked for {duration}'**
   String ng_worked_for(String duration);
+
+  /// No description provided for @ng_load_earlier_messages.
+  ///
+  /// In en, this message translates to:
+  /// **'Load earlier messages'**
+  String get ng_load_earlier_messages;
 }
 
 class _AppLocalizationsDelegate

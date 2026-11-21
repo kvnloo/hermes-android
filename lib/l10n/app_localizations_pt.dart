@@ -5971,6 +5971,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String ng_worked_for(String duration) {
     return 'Trabalhou durante $duration';
   }
+
+  @override
+  String get ng_load_earlier_messages => 'Carregar mensagens anteriores';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -11698,4 +11701,7 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   String ng_worked_for(String duration) {
     return 'Trabalhou por $duration';
   }
+
+  @override
+  String get ng_load_earlier_messages => 'Carregar mensagens anteriores';
 }

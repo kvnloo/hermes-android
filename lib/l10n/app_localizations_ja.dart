@@ -5804,4 +5804,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String ng_worked_for(String duration) {
     return '作業時間 $duration';
   }
+
+  @override
+  String get ng_load_earlier_messages => '以前のメッセージを読み込む';
 }

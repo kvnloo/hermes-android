@@ -420,7 +420,7 @@ void main() {
       expect(tool.output!.length, lessThanOrEqualTo(ngStoredToolChars + 1));
     });
 
-    testWidgets('scrolling to the top of a long chat loads the page before', (
+    testWidgets('Load earlier messages keeps the visible transcript in place', (
       tester,
     ) async {
       // Small rows: fake-async widget tests can't wait on an isolate.
@@ -433,15 +433,29 @@ void main() {
       );
       await _pumpChat(tester, chat);
       await tester.pump(const Duration(milliseconds: 300));
-      final before = api.calls.length;
-      await tester.drag(
-        find.byKey(const ValueKey('ng-transcript')),
-        const Offset(0, 20000),
+      final load = find.text('Load earlier messages');
+      final scrollable = find
+          .descendant(
+            of: find.byKey(const ValueKey('ng-transcript')),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      await tester.scrollUntilVisible(load, 200, scrollable: scrollable);
+      await tester.pumpAndSettle();
+      expect(api.calls, isEmpty);
+      final prompt = find.text('Prompt 25');
+      final before = tester.getTopLeft(prompt);
+      await tester.tap(load);
+      await tester.pumpAndSettle();
+      expect(api.calls.single, (ngHistoryPage, ngHistoryPage));
+      expect(tester.getTopLeft(prompt), before);
+      await tester.scrollUntilVisible(
+        find.text('Prompt 10'),
+        200,
+        scrollable: scrollable,
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(api.calls.length, greaterThan(before));
-      expect(api.calls.last.$2, greaterThan(0), reason: 'an older offset');
+      await tester.pumpAndSettle();
+      expect(find.text('Prompt 10'), findsOneWidget);
 
       // Typing in the composer reuses the parsed replies.
       final first = tester

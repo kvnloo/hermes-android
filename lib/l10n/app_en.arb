@@ -2524,5 +2524,6 @@
         "type": "String"
       }
     }
-  }
+  },
+  "ng_load_earlier_messages": "Load earlier messages"
 }
