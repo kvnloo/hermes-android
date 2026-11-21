@@ -33,6 +33,9 @@ const hmProfileNameRule =
     'Use a profile name of up to 64 Latin letters, numbers, hyphens or '
     'underscores. You can change the display name afterward.';
 
+/// Seeds stay positive 31-bit ints, like `HmCharacterSpec.forName`'s.
+const _maxSeed = 2147483647;
+
 class HmNewAgentPage extends StatefulWidget {
   const HmNewAgentPage({
     super.key,
@@ -71,7 +74,7 @@ class _HmNewAgentPageState extends State<HmNewAgentPage> {
   void initState() {
     super.initState();
     final rng = widget.random ?? Random();
-    final seed = rng.nextInt(0x7FFFFFFF);
+    final seed = rng.nextInt(_maxSeed);
     _look = HmCharacterSpec(
       seed: seed,
       color: HmCharacterSpec.palette[seed % HmCharacterSpec.palette.length],
@@ -435,7 +438,7 @@ class _HmLookSheetState extends State<_HmLookSheet> {
             TextButton.icon(
               onPressed: () => setState(
                 () => _spec = HmCharacterSpec(
-                  seed: _rng.nextInt(0x7FFFFFFF),
+                  seed: _rng.nextInt(_maxSeed),
                   color: _spec.color,
                 ),
               ),
