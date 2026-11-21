@@ -1634,5 +1634,9 @@
   "ng_reconnect_before_reacting": "반응하기 전에 이 대화를 다시 연결하세요.",
   "ng_remove_reaction": "반응 삭제",
   "ng_react_to_messages": "메시지에 반응하기",
-  "ng_reactions_description": "Hermes는 내 반응을 볼 수 있으며 내 메시지에 이모지로 반응할 수 있습니다."
+  "ng_reactions_description": "Hermes는 내 반응을 볼 수 있으며 내 메시지에 이모지로 반응할 수 있습니다.",
+  "ng_bot_import_title": "봇 가져오기",
+  "ng_bot_import_invalid": "이 봇 파일을 읽을 수 없거나 지원하지 않는 형식입니다.",
+  "ng_bot_import_open_chat": "채팅 열기",
+  "ng_bot_import_add": "봇 추가"
 }

@@ -11,6 +11,8 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models/attachment_draft.dart';
+import '../../core/services/android_share_intent_service.dart';
+import '../../core/services/shared_attachment_preparer.dart';
 import '../../core/services/connection_manager.dart';
 import '../../core/services/remote_files_client.dart';
 import '../../core/services/legal_links.dart';
@@ -47,8 +49,10 @@ class NgChatView extends StatefulWidget {
     this.botName,
     this.dictation,
     this.voiceFactory,
+    this.sharedDraft,
   });
 
+  final AndroidSharePayload? sharedDraft;
   final NgChatController chat;
   final VoidCallback onOpenSidebar;
 
@@ -129,6 +133,14 @@ class _NgChatViewState extends State<NgChatView> {
         ngToast(context, ngL.read_aloud_is_unavailable_on_this_device);
       }
     };
+    final shared = widget.sharedDraft;
+    if (shared != null) {
+      _input.text = shared.text ?? '';
+      if (shared.files.isNotEmpty) {
+        _preparing = true;
+        unawaited(_prepareSharedDraft(shared.files));
+      }
+    }
     _input.addListener(() => setState(() {}));
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (chat.running && mounted) setState(() {});
@@ -204,6 +216,22 @@ class _NgChatViewState extends State<NgChatView> {
       unawaited(chat.attachmentService.removeAll(List.of(_drafts)));
     }
     super.dispose();
+  }
+
+  Future<void> _prepareSharedDraft(List<AndroidSharedFile> files) async {
+    final service = chat.attachmentService;
+    try {
+      final drafts = await prepareAndroidSharedFiles(files, service: service);
+      if (!mounted) {
+        await service.removeAll(drafts);
+        return;
+      }
+      setState(() => _drafts.addAll(drafts));
+    } catch (_) {
+      if (mounted) ngToast(context, ngL.couldn_t_prepare_the_shared_files);
+    } finally {
+      if (mounted) setState(() => _preparing = false);
+    }
   }
 
   int get _slotsLeft => maxRemoteAttachmentDrafts - _drafts.length;
@@ -321,6 +349,7 @@ class _NgChatViewState extends State<NgChatView> {
   }
 
   Future<void> _send() async {
+    if (_preparing) return;
     final text = _input.text.trim();
     if (text.isEmpty && _drafts.isEmpty) return;
     NgHaptics.tap();
@@ -908,7 +937,8 @@ class _NgChatViewState extends State<NgChatView> {
 
   Widget _composer(NgColors c, NgConnectionState state) {
     final hasText = _input.text.trim().isNotEmpty;
-    final canSend = hasText || (_drafts.isNotEmpty && !chat.running);
+    final canSend =
+        !_preparing && (hasText || (_drafts.isNotEmpty && !chat.running));
     final shadow = [
       BoxShadow(
         color: Colors.black.withValues(

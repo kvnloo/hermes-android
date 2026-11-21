@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tile_new_chat">Neuer Chat</string>
+    <string name="tile_live_voice">Live-Sprache</string>
+    <string name="widget_label">Hermes Agent-Aktionen</string>
+    <string name="widget_description">Starte einen neuen Chat oder ein freihändiges Gespräch in Hermes Agent.</string>
+    <string name="shortcut_new_chat_short">Neuer Chat</string>
+    <string name="shortcut_new_chat_long">Neuer Chat</string>
+    <string name="shortcut_live_voice_short">Live-Sprache</string>
+    <string name="shortcut_live_voice_long">Live-Sprache starten</string>
+    <string name="shortcut_sessions_short">Sitzungen</string>
+    <string name="shortcut_sessions_long">Sitzungen öffnen</string>
+    <string name="shortcut_disabled">Öffne Hermes Agent, um fortzufahren.</string>
+</resources>

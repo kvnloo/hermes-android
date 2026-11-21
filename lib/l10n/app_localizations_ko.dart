@@ -5836,4 +5836,16 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get ng_reactions_description =>
       'Hermes는 내 반응을 볼 수 있으며 내 메시지에 이모지로 반응할 수 있습니다.';
+
+  @override
+  String get ng_bot_import_title => '봇 가져오기';
+
+  @override
+  String get ng_bot_import_invalid => '이 봇 파일을 읽을 수 없거나 지원하지 않는 형식입니다.';
+
+  @override
+  String get ng_bot_import_open_chat => '채팅 열기';
+
+  @override
+  String get ng_bot_import_add => '봇 추가';
 }

@@ -58,6 +58,13 @@
                     android:host="connections"
                     android:path="/done" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/vnd.ai.nousresearch.hermes.mobile.bot+json" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+            </intent-filter>
             <!-- The link only returns to the app: the screens have no named
                  routes, so Flutter must not push it as one. -->
             <meta-data
@@ -70,6 +77,41 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
+        <activity-alias
+            android:name=".entry.LiveVoiceShortcut"
+            android:exported="false"
+            android:targetActivity=".MainActivity" />
+        <service
+            android:name=".entry.NewChatTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_entry_chat"
+            android:label="@string/tile_new_chat"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".entry.LiveVoiceTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_entry_voice"
+            android:label="@string/tile_live_voice"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <receiver
+            android:name=".entry.HmActionsWidget"
+            android:exported="false"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/hm_actions_widget" />
+        </receiver>
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.update_provider"

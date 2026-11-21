@@ -10049,6 +10049,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hermes sees your reactions and can react to your messages with an emoji.'**
   String get ng_reactions_description;
+
+  /// No description provided for @ng_bot_import_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Import bot'**
+  String get ng_bot_import_title;
+
+  /// No description provided for @ng_bot_import_invalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This bot file could not be read or uses an unsupported format.'**
+  String get ng_bot_import_invalid;
+
+  /// No description provided for @ng_bot_import_open_chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Open chat'**
+  String get ng_bot_import_open_chat;
+
+  /// No description provided for @ng_bot_import_add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add bot'**
+  String get ng_bot_import_add;
 }
 
 class _AppLocalizationsDelegate

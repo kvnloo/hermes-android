@@ -5832,4 +5832,16 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get ng_reactions_description =>
       'Hermes はあなたのリアクションを確認し、メッセージに絵文字で反応できます。';
+
+  @override
+  String get ng_bot_import_title => 'ボットをインポート';
+
+  @override
+  String get ng_bot_import_invalid => 'このボットファイルを読み込めないか、対応していない形式です。';
+
+  @override
+  String get ng_bot_import_open_chat => 'チャットを開く';
+
+  @override
+  String get ng_bot_import_add => 'ボットを追加';
 }

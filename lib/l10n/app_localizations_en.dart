@@ -5954,4 +5954,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get ng_reactions_description =>
       'Hermes sees your reactions and can react to your messages with an emoji.';
+
+  @override
+  String get ng_bot_import_title => 'Import bot';
+
+  @override
+  String get ng_bot_import_invalid =>
+      'This bot file could not be read or uses an unsupported format.';
+
+  @override
+  String get ng_bot_import_open_chat => 'Open chat';
+
+  @override
+  String get ng_bot_import_add => 'Add bot';
 }

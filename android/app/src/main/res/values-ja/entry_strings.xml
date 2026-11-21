@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tile_new_chat">新しいチャット</string>
+    <string name="tile_live_voice">ライブ音声</string>
+    <string name="widget_label">Hermes Agent の操作</string>
+    <string name="widget_description">Hermes Agent で新しいチャットやハンズフリーの会話を始めます。</string>
+    <string name="shortcut_new_chat_short">新しいチャット</string>
+    <string name="shortcut_new_chat_long">新しいチャット</string>
+    <string name="shortcut_live_voice_short">ライブ音声</string>
+    <string name="shortcut_live_voice_long">ライブ音声を開始</string>
+    <string name="shortcut_sessions_short">セッション</string>
+    <string name="shortcut_sessions_long">セッションを開く</string>
+    <string name="shortcut_disabled">Hermes Agent を開いて続けてください。</string>
+</resources>

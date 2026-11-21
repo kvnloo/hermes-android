@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tile_new_chat">Novo chat</string>
+    <string name="tile_live_voice">Voz ao vivo</string>
+    <string name="widget_label">Ações do Hermes Agent</string>
+    <string name="widget_description">Inicie um novo chat ou uma conversa em viva-voz no Hermes Agent.</string>
+    <string name="shortcut_new_chat_short">Novo chat</string>
+    <string name="shortcut_new_chat_long">Novo chat</string>
+    <string name="shortcut_live_voice_short">Voz ao vivo</string>
+    <string name="shortcut_live_voice_long">Iniciar voz ao vivo</string>
+    <string name="shortcut_sessions_short">Sessões</string>
+    <string name="shortcut_sessions_long">Abrir sessões</string>
+    <string name="shortcut_disabled">Abra o Hermes Agent para continuar.</string>
+</resources>

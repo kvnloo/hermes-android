@@ -1776,5 +1776,9 @@
   "ng_reconnect_before_reacting": "Знову підключіть цю розмову, перш ніж реагувати.",
   "ng_remove_reaction": "Видалити реакцію",
   "ng_react_to_messages": "Реагувати на повідомлення",
-  "ng_reactions_description": "Hermes бачить ваші реакції та може реагувати на ваші повідомлення за допомогою емодзі."
+  "ng_reactions_description": "Hermes бачить ваші реакції та може реагувати на ваші повідомлення за допомогою емодзі.",
+  "ng_bot_import_title": "Імпортувати бота",
+  "ng_bot_import_invalid": "Не вдалося прочитати файл бота або його формат не підтримується.",
+  "ng_bot_import_open_chat": "Відкрити чат",
+  "ng_bot_import_add": "Додати бота"
 }

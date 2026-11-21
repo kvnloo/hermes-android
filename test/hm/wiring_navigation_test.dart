@@ -3,9 +3,12 @@
 // look comes from the socket's ui_meta, the popover menu never overflows,
 // and a chat exposes its working folder.
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hermes_android/core/services/android_share_intent_service.dart';
 import 'package:hermes_android/core/services/connection_manager.dart';
 import 'package:hermes_android/core/services/ws_client.dart';
 import 'package:hermes_android/hm/features/work/hm_projects.dart';
@@ -22,6 +25,9 @@ import 'package:hermes_android/nextgen/ui/nextgen_scope.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image/image.dart' as image_lib;
+// ignore: depend_on_referenced_packages
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'work_fakes.dart';
 
@@ -151,8 +157,105 @@ Widget _scoped(SharedPreferences prefs, NextGenGateway gateway, Widget home) =>
       home: home,
     );
 
+class _SharePaths extends PathProviderPlatform {
+  _SharePaths(this.path);
+  final String path;
+
+  @override
+  Future<String?> getTemporaryPath() async => path;
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets(
+    'Android SEND drafts text and SEND_MULTIPLE drafts an image',
+    (tester) async {
+      const channel = MethodChannel(AndroidShareIntentService.channelName);
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final share = AndroidShareIntentService();
+      messenger.setMockMethodCallHandler(
+        channel,
+        (_) async => {'text': 'Text from Android'},
+      );
+      addTearDown(() {
+        share.dispose();
+        messenger.setMockMethodCallHandler(channel, null);
+      });
+      await share.initialize();
+
+      final root = Directory.systemTemp.createTempSync(
+        'nextgen-android-share-',
+      );
+      final previousPaths = PathProviderPlatform.instance;
+      PathProviderPlatform.instance = _SharePaths(root.path);
+      addTearDown(() {
+        PathProviderPlatform.instance = previousPaths;
+        root.deleteSync(recursive: true);
+      });
+      final image = File('${root.path}/shared-photo.png')
+        ..writeAsBytesSync(
+          image_lib.encodePng(image_lib.Image(width: 2, height: 2)),
+        );
+
+      final prefs = await SharedPreferences.getInstance();
+      final gateway = _Gateway(_host([]));
+      addTearDown(gateway.dispose);
+      await tester.pumpWidget(
+        _scoped(prefs, gateway, HmHome(shareIntents: share)),
+      );
+      await _settle(tester);
+
+      expect(find.byType(HmChatScreen), findsOneWidget);
+      expect(
+        tester.widget<EditableText>(find.byType(EditableText)).controller.text,
+        'Text from Android',
+      );
+      expect(
+        tester.widget<HmChatScreen>(find.byType(HmChatScreen)).chat.storedId,
+        isNull,
+      );
+
+      await messenger.handlePlatformMessage(
+        channel.name,
+        channel.codec.encodeMethodCall(
+          MethodCall('sharePayload', {
+            'files': [
+              {
+                'path': image.path,
+                'name': 'shared-photo.png',
+                'mediaType': 'image/png',
+                'byteLength': image.lengthSync(),
+              },
+            ],
+          }),
+        ),
+        (_) {},
+      );
+      for (var attempt = 0; attempt < 100; attempt++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        if (find.text('shared-photo.png').evaluate().isNotEmpty) break;
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
+      }
+      await _settle(tester);
+
+      expect(find.byType(HmChatScreen), findsOneWidget);
+      expect(find.text('shared-photo.png'), findsOneWidget);
+      expect(
+        tester.widget<EditableText>(find.byType(EditableText)).controller.text,
+        isEmpty,
+      );
+      expect(
+        tester.widget<HmChatScreen>(find.byType(HmChatScreen)).chat.storedId,
+        isNull,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+    timeout: const Timeout(Duration(seconds: 20)),
+  );
 
   testWidgets('hmOpenChat opens a stored chat with its transcript', (
     tester,

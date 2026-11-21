@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tile_new_chat">Новий чат</string>
+    <string name="tile_live_voice">Живий голос</string>
+    <string name="widget_label">Дії Hermes Agent</string>
+    <string name="widget_description">Почніть новий чат або голосову розмову без допомоги рук у Hermes Agent.</string>
+    <string name="shortcut_new_chat_short">Новий чат</string>
+    <string name="shortcut_new_chat_long">Новий чат</string>
+    <string name="shortcut_live_voice_short">Живий голос</string>
+    <string name="shortcut_live_voice_long">Почати голосову розмову</string>
+    <string name="shortcut_sessions_short">Сеанси</string>
+    <string name="shortcut_sessions_long">Відкрити сеанси</string>
+    <string name="shortcut_disabled">Відкрийте Hermes Agent, щоб продовжити.</string>
+</resources>

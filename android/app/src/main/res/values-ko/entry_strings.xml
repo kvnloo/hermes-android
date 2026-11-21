@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tile_new_chat">새 채팅</string>
+    <string name="tile_live_voice">실시간 음성</string>
+    <string name="widget_label">Hermes Agent 작업</string>
+    <string name="widget_description">Hermes Agent에서 새 채팅이나 핸즈프리 대화를 시작하세요.</string>
+    <string name="shortcut_new_chat_short">새 채팅</string>
+    <string name="shortcut_new_chat_long">새 채팅</string>
+    <string name="shortcut_live_voice_short">실시간 음성</string>
+    <string name="shortcut_live_voice_long">실시간 음성 시작</string>
+    <string name="shortcut_sessions_short">세션</string>
+    <string name="shortcut_sessions_long">세션 열기</string>
+    <string name="shortcut_disabled">계속하려면 Hermes Agent를 여세요.</string>
+</resources>

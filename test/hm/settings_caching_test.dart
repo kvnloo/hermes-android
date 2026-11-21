@@ -46,12 +46,15 @@ void main() {
 
   /// Real file IO completes outside the fake clock; alternate both until
   /// the page's chain of reads and writes is through.
-  Future<void> settle(WidgetTester tester) async {
-    for (var i = 0; i < 5; i++) {
+  /// Lets the store's real file I/O run. With [until], keeps going (up to
+  /// ~5 s) until it holds, so a loaded machine can't outrun a fixed budget.
+  Future<void> settle(WidgetTester tester, {bool Function()? until}) async {
+    for (var i = 0; i < (until == null ? 5 : 100); i++) {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 50)),
       );
       await tester.pump();
+      if (until != null && until()) return;
     }
   }
 
@@ -138,6 +141,11 @@ void main() {
       expect(prefs.getBool(HmSettingsPrefs.cacheMessagesKey), isFalse);
       expect(Directory('${tmp.path}/messages').existsSync(), isFalse);
       await tester.scrollUntilVisible(find.text('FILES & LINKS'), 200);
+      // The usage line re-reads the cache from disk after the delete.
+      await settle(
+        tester,
+        until: () => find.text('0 chats').evaluate().isNotEmpty,
+      );
       expect(find.text('0 chats'), findsOneWidget);
     });
 
