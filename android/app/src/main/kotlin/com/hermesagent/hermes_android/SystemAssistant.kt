@@ -15,7 +15,7 @@ import android.widget.LinearLayout
 class HermesVoiceService : VoiceInteractionService()
 
 class HermesSessionService : VoiceInteractionSessionService() {
-    override fun onNewSession(args: Bundle?) = HermesAssistantSession(this)
+    override fun onNewSession(args: Bundle?): VoiceInteractionSession = HermesAssistantSession(this)
 }
 
 private class HermesAssistantSession(context: Context) : VoiceInteractionSession(context) {
