@@ -15,6 +15,7 @@ void main() {
     ('QUICK_CHAT', AndroidEntryDestination.newChat),
     ('LIVE_VOICE', AndroidEntryDestination.liveVoice),
     ('SESSIONS', AndroidEntryDestination.sessions),
+    ('ROUTINES', AndroidEntryDestination.routines),
     ('UNKNOWN', null),
   ]) {
     test('routes Android action $action on cold and warm delivery', () async {
