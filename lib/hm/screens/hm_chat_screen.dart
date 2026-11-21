@@ -126,9 +126,16 @@ class _HmChatHeader extends StatelessWidget implements PreferredSizeWidget {
               child: Semantics(
                 button: onOpenBot != null,
                 label: 'Agent settings',
+                // One tap target: the character and the pill both open Agent
+                // settings. The face has its own poke handler, which would
+                // win the gesture arena, so the children ignore pointers and
+                // this detector takes every hit in its box.
                 child: GestureDetector(
+                  key: const ValueKey('hm-chat-header-bot'),
+                  behavior: HitTestBehavior.opaque,
                   onTap: onOpenBot,
-                  child: ListenableBuilder(
+                  child: IgnorePointer(
+                    child: ListenableBuilder(
                     listenable: Listenable.merge([chat, dictation]),
                     builder: (context, _) {
                       final title = chat.title.trim().isEmpty
@@ -172,6 +179,7 @@ class _HmChatHeader extends StatelessWidget implements PreferredSizeWidget {
                         ],
                       );
                     },
+                    ),
                   ),
                 ),
               ),
