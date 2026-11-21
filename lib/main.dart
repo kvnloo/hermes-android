@@ -47,7 +47,8 @@ import 'package:hermes_android/core/l10n/l10n.dart';
 import 'hm/features/settings/app_lock.dart';
 import 'hm/features/settings/cache_store.dart';
 import 'hm/features/settings/settings_prefs.dart';
-import 'nextgen/data/chat_controller.dart' show NgChatController, NgMessageCache;
+import 'nextgen/data/chat_controller.dart'
+    show NgChatController, NgMessageCache;
 import 'nextgen/nextgen_home.dart';
 import 'nextgen/ui/connect_screen.dart';
 import 'nextgen/nextgen_l10n.dart';
