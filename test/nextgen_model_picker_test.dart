@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hermes_android/core/services/connection_manager.dart';
+import 'package:hermes_android/core/services/document_scanner.dart';
 import 'package:hermes_android/core/services/legal_links.dart';
 import 'package:hermes_android/l10n/app_localizations.dart';
 import 'package:hermes_android/nextgen/data/chat_controller.dart';
@@ -93,6 +94,70 @@ void main() {
       }
     }
   });
+
+  testWidgets(
+    'scanner menu hides when unavailable; cancel and module error leave the draft unchanged',
+    (tester) async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      var supported = false;
+      var fail = false;
+      var scanCalls = 0;
+      messenger.setMockMethodCallHandler(DocumentScanner.channel, (call) async {
+        if (call.method == 'isAvailable') return supported;
+        expect(call.method, 'scan');
+        expect(call.arguments, {'singlePage': false});
+        scanCalls++;
+        if (fail) throw PlatformException(code: 'module_unavailable');
+        return null;
+      });
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(DocumentScanner.channel, null);
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+      final gateway = NextGenGateway(_connection());
+      final chat = NgChatController(gateway, sessionId: 'stored');
+      await tester.pumpWidget(_app(chat, gateway, ConnectionManager(prefs)));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final composer = find.byKey(const ValueKey('ng-composer-field'));
+      await tester.enterText(composer, 'Keep this draft');
+      final attach = find.byTooltip('Attach');
+      final scanner = find.text('Scan document');
+      await tester.tap(attach);
+      await tester.pumpAndSettle();
+      expect(scanner, findsNothing);
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+
+      supported = true;
+      await tester.tap(attach);
+      await tester.pumpAndSettle();
+      expect(scanner, findsOneWidget);
+      await tester.tap(scanner);
+      await tester.pumpAndSettle();
+      expect(scanCalls, 1);
+      expect(find.text('Keep this draft'), findsOneWidget);
+
+      fail = true;
+      await tester.tap(attach);
+      await tester.pumpAndSettle();
+      await tester.tap(scanner);
+      await tester.pumpAndSettle();
+      expect(scanCalls, 2);
+      expect(
+        find.textContaining('Google Play services can finish'),
+        findsOneWidget,
+      );
+      expect(find.text('Keep this draft'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      chat.dispose();
+      gateway.dispose();
+    },
+    variant: const TargetPlatformVariant({TargetPlatform.android}),
+  );
 
   testWidgets('every composer tap explicitly reopens the Android keyboard', (
     tester,

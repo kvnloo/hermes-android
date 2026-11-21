@@ -165,6 +165,7 @@ tasks.matching { it.name == "preBuild" || it.name.startsWith("merge") && it.name
 
 dependencies {
    implementation(voiceAar)
+   implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0")
    // Open-source C2DM IPC transport, not Firebase SDK/GMS client libraries.
    val replacementEmbeddedPushAar = providers.gradleProperty("embeddedPushAar").orNull
    if (replacementEmbeddedPushAar == null) {

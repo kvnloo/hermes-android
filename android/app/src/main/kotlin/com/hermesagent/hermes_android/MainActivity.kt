@@ -35,6 +35,8 @@ class MainActivity : FlutterFragmentActivity() {
     private var attachmentFileSaver: AttachmentFileSaver? = null
     private var handsFreeVoice: HandsFreeVoicePlugin? = null
 
+    private var documentScanner: DocumentScanner? = null
+
     private val glassWindow by lazy { GlassWindowPlugin(this) }
 
     override fun getBackgroundMode(): BackgroundMode =
@@ -53,6 +55,8 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        documentScanner?.close()
+        documentScanner = DocumentScanner(this, flutterEngine.dartExecutor.binaryMessenger)
         glassWindow.attach(flutterEngine)
         VoiceDraftMedia.install(this, flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
@@ -153,6 +157,8 @@ class MainActivity : FlutterFragmentActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         handsFreeVoice?.setForeground(false)
         handsFreeVoice = null
+        documentScanner?.close()
+        documentScanner = null
         glassWindow.detach()
         super.cleanUpFlutterEngine(flutterEngine)
     }
@@ -193,10 +199,10 @@ class MainActivity : FlutterFragmentActivity() {
         false
     }
 
-    // The attachment saver's document picker result; everything else goes on
-    // to Flutter's plugins as before.
+    // Route app-owned picker results before passing the rest to Flutter plugins.
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (attachmentFileSaver?.onActivityResult(requestCode, resultCode, data) == true) return
+        if (documentScanner?.onActivityResult(requestCode, resultCode, data) == true) return
         super.onActivityResult(requestCode, resultCode, data)
     }
 
