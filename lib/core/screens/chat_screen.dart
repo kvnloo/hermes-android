@@ -3846,6 +3846,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         (_turnApplicationSession != null && !_legacyTransportFallback);
     if (!remote ||
         _preparingPaste ||
+        _scanningDocument ||
         _annotationSnapshotInProgress ||
         _sending ||
         _streaming ||
@@ -7715,6 +7716,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         (!_transcriptLoadBlocksComposer &&
             !_annotationSnapshotInProgress &&
             !_preparingPaste &&
+            !_scanningDocument &&
             !_startingVoiceInput &&
             !_archiving &&
             !_preparingSend &&
@@ -7965,9 +7967,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             ),
             if (separateVoiceAction && handsFreeAction != null)
               Align(alignment: Alignment.centerRight, child: handsFreeAction),
-            if (_preparingPaste)
+            if (_preparingPaste || _scanningDocument)
               LinearProgressIndicator(
-                key: const Key('paste-attachment-preparing'),
+                key: _scanningDocument
+                    ? const Key('scan-attachment-preparing')
+                    : const Key('paste-attachment-preparing'),
                 semanticsLabel: context.l10n.preparing_attachments,
               ),
             Container(
