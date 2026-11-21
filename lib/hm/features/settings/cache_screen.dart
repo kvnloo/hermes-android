@@ -224,9 +224,16 @@ class _UsageLine extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(
-            label.toUpperCase(),
-            style: HmType.value.copyWith(color: c.text3, letterSpacing: 2.4),
+          // The label keeps up to three quarters of the free width; the
+          // leader fills what's left.
+          Flexible(
+            flex: 3,
+            child: Text(
+              label.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HmType.value.copyWith(color: c.text3, letterSpacing: 2.4),
+            ),
           ),
           Expanded(
             child: Padding(
