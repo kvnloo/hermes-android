@@ -80,7 +80,17 @@ class _HmNewAgentPageState extends State<HmNewAgentPage> {
         widget.bots.where((b) => b.isDefault).firstOrNull?.profile ??
         widget.bots.firstOrNull?.profile ??
         'default';
-    _name.addListener(() => setState(() => _hostError = null));
+    _name.addListener(_nameChanged);
+  }
+
+  String _lastName = '';
+
+  /// A new name clears the host's refusal of the old one; focus and
+  /// selection changes do not.
+  void _nameChanged() {
+    if (_name.text == _lastName) return;
+    _lastName = _name.text;
+    setState(() => _hostError = null);
   }
 
   @override
