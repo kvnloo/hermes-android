@@ -73,6 +73,10 @@ class GlassWindowPlugin(private val activity: Activity) {
 
     @TargetApi(31)
     private fun applyBlur31() {
+        // PhoneWindow forwards the radius to its DecorView, which doesn't exist
+        // before super.onCreate. The second configureWindow() call (after it)
+        // applies the blur.
+        if (activity.window.peekDecorView() == null) return
         val enabled = activity.windowManager.isCrossWindowBlurEnabled
         val px = if (enabled) (32 * activity.resources.displayMetrics.density).roundToInt() else 0
         // Blurs only what sits behind this window's transparent background: the wallpaper.
