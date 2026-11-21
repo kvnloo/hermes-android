@@ -5974,4 +5974,38 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get theme_surface_reload_action => 'Redessiner';
+
+  @override
+  String ng_worked_for(String duration) {
+    return 'A travaillé pendant $duration';
+  }
+
+  @override
+  String get ng_load_earlier_messages => 'Charger les messages précédents';
+
+  @override
+  String get ng_memory_updated => 'Mémoire mise à jour';
+
+  @override
+  String get ng_add_reaction => 'Ajouter une réaction';
+
+  @override
+  String get ng_skin_tone => 'TEINT DE PEAU';
+
+  @override
+  String get ng_could_not_add_reaction => 'Impossible d’ajouter la réaction';
+
+  @override
+  String get ng_reconnect_before_reacting =>
+      'Reconnectez cette conversation avant de réagir.';
+
+  @override
+  String get ng_remove_reaction => 'Retirer la réaction';
+
+  @override
+  String get ng_react_to_messages => 'Réagir aux messages';
+
+  @override
+  String get ng_reactions_description =>
+      'Hermes voit vos réactions et peut réagir à vos messages avec un emoji.';
 }

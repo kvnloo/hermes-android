@@ -30,6 +30,30 @@ SavedConnection _conn() => SavedConnection(
   signInMethod: 'none',
 );
 
+class _ReactionGateway extends NextGenGateway {
+  _ReactionGateway() : super(_conn());
+  final requests = <Map<String, dynamic>>[];
+  bool reject = false;
+
+  @override
+  Future<Map<String, dynamic>> call(
+    String method,
+    Map<String, dynamic> params, {
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    expect(method, 'message.react');
+    requests.add({...params});
+    if (reject) throw StateError('Rejected');
+    return {
+      'row_id': params['row_id'] ?? 43,
+      'reactions': [
+        if (params['emoji'] != null)
+          {'emoji': params['emoji'], 'author': 'user'},
+      ],
+    };
+  }
+}
+
 /// Serves [rows] (oldest first) newest-first by offset, as the dashboard's
 /// `order=latest` paging does.
 class _PagedApi extends DashboardApiClient {
@@ -155,7 +179,191 @@ Future<void> _settle() async {
   }
 }
 
+Future<void> _pumpChat(WidgetTester tester, NgChatController chat) async {
+  final gateway = chat.gateway;
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
+  await tester.pumpWidget(
+    MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      theme: nextGenTheme(Brightness.light, NextGenLook.instance),
+      home: NgScope(
+        connManager: ConnectionManager(prefs),
+        gateway: gateway,
+        connections: [gateway.connection],
+        switchTo: (_) async {},
+        addGateway: () async {},
+        signOut: (_) async {},
+        reload: () async {},
+        signInAgain: () async {},
+        child: Scaffold(
+          body: NgChatView(chat: chat, onOpenSidebar: () {}, onNewChat: () {}),
+        ),
+      ),
+    ),
+  );
+}
+
 void main() {
+  testWidgets('reaction actions send skin tones and show live agent reactions', (
+    tester,
+  ) async {
+    final gateway = _ReactionGateway();
+    final chat = NgChatController(gateway, sessionId: 'stored')
+      ..runtimeId = 'runtime';
+    addTearDown(gateway.dispose);
+    addTearDown(chat.dispose);
+    chat.debugApplyHistory([
+      {
+        'row_id': 41,
+        'role': 'user',
+        'content': 'Question',
+        'display_metadata': {
+          'reactions': [
+            {'emoji': '💡', 'author': 'agent'},
+          ],
+        },
+      },
+      {'row_id': 42, 'role': 'assistant', 'content': 'Answer'},
+    ]);
+    await _pumpChat(tester, chat);
+    final actions = find.byTooltip('Add Reaction');
+    expect(actions, findsNothing);
+    expect(find.text('💡'), findsNothing);
+
+    gateway.readyFrame = const {'replay_epoch': 'test'};
+    gateway.debugSetPhase(NgConnectionPhase.connected);
+    await tester.pump();
+    expect(find.text('💡'), findsOneWidget);
+    // The transcript is reversed: the assistant's action is built first.
+    await tester.tap(actions.first);
+    await tester.pumpAndSettle();
+    expect(find.text('SKIN TONE'), findsOneWidget);
+    expect(
+      find.text(
+        'Hermes sees your reactions and can react to your messages with an emoji.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('✋🏽'));
+    await tester.pump();
+    await tester.tap(find.text('👍🏽'));
+    await tester.pumpAndSettle();
+    expect(gateway.requests.single, {
+      'session_id': 'runtime',
+      'row_id': 42,
+      'emoji': '👍🏽',
+      'author': 'user',
+    });
+    expect(find.text('👍🏽'), findsOneWidget);
+
+    gateway.debugEmit(
+      StreamEvent(
+        type: 'message.reaction',
+        sessionId: 'runtime',
+        data: const {
+          'row_id': 42,
+          'role': 'assistant',
+          'reactions': [
+            {'emoji': '👍🏽', 'author': 'user'},
+            {'emoji': '🎉', 'author': 'agent'},
+          ],
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('🎉'), findsOneWidget);
+
+    await tester.tap(actions.first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove reaction'));
+    await tester.pumpAndSettle();
+    expect(gateway.requests.last, {
+      'session_id': 'runtime',
+      'row_id': 42,
+      'emoji': null,
+      'author': 'user',
+    });
+    expect(find.text('👍🏽'), findsNothing);
+
+    gateway.reject = true;
+    await tester.tap(actions.first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('❤️'));
+    await tester.pumpAndSettle();
+    expect(find.text('Could not add reaction'), findsOneWidget);
+
+    gateway.debugSetPhase(NgConnectionPhase.reconnecting);
+    await tester.pump();
+    await tester.tap(actions.first);
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Reconnect this conversation before reacting.'),
+      findsOneWidget,
+    );
+    expect(gateway.requests, hasLength(3));
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('memory updates show as compact system rows', (tester) async {
+    final gateway = NextGenGateway(_conn());
+    final chat = NgChatController(gateway, sessionId: 'stored');
+    addTearDown(gateway.dispose);
+    addTearDown(chat.dispose);
+    chat.debugApplyHistory([
+      {'role': 'assistant', 'content': 'Done'},
+      {'role': 'assistant', 'content': '💾 Memory updated'},
+    ]);
+    await _pumpChat(tester, chat);
+    expect(find.text('Memory updated'), findsOneWidget);
+    expect(find.byIcon(Icons.save_outlined), findsOneWidget);
+    expect(find.text('💾 Memory updated'), findsNothing);
+
+    gateway.debugEmit(
+      StreamEvent(
+        type: 'review.summary',
+        data: const {'text': '💾 Self-improvement review: Memory updated'},
+        sessionId: 'stored',
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Memory updated'), findsNWidgets(2));
+    expect(find.byIcon(Icons.save_outlined), findsNWidgets(2));
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('completed turns show elapsed time when known', (tester) async {
+    final gateway = NextGenGateway(_conn());
+    final chat = NgChatController(gateway, sessionId: 'stored');
+    addTearDown(chat.dispose);
+    addTearDown(gateway.dispose);
+    chat.debugApplyHistory([
+      {'role': 'assistant', 'content': 'Unknown timing'},
+      {'role': 'user', 'content': 'Try again'},
+      {'role': 'assistant', 'content': 'Done', 'duration_s': 64},
+    ]);
+    await _pumpChat(tester, chat);
+    expect(find.text('Worked for 1m 4s'), findsOneWidget);
+    expect(find.textContaining('Worked for'), findsOneWidget);
+
+    gateway.debugEmit(
+      StreamEvent(type: 'message.start', data: const {}, sessionId: 'stored'),
+    );
+    await tester.pump();
+    expect(find.textContaining('Worked for'), findsOneWidget);
+    gateway.debugEmit(
+      StreamEvent(
+        type: 'message.complete',
+        data: const {'text': 'Live reply'},
+        sessionId: 'stored',
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Worked for 0s'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   group('Markdown chunks', () {
     test('short text stays whole', () {
       expect(ngMarkdownChunks('one\n\ntwo'), ['one\n\ntwo']);
@@ -363,53 +571,42 @@ void main() {
       expect(tool.output!.length, lessThanOrEqualTo(ngStoredToolChars + 1));
     });
 
-    testWidgets('scrolling to the top of a long chat loads the page before', (
+    testWidgets('Load earlier messages keeps the visible transcript in place', (
       tester,
     ) async {
       // Small rows: fake-async widget tests can't wait on an isolate.
       api = _PagedApi(gateway.dashboard, _turns(40, toolChars: 100));
       gateway.api = api;
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
       final rows = api.rows;
       chat.debugApplyHistory(
         rows.sublist(rows.length - ngHistoryPage),
         pageLimit: ngHistoryPage,
       );
-      await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          theme: nextGenTheme(Brightness.light, NextGenLook.instance),
-          home: NgScope(
-            connManager: ConnectionManager(prefs),
-            gateway: gateway,
-            connections: [gateway.connection],
-            switchTo: (_) async {},
-            addGateway: () async {},
-            signOut: (_) async {},
-            reload: () async {},
-            signInAgain: () async {},
-            child: Scaffold(
-              body: NgChatView(
-                chat: chat,
-                onOpenSidebar: () {},
-                onNewChat: () {},
-              ),
-            ),
-          ),
-        ),
-      );
+      await _pumpChat(tester, chat);
       await tester.pump(const Duration(milliseconds: 300));
-      final before = api.calls.length;
-      await tester.drag(
-        find.byKey(const ValueKey('ng-transcript')),
-        const Offset(0, 20000),
+      final load = find.text('Load earlier messages');
+      final scrollable = find
+          .descendant(
+            of: find.byKey(const ValueKey('ng-transcript')),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      await tester.scrollUntilVisible(load, 200, scrollable: scrollable);
+      await tester.pumpAndSettle();
+      expect(api.calls, isEmpty);
+      final prompt = find.text('Prompt 25');
+      final before = tester.getTopLeft(prompt);
+      await tester.tap(load);
+      await tester.pumpAndSettle();
+      expect(api.calls.single, (ngHistoryPage, ngHistoryPage));
+      expect(tester.getTopLeft(prompt), before);
+      await tester.scrollUntilVisible(
+        find.text('Prompt 10'),
+        200,
+        scrollable: scrollable,
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(api.calls.length, greaterThan(before));
-      expect(api.calls.last.$2, greaterThan(0), reason: 'an older offset');
+      await tester.pumpAndSettle();
+      expect(find.text('Prompt 10'), findsOneWidget);
 
       // Typing in the composer reuses the parsed replies.
       final first = tester

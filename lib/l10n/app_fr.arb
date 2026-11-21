@@ -1624,5 +1624,15 @@
   "theme_surface_glass_hint": "Votre fond d'écran transparaît derrière Hermes, flouté et teinté pour garder le texte lisible.",
   "theme_surface_reload_title": "Redessiner la fenêtre ?",
   "theme_surface_reload_body": "Hermes redémarre sa fenêtre pour changer de surface. Les discussions et brouillons sont conservés.",
-  "theme_surface_reload_action": "Redessiner"
+  "theme_surface_reload_action": "Redessiner",
+  "ng_worked_for": "A travaillé pendant {duration}",
+  "ng_load_earlier_messages": "Charger les messages précédents",
+  "ng_memory_updated": "Mémoire mise à jour",
+  "ng_add_reaction": "Ajouter une réaction",
+  "ng_skin_tone": "TEINT DE PEAU",
+  "ng_could_not_add_reaction": "Impossible d’ajouter la réaction",
+  "ng_reconnect_before_reacting": "Reconnectez cette conversation avant de réagir.",
+  "ng_remove_reaction": "Retirer la réaction",
+  "ng_react_to_messages": "Réagir aux messages",
+  "ng_reactions_description": "Hermes voit vos réactions et peut réagir à vos messages avec un emoji."
 }

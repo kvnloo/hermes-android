@@ -2516,5 +2516,22 @@
   "theme_surface_glass_hint": "Your wallpaper shows through Hermes, blurred and tinted so text stays readable.",
   "theme_surface_reload_title": "Redraw the window?",
   "theme_surface_reload_body": "Hermes restarts its window to switch surfaces. Chats and drafts are kept.",
-  "theme_surface_reload_action": "Redraw"
+  "theme_surface_reload_action": "Redraw",
+  "ng_worked_for": "Worked for {duration}",
+  "@ng_worked_for": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "ng_load_earlier_messages": "Load earlier messages",
+  "ng_memory_updated": "Memory updated",
+  "ng_add_reaction": "Add Reaction",
+  "ng_skin_tone": "SKIN TONE",
+  "ng_could_not_add_reaction": "Could not add reaction",
+  "ng_reconnect_before_reacting": "Reconnect this conversation before reacting.",
+  "ng_remove_reaction": "Remove reaction",
+  "ng_react_to_messages": "React to messages",
+  "ng_reactions_description": "Hermes sees your reactions and can react to your messages with an emoji."
 }

@@ -5,7 +5,6 @@ import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -131,13 +130,6 @@ class _NgChatViewState extends State<NgChatView> {
       }
     };
     _input.addListener(() => setState(() {}));
-    _scroll.addListener(() {
-      if (_scroll.hasClients &&
-          _scroll.position.userScrollDirection != ScrollDirection.idle) {
-        _autoPages = 0;
-      }
-      _maybeLoadOlder();
-    });
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (chat.running && mounted) setState(() {});
     });
@@ -195,23 +187,6 @@ class _NgChatViewState extends State<NgChatView> {
     }
     setState(() {});
   }
-
-  /// The transcript is reversed, so its top is the scroll's far end: fetch
-  /// the page before when the reader gets near it.
-  void _maybeLoadOlder({bool auto = false}) {
-    if (!_scroll.hasClients || !chat.hasOlder || chat.loadingOlder) return;
-    if (_scroll.position.extentAfter >= 800) return;
-    if (auto) {
-      // Pages of tool rows can add little to show: fetch a few on our own
-      // to fill the screen, then wait for the reader to scroll.
-      if (_autoPages >= 3) return;
-      _autoPages++;
-    }
-    unawaited(chat.loadOlder());
-  }
-
-  /// Older pages fetched since the reader last scrolled.
-  int _autoPages = 0;
 
   @override
   void dispose() {
@@ -765,7 +740,7 @@ class _NgChatViewState extends State<NgChatView> {
     if (chat.loadingHistory && chat.items.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (chat.items.isEmpty) {
+    if (chat.items.isEmpty && !chat.hasOlder && !chat.loadingOlder) {
       return NgGlow(
         child: NgEmpty(
           icon: Icons.auto_awesome,
@@ -786,12 +761,6 @@ class _NgChatViewState extends State<NgChatView> {
       for (var i = 0; i < items.length; i++)
         ValueKey(items[i].key): items.length - 1 - i + lead,
     };
-    if (older == 1 && chat.hasOlder && !chat.loadingOlder) {
-      // A short first page may not fill the screen to scroll.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _maybeLoadOlder(auto: true);
-      });
-    }
     return ListView.builder(
       key: const ValueKey('ng-transcript'),
       controller: _scroll,
@@ -802,14 +771,22 @@ class _NgChatViewState extends State<NgChatView> {
       itemBuilder: (context, index) {
         if (chat.running && index == 0) return _statusLine(c);
         if (older == 1 && index == items.length + lead) {
-          return const Padding(
-            key: ValueKey('ng-loading-older'),
-            padding: EdgeInsets.symmetric(vertical: 16),
+          return SizedBox(
+            height: 48,
             child: Center(
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+              child: TextButton(
+                onPressed: chat.loadingOlder ? null : chat.loadOlder,
+                style: TextButton.styleFrom(foregroundColor: c.text2),
+                child: chat.loadingOlder
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: c.accent,
+                        ),
+                      )
+                    : Text(ngL.ng_load_earlier_messages),
               ),
             ),
           );
@@ -829,10 +806,14 @@ class _NgChatViewState extends State<NgChatView> {
     return switch (item) {
       NgUserItem() => _UserBubble(
         item: item,
+        showReactions: chat.supportsReactions,
+        onReact: chat.canReactTo(item) ? () => _pickReaction(item) : null,
         onRetry: i == lastUserIndex && !chat.running ? chat.retryLast : null,
       ),
       NgAssistantItem() => _AssistantBlock(
         item: item,
+        showReactions: chat.supportsReactions,
+        onReact: chat.canReactTo(item) ? () => _pickReaction(item) : null,
         files: _filesClient,
         filesIdentity: (NgScope.of(context).connection.id, chat.storedId),
         last: i == items.length - 1,
@@ -840,6 +821,22 @@ class _NgChatViewState extends State<NgChatView> {
         readAloud: _readAloud,
       ),
       NgSystemItem() => _SystemCard(item: item),
+      NgMemoryUpdatedItem() => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.save_outlined, size: 14, color: c.text3),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                ngL.ng_memory_updated,
+                style: NgType.caption.copyWith(color: c.text3),
+              ),
+            ),
+          ],
+        ),
+      ),
       NgNoticeItem() => Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Text(
@@ -853,6 +850,33 @@ class _NgChatViewState extends State<NgChatView> {
         ),
       ),
     };
+  }
+
+  Future<void> _pickReaction(NgMessageItem item) async {
+    final owner = chat;
+    if (!owner.canSendReaction) {
+      ngToast(context, ngL.ng_reconnect_before_reacting);
+      return;
+    }
+
+    final selected = await showNgSheet<String>(
+      context,
+      builder: (_) => _ReactionPicker(reactions: item.reactions),
+    );
+    if (selected == null || !mounted || chat != owner) return;
+    if (!owner.canSendReaction) {
+      ngToast(context, ngL.ng_reconnect_before_reacting);
+      return;
+    }
+    final ok = await owner.react(item, selected.isEmpty ? null : selected);
+    if (!ok && mounted && chat == owner) {
+      ngToast(
+        context,
+        owner.canSendReaction
+            ? ngL.ng_could_not_add_reaction
+            : ngL.ng_reconnect_before_reacting,
+      );
+    }
   }
 
   Widget _statusLine(NgColors c) {
@@ -1203,9 +1227,142 @@ ngChatDisplay() {
   );
 }
 
+class _ReactionPicker extends StatefulWidget {
+  const _ReactionPicker({required this.reactions});
+  final List<NgMessageReaction> reactions;
+
+  @override
+  State<_ReactionPicker> createState() => _ReactionPickerState();
+}
+
+class _ReactionPickerState extends State<_ReactionPicker> {
+  static const _tones = ['', '🏻', '🏼', '🏽', '🏾', '🏿'];
+  static const _emoji = ['👍', '👎', '❤️', '😂', '😮', '😢', '🙏', '🎉'];
+  static const _modifiable = {'👍', '👎', '🙏'};
+
+  String _tone = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final c = NgColors.of(context);
+    final mine = widget.reactions.where((r) => r.author == 'user').firstOrNull;
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              ngL.ng_add_reaction,
+              style: NgType.body.copyWith(color: c.text),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              ngL.ng_reactions_description,
+              style: NgType.bodySmall.copyWith(color: c.text2),
+            ),
+            const SizedBox(height: 12),
+            Semantics(
+              container: true,
+              label: ngL.ng_react_to_messages,
+              child: Wrap(
+                children: [
+                  for (final emoji in _emoji.map(_withTone))
+                    _emojiButton(
+                      emoji,
+                      selected: mine?.emoji == emoji,
+                      onTap: (emoji) => Navigator.pop(
+                        context,
+                        emoji == mine?.emoji ? '' : emoji,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              ngL.ng_skin_tone,
+              style: NgType.caption.copyWith(color: c.text3),
+            ),
+            Wrap(
+              children: [
+                for (final tone in _tones)
+                  _emojiButton(
+                    '✋$tone',
+                    selected: tone == _tone,
+                    onTap: (_) => setState(() => _tone = tone),
+                  ),
+              ],
+            ),
+            if (mine != null)
+              TextButton(
+                style: TextButton.styleFrom(foregroundColor: c.text2),
+                onPressed: () => Navigator.pop(context, ''),
+                child: Text(ngL.ng_remove_reaction),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _withTone(String emoji) =>
+      _modifiable.contains(emoji) ? '$emoji$_tone' : emoji;
+
+  Widget _emojiButton(
+    String emoji, {
+    required bool selected,
+    required ValueChanged<String> onTap,
+  }) {
+    final c = NgColors.of(context);
+    return IconButton(
+      isSelected: selected,
+      onPressed: () => onTap(emoji),
+      style: IconButton.styleFrom(
+        backgroundColor: selected ? c.accentSoft : c.surface,
+      ),
+      icon: Text(
+        emoji,
+        style: NgType.body.copyWith(fontSize: 22, color: c.text),
+      ),
+    );
+  }
+}
+
+class _ReactionPills extends StatelessWidget {
+  const _ReactionPills(this.reactions, {this.onReact});
+  final List<NgMessageReaction> reactions;
+  final VoidCallback? onReact;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 4),
+    child: Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: [
+        for (final reaction in reactions)
+          NgPill(
+            reaction.emoji,
+            tone: reaction.author == 'user' ? NgTone.accent : NgTone.neutral,
+            onTap: onReact,
+          ),
+      ],
+    ),
+  );
+}
+
 class _UserBubble extends StatelessWidget {
-  const _UserBubble({required this.item, this.onRetry});
+  const _UserBubble({
+    required this.item,
+    required this.showReactions,
+    this.onReact,
+    this.onRetry,
+  });
   final NgUserItem item;
+  final bool showReactions;
+  final VoidCallback? onReact;
   final VoidCallback? onRetry;
 
   @override
@@ -1292,6 +1449,14 @@ class _UserBubble extends StatelessWidget {
                     ),
                 ],
               ),
+            ),
+          if (showReactions && item.reactions.isNotEmpty)
+            _ReactionPills(item.reactions, onReact: onReact),
+          if (onReact != null)
+            _ActionIcon(
+              icon: Icons.add_reaction_outlined,
+              tooltip: ngL.ng_add_reaction,
+              onTap: onReact!,
             ),
           if (item.time != null && !item.pending)
             Padding(
@@ -1448,9 +1613,13 @@ class _AssistantBlock extends StatefulWidget {
     required this.files,
     required this.filesIdentity,
     required this.readAloud,
+    required this.showReactions,
+    this.onReact,
     this.onRetry,
   });
   final NgAssistantItem item;
+  final bool showReactions;
+  final VoidCallback? onReact;
 
   /// Opens a files client for this chat, for `MEDIA:` deliveries.
   final RemoteFilesDataSource Function() files;
@@ -1642,6 +1811,13 @@ class _AssistantBlockState extends State<_AssistantBlock> {
     builder: (context, _) => _build(context),
   );
 
+  String _workedDuration(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds.remainder(60);
+    if (minutes == 0) return '${seconds}s';
+    return seconds == 0 ? '${minutes}m' : '${minutes}m ${seconds}s';
+  }
+
   Widget _build(BuildContext context) {
     final display = ngChatDisplay();
     final c = NgColors.of(context);
@@ -1697,6 +1873,16 @@ class _AssistantBlockState extends State<_AssistantBlock> {
                 ),
               ),
             ),
+          if (widget.showReactions && item.reactions.isNotEmpty)
+            _ReactionPills(item.reactions, onReact: widget.onReact),
+          if (item.workedFor case final Duration duration when !item.open)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                ngL.ng_worked_for(_workedDuration(duration)),
+                style: NgType.caption.copyWith(color: c.textMuted),
+              ),
+            ),
           if (!item.open && item.text.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
@@ -1729,6 +1915,12 @@ class _AssistantBlockState extends State<_AssistantBlock> {
                     tooltip: ngL.report_ai_output,
                     onTap: reportAresAiOutput,
                   ),
+                  if (widget.onReact != null)
+                    _ActionIcon(
+                      icon: Icons.add_reaction_outlined,
+                      tooltip: ngL.ng_add_reaction,
+                      onTap: widget.onReact!,
+                    ),
                   if (widget.onRetry != null)
                     _ActionIcon(
                       icon: Icons.refresh_rounded,

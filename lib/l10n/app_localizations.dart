@@ -9989,6 +9989,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Redraw'**
   String get theme_surface_reload_action;
+
+  /// No description provided for @ng_worked_for.
+  ///
+  /// In en, this message translates to:
+  /// **'Worked for {duration}'**
+  String ng_worked_for(String duration);
+
+  /// No description provided for @ng_load_earlier_messages.
+  ///
+  /// In en, this message translates to:
+  /// **'Load earlier messages'**
+  String get ng_load_earlier_messages;
+
+  /// No description provided for @ng_memory_updated.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory updated'**
+  String get ng_memory_updated;
+
+  /// No description provided for @ng_add_reaction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Reaction'**
+  String get ng_add_reaction;
+
+  /// No description provided for @ng_skin_tone.
+  ///
+  /// In en, this message translates to:
+  /// **'SKIN TONE'**
+  String get ng_skin_tone;
+
+  /// No description provided for @ng_could_not_add_reaction.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not add reaction'**
+  String get ng_could_not_add_reaction;
+
+  /// No description provided for @ng_reconnect_before_reacting.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnect this conversation before reacting.'**
+  String get ng_reconnect_before_reacting;
+
+  /// No description provided for @ng_remove_reaction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove reaction'**
+  String get ng_remove_reaction;
+
+  /// No description provided for @ng_react_to_messages.
+  ///
+  /// In en, this message translates to:
+  /// **'React to messages'**
+  String get ng_react_to_messages;
+
+  /// No description provided for @ng_reactions_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes sees your reactions and can react to your messages with an emoji.'**
+  String get ng_reactions_description;
 }
 
 class _AppLocalizationsDelegate

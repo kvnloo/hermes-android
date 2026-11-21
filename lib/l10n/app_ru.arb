@@ -1624,5 +1624,15 @@
   "theme_surface_glass_hint": "Обои просвечивают сквозь Hermes — размытые и затонированные, чтобы текст оставался читаемым.",
   "theme_surface_reload_title": "Перерисовать окно?",
   "theme_surface_reload_body": "Hermes перезапустит окно, чтобы сменить поверхность. Чаты и черновики сохранятся.",
-  "theme_surface_reload_action": "Перерисовать"
+  "theme_surface_reload_action": "Перерисовать",
+  "ng_worked_for": "Время работы: {duration}",
+  "ng_load_earlier_messages": "Загрузить предыдущие сообщения",
+  "ng_memory_updated": "Память обновлена",
+  "ng_add_reaction": "Добавить реакцию",
+  "ng_skin_tone": "ТОН КОЖИ",
+  "ng_could_not_add_reaction": "Не удалось добавить реакцию",
+  "ng_reconnect_before_reacting": "Подключите этот разговор заново, прежде чем реагировать.",
+  "ng_remove_reaction": "Удалить реакцию",
+  "ng_react_to_messages": "Реагировать на сообщения",
+  "ng_reactions_description": "Hermes видит ваши реакции и может реагировать на ваши сообщения с помощью эмодзи."
 }

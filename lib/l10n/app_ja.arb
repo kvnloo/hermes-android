@@ -1624,5 +1624,15 @@
   "theme_surface_glass_hint": "壁紙が Hermes の背後に透けて見えます。文字が読めるようにぼかしと色調を加えます。",
   "theme_surface_reload_title": "ウィンドウを再描画しますか？",
   "theme_surface_reload_body": "サーフェスを切り替えるため Hermes のウィンドウを再起動します。チャットと下書きは保持されます。",
-  "theme_surface_reload_action": "再描画"
+  "theme_surface_reload_action": "再描画",
+  "ng_worked_for": "作業時間 {duration}",
+  "ng_load_earlier_messages": "以前のメッセージを読み込む",
+  "ng_memory_updated": "メモリを更新しました",
+  "ng_add_reaction": "リアクションを追加",
+  "ng_skin_tone": "肌の色",
+  "ng_could_not_add_reaction": "リアクションを追加できませんでした",
+  "ng_reconnect_before_reacting": "リアクションする前にこの会話を再接続してください。",
+  "ng_remove_reaction": "リアクションを削除",
+  "ng_react_to_messages": "メッセージにリアクションする",
+  "ng_reactions_description": "Hermes はあなたのリアクションを確認し、メッセージに絵文字で反応できます。"
 }

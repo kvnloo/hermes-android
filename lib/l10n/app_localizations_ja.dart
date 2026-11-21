@@ -5799,4 +5799,37 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get theme_surface_reload_action => '再描画';
+
+  @override
+  String ng_worked_for(String duration) {
+    return '作業時間 $duration';
+  }
+
+  @override
+  String get ng_load_earlier_messages => '以前のメッセージを読み込む';
+
+  @override
+  String get ng_memory_updated => 'メモリを更新しました';
+
+  @override
+  String get ng_add_reaction => 'リアクションを追加';
+
+  @override
+  String get ng_skin_tone => '肌の色';
+
+  @override
+  String get ng_could_not_add_reaction => 'リアクションを追加できませんでした';
+
+  @override
+  String get ng_reconnect_before_reacting => 'リアクションする前にこの会話を再接続してください。';
+
+  @override
+  String get ng_remove_reaction => 'リアクションを削除';
+
+  @override
+  String get ng_react_to_messages => 'メッセージにリアクションする';
+
+  @override
+  String get ng_reactions_description =>
+      'Hermes はあなたのリアクションを確認し、メッセージに絵文字で反応できます。';
 }

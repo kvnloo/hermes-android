@@ -1766,5 +1766,15 @@
   "theme_surface_glass_hint": "Крізь Hermes видно шпалери. Розмиття й тонування допомагають читати текст.",
   "theme_surface_reload_title": "Перезапустити вікно?",
   "theme_surface_reload_body": "Hermes перезапустить вікно, щоб змінити поверхню. Чати й чернетки буде збережено.",
-  "theme_surface_reload_action": "Перезапустити"
+  "theme_surface_reload_action": "Перезапустити",
+  "ng_worked_for": "Час роботи: {duration}",
+  "ng_load_earlier_messages": "Завантажити попередні повідомлення",
+  "ng_memory_updated": "Пам’ять оновлено",
+  "ng_add_reaction": "Додати реакцію",
+  "ng_skin_tone": "ТОН ШКІРИ",
+  "ng_could_not_add_reaction": "Не вдалося додати реакцію",
+  "ng_reconnect_before_reacting": "Знову підключіть цю розмову, перш ніж реагувати.",
+  "ng_remove_reaction": "Видалити реакцію",
+  "ng_react_to_messages": "Реагувати на повідомлення",
+  "ng_reactions_description": "Hermes бачить ваші реакції та може реагувати на ваші повідомлення за допомогою емодзі."
 }

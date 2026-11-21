@@ -58,3 +58,6 @@ mutation-test-report/
 
 # Generated test artifacts
 review-evidence/
+
+# flutter golden-test failure output
+test/failures/
