@@ -137,11 +137,19 @@ class ScreenShareService : Service() {
     private var latest: Image? = null
     private var capturePending = false
     private var completed = false
+
+    // A revoked consent or Stop action must fence any delayed frame delivery
+    // immediately, before Android asynchronously calls onDestroy().
+    private fun stopCapture() {
+        completed = true
+        stopSelf()
+    }
+
     private val callback = object : MediaProjection.Callback() {
-        override fun onStop() { stopSelf() }
+        override fun onStop() { stopCapture() }
         override fun onCapturedContentResize(width: Int, height: Int) {
             if (display == null || completed) return
-            try { resize(width, height) } catch (_: RuntimeException) { stopSelf() }
+            try { resize(width, height) } catch (_: RuntimeException) { stopCapture() }
         }
     }
 
@@ -150,9 +158,11 @@ class ScreenShareService : Service() {
     @Suppress("DEPRECATION")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            STOP -> { stopSelf(); return START_NOT_STICKY }
+            STOP -> { stopCapture(); return START_NOT_STICKY }
             CAPTURE -> {
-                if (projection != null && !capturePending && !completed) {
+                if (projection == null) {
+                    stopCapture()
+                } else if (!capturePending && !completed) {
                     capturePending = true
                     // Allow time to close the notification shade before capturing.
                     handler.postDelayed(::capture, 2500)
@@ -185,10 +195,10 @@ class ScreenShareService : Service() {
                 "Hermes screen capture", width, height, resources.displayMetrics.densityDpi,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, frames.surface, null, handler,
             ))
-            handler.postDelayed({ stopSelf() }, 90_000)
+            handler.postDelayed(::stopCapture, 90_000)
         } catch (_: RuntimeException) {
             Toast.makeText(this, R.string.screen_preview_unavailable, Toast.LENGTH_SHORT).show()
-            stopSelf()
+            stopCapture()
         }
         return START_NOT_STICKY
     }
