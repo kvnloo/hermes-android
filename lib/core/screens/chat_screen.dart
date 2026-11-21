@@ -399,7 +399,7 @@ class _ChatModelPickerSheetState extends State<_ChatModelPickerSheet> {
         choice.model == _selectedChoice?.model &&
         choice.provider == _selectedChoice?.provider;
     return ListTile(
-      key: ValueKey('chat-model:' + choice.provider + ':' + choice.model),
+      key: ValueKey('chat-model:${choice.provider}:${choice.model}'),
       leading: Icon(
         selected ? Icons.check_circle : Icons.smart_toy_outlined,
         color: selected ? Theme.of(context).colorScheme.primary : null,
