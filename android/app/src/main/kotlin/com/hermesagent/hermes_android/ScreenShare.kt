@@ -29,7 +29,7 @@ import androidx.core.content.FileProvider
 import java.io.File
 import java.util.UUID
 
-class ScreenPreviewActivity : Activity() {
+class ScreenCaptureActivity : Activity() {
     private var requestPending = false
 
     override fun onCreate(state: Bundle?) {
@@ -134,7 +134,8 @@ class ScreenShareService : Service() {
     private var projection: MediaProjection? = null
     private var display: VirtualDisplay? = null
     private var reader: ImageReader? = null
-    private var captureAt: Long? = null
+    private var latest: Image? = null
+    private var capturePending = false
     private var completed = false
     private val callback = object : MediaProjection.Callback() {
         override fun onStop() { stopSelf() }
@@ -151,9 +152,10 @@ class ScreenShareService : Service() {
         when (intent?.action) {
             STOP -> { stopSelf(); return START_NOT_STICKY }
             CAPTURE -> {
-                if (projection != null && captureAt == null && !completed) {
+                if (projection != null && !capturePending && !completed) {
+                    capturePending = true
                     // Allow time to close the notification shade before capturing.
-                    captureAt = android.os.SystemClock.elapsedRealtime() + 2500
+                    handler.postDelayed(::capture, 2500)
                 }
                 return START_NOT_STICKY
             }
@@ -192,25 +194,32 @@ class ScreenShareService : Service() {
     }
 
     private fun newReader(width: Int, height: Int): ImageReader =
-        ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2).apply {
+        ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 3).apply {
             setOnImageAvailableListener({ source ->
-                try {
-                    source.acquireLatestImage()?.use { image ->
-                        val threshold = captureAt
-                        if (source == reader && !completed && threshold != null &&
-                            android.os.SystemClock.elapsedRealtime() >= threshold
-                        ) {
-                            completed = true
-                            publish(image)
-                            stopSelf()
-                        }
+                if (source == reader && !completed) {
+                    // Keep one recent frame in memory so a static target can be
+                    // captured too. Two spare slots permit acquireLatestImage.
+                    source.acquireLatestImage()?.let { current ->
+                        latest?.close()
+                        latest = current
                     }
-                } catch (_: Exception) {
-                    Toast.makeText(this@ScreenShareService, R.string.screen_preview_unavailable, Toast.LENGTH_SHORT).show()
-                    stopSelf()
                 }
             }, handler)
         }
+
+    private fun capture() {
+        if (completed) return
+        completed = true
+        try {
+            val frame = requireNotNull(latest)
+            check(getSystemService(NotificationManager::class.java).areNotificationsEnabled())
+            publish(frame)
+        } catch (_: Exception) {
+            Toast.makeText(this, R.string.screen_preview_unavailable, Toast.LENGTH_SHORT).show()
+        } finally {
+            stopSelf()
+        }
+    }
 
     private fun resize(contentWidth: Int, contentHeight: Int) {
         val target = display ?: return
@@ -219,6 +228,8 @@ class ScreenShareService : Service() {
         if (old?.width == width && old.height == height) return
         val replacement = newReader(width, height)
         reader = replacement
+        latest?.close()
+        latest = null
         try {
             target.resize(width, height, resources.displayMetrics.densityDpi)
             target.surface = replacement.surface
@@ -233,18 +244,20 @@ class ScreenShareService : Service() {
         val file = File(directory, "Screen-${UUID.randomUUID()}.png")
         try {
             val plane = image.planes.single()
-            val paddedWidth = plane.rowStride / plane.pixelStride
-            val padded = Bitmap.createBitmap(paddedWidth, image.height, Bitmap.Config.ARGB_8888)
+            val row = ByteArray(image.width * plane.pixelStride)
+            val packed = java.nio.ByteBuffer.allocate(row.size * image.height)
+            for (y in 0 until image.height) {
+                plane.buffer.position(y * plane.rowStride)
+                plane.buffer.get(row)
+                packed.put(row)
+            }
+            packed.flip()
+            val bitmap = Bitmap.createBitmap(image.width, image.height, Bitmap.Config.ARGB_8888)
             try {
-                padded.copyPixelsFromBuffer(plane.buffer)
-                val cropped = Bitmap.createBitmap(padded, 0, 0, image.width, image.height)
-                try {
-                    file.outputStream().use { check(cropped.compress(Bitmap.CompressFormat.PNG, 100, it)) }
-                } finally {
-                    if (cropped !== padded) cropped.recycle()
-                }
+                bitmap.copyPixelsFromBuffer(packed)
+                file.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
             } finally {
-                padded.recycle()
+                bitmap.recycle()
             }
 
             val uri = FileProvider.getUriForFile(this, "$packageName.screen_share", file)
@@ -300,6 +313,8 @@ class ScreenShareService : Service() {
         handler.removeCallbacksAndMessages(null)
         display?.release()
         display = null
+        latest?.close()
+        latest = null
         reader?.close()
         reader = null
         projection?.let {

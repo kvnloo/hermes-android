@@ -57,7 +57,7 @@ class MainActivity : FlutterFragmentActivity() {
             "com.hermesagent.hermes_android/system_assistant").setMethodCallHandler { call, result ->
             val destination = when (call.method) {
                 "assistantSettings" -> Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)
-                "screenPreview" -> Intent(this, ScreenPreviewActivity::class.java)
+                "screenPreview" -> Intent(this, ScreenCaptureActivity::class.java)
                 else -> null
             }
             if (destination == null) result.notImplemented()
