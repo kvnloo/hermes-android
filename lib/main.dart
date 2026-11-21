@@ -429,7 +429,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
     );
     _keepAlive.onAppLifecycleState(
       lifecycle ?? AppLifecycleState.resumed,
-      hasActiveTurn: _hasActiveTurn,
+      hasActiveTurn: _needsProcess,
     );
     // The keep-alive follows the work: a turn settling (or starting) while
     // backgrounded must end (or earn) the foreground service immediately,
@@ -437,6 +437,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
     _keepAliveTurnActivityToken = _turnApplicationController
         .addTurnActivityListener(_onTurnActivityChanged);
     nextGenTurnActive.addListener(_onTurnActivityChanged);
+    browserSignInPending.addListener(_onTurnActivityChanged);
     backgroundWorkEnabled.addListener(_onBackgroundWorkPolicyChanged);
     BackgroundWorkPrefsStore.pendingChoice.addListener(
       _onBackgroundWorkPolicyChanged,
@@ -486,10 +487,13 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
     }
   }
 
-  /// A classic turn, or NextGen's open chat running (Kyllene's ChatService
-  /// follows the open chat the same way).
-  bool get _hasActiveTurn =>
-      _turnApplicationController.hasActiveTurn || nextGenTurnActive.value;
+  /// Work the process must stay up for while backgrounded: a classic turn,
+  /// NextGen's open chat running (Kyllene's ChatService follows the open chat
+  /// the same way), or a browser sign-in waiting for its code.
+  bool get _needsProcess =>
+      _turnApplicationController.hasActiveTurn ||
+      nextGenTurnActive.value ||
+      browserSignInPending.value;
 
   bool get _protectBackgroundWork =>
       _confirmedBackgroundPolicy == true &&
@@ -533,7 +537,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
       backgroundWorkEnabled: _protectBackgroundWork,
     );
     _syncOngoingChats();
-    _keepAlive.onAppLifecycleState(state, hasActiveTurn: _hasActiveTurn);
+    _keepAlive.onAppLifecycleState(state, hasActiveTurn: _needsProcess);
   }
 
   void _pruneApprovalActions() {
@@ -578,7 +582,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
 
   void _onTurnActivityChanged() {
     if (_closingTurnOwner) return;
-    _keepAlive.onTurnActivityChanged(_hasActiveTurn);
+    _keepAlive.onTurnActivityChanged(_needsProcess);
     _syncOngoingChats();
   }
 
@@ -1304,6 +1308,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
       notificationResponseHandler = null;
     }
     nextGenTurnActive.removeListener(_onTurnActivityChanged);
+    browserSignInPending.removeListener(_onTurnActivityChanged);
     backgroundWorkEnabled.removeListener(_onBackgroundWorkPolicyChanged);
     BackgroundWorkPrefsStore.pendingChoice.removeListener(
       _onBackgroundWorkPolicyChanged,

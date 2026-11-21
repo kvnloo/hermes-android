@@ -19,6 +19,7 @@ import '../theme/nextgen_theme.dart';
 import 'certificate_picker.dart';
 import 'widgets.dart';
 import '../nextgen_l10n.dart';
+import '../nextgen_preferences.dart';
 
 class NgConnectScreen extends StatefulWidget {
   const NgConnectScreen({
@@ -248,21 +249,28 @@ class _NgConnectScreenState extends State<NgConnectScreen> {
       _waitingForBrowser = true;
       _signInError = null;
     });
-    final result = await HermesSignIn().browserSignIn(
-      _url!,
-      certificate: _certificate.config,
-      // A Custom Tab, not the external browser: it keeps this app's task
-      // visible, so Android doesn't freeze the process whose loopback
-      // listener has to answer the sign-in redirect.
-      openBrowser: (uri) => launchUrl(uri, mode: LaunchMode.inAppBrowserView),
-      onBrowserDone: () => unawaited(closeInAppWebView()),
-      untilForeground: _untilResumed,
-      // Back in the app with no code: the browser was closed. Give a late
-      // redirect a moment to land first.
-      cancelled: _nextReturn().then(
-        (_) => Future<void>.delayed(const Duration(seconds: 2)),
-      ),
-    );
+    // Android still freezes this process behind the Custom Tab (measured on
+    // a Galaxy S25: an OIDC sign-in hung on "Loading" with the app frozen),
+    // so the app root holds its foreground service until the code is back.
+    browserSignInPending.value = true;
+    final SignInResult result;
+    try {
+      result = await HermesSignIn().browserSignIn(
+        _url!,
+        certificate: _certificate.config,
+        openBrowser: (uri) =>
+            launchUrl(uri, mode: LaunchMode.inAppBrowserView),
+        onBrowserDone: () => unawaited(closeInAppWebView()),
+        untilForeground: _untilResumed,
+        // Back in the app with no code: the browser was closed. Give a late
+        // redirect a moment to land first.
+        cancelled: _nextReturn().then(
+          (_) => Future<void>.delayed(const Duration(seconds: 2)),
+        ),
+      );
+    } finally {
+      browserSignInPending.value = false;
+    }
     if (!mounted) return;
     await _handle(result, 'browser');
   }

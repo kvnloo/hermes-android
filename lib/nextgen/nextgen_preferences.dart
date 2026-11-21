@@ -67,6 +67,11 @@ bool routeNotificationAnswerToNextGen({
 /// ChatService does.
 final ValueNotifier<bool> nextGenTurnActive = ValueNotifier(false);
 
+/// Whether a browser sign-in is waiting for the browser to hand back its
+/// code. The app root keeps the process up meanwhile: Android freezes the app
+/// behind the Custom Tab, and a frozen app can't answer the loopback redirect.
+final ValueNotifier<bool> browserSignInPending = ValueNotifier(false);
+
 /// The accents NextGen offers (Kyllene's palette: one blue, five others).
 enum NgAccent { blue, violet, green, orange, pink, teal }
 
