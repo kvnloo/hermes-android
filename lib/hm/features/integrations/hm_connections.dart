@@ -1,7 +1,10 @@
 // Connections: the hosted services (Nous connectors) the bot's profile can
 // use, and the accounts connected to them. Connect opens the service's
-// sign-in in the browser; coming back to the app wakes the host's operation
-// and the row settles. Touch and hold an account to disconnect it.
+// sign-in in the browser; it ends at hermes://connections/done (registered
+// in the manifest), which brings the app back, and the resume wakes the
+// host's operation so the row settles at once. The poll stays as fallback
+// for a return that skips the link. Touch and hold an account to
+// disconnect it.
 import 'dart:async';
 
 import 'package:flutter/material.dart';

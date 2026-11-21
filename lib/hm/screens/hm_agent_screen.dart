@@ -11,18 +11,61 @@ import '../features/artifacts/hm_artifacts.dart';
 import '../features/integrations/hm_connections.dart';
 import '../features/integrations/hm_mcp.dart';
 import '../features/integrations/hm_plugins.dart';
+import '../features/integrations/integration_counts.dart';
+import '../features/integrations/integrations_api.dart';
+import '../features/integrations/integrations_kit.dart';
 import '../features/work/hm_kanban.dart';
 import '../features/work/hm_projects.dart';
 import '../hm_bots.dart';
 import '../avatar/hm_avatar.dart';
 import '../hm_ui.dart';
 
-class HmAgentScreen extends StatelessWidget {
-  const HmAgentScreen({super.key, required this.bot, required this.bots});
+class HmAgentScreen extends StatefulWidget {
+  const HmAgentScreen({
+    super.key,
+    required this.bot,
+    required this.bots,
+    this.integrations,
+  });
 
   /// The bot as it was when opened; the screen shows [bots]'s newest copy.
   final HmBot bot;
   final HmBotsModel bots;
+
+  /// Test hook: the scoped integrations client behind the row counts.
+  @visibleForTesting
+  final HmIntegrationsApi? integrations;
+
+  @override
+  State<HmAgentScreen> createState() => _HmAgentScreenState();
+}
+
+class _HmAgentScreenState extends State<HmAgentScreen> {
+  HmCount _plugins = const HmCountLoading();
+  HmCount _mcp = const HmCountLoading();
+  late final HmIntegrationsApi _api =
+      widget.integrations ?? hmIntegrationsFor(widget.bot, widget.bots);
+
+  HmBot get bot => widget.bot;
+  HmBotsModel get bots => widget.bots;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlugins();
+    _loadMcp();
+  }
+
+  // A reload keeps the number it has until the new one lands.
+  Future<void> _loadPlugins() async {
+    final n = await hmPluginCount(_api);
+    if (mounted) setState(() => _plugins = n);
+  }
+
+  Future<void> _loadMcp() async {
+    final n = await hmMcpCount(_api);
+    if (mounted) setState(() => _mcp = n);
+  }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -101,14 +144,22 @@ class HmAgentScreen extends StatelessWidget {
                     HmRow(
                       icon: Icons.extension_outlined,
                       label: 'Plugins',
+                      value: _plugins.label,
                       tall: true,
-                      onTap: () => openHmPlugins(context, bot: bot, bots: bots),
+                      onTap: () async {
+                        await openHmPlugins(context, bot: bot, bots: bots);
+                        await _loadPlugins();
+                      },
                     ),
                     HmRow(
                       icon: Icons.power_outlined,
                       label: 'MCP',
+                      value: _mcp.label,
                       tall: true,
-                      onTap: () => openHmMcp(context, bot: bot, bots: bots),
+                      onTap: () async {
+                        await openHmMcp(context, bot: bot, bots: bots);
+                        await _loadMcp();
+                      },
                     ),
                   ],
                 ),

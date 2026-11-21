@@ -361,8 +361,11 @@ class SshTerminalBackend implements HmTerminalBackend {
     } on HmSshStoreError catch (e) {
       throw HmTerminalFailure(e.message);
     }
-    final session = _SshTerminalSession(shell, cwd);
-    shell.write(Uint8List.fromList(utf8.encode(hmSshCdCommand(cwd))));
+    // No folder: a fresh SSH shell already starts in the home folder.
+    final session = _SshTerminalSession(shell, cwd.isEmpty ? '~' : cwd);
+    if (cwd.isNotEmpty) {
+      shell.write(Uint8List.fromList(utf8.encode(hmSshCdCommand(cwd))));
+    }
     return session;
   }
 

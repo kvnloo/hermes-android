@@ -32,24 +32,27 @@ Future<void> openHmTerminal(
     profile: bot.scope,
     storedSessionId: chat.storedId,
     requestedCwd: chat.workingDirectory,
+    liveCwd: () => chat.cwd,
   );
   final navigator = Navigator.of(context);
   final defaultHost = hmTerminalDefaultHost(
     connection.singleLoginUrl,
     connection.host,
   );
-  final backend = SshTerminalBackend(
-    connectionId: connection.id,
-    store: HmSshStore.instance,
-    connector: const DartSsh2Connector(),
-    trustPrompt: (host, type, fingerprint) => hmConfirmSshHost(
-      navigator.context,
-      host: host,
-      type: type,
-      fingerprint: fingerprint,
+  final backend = HmHomeFallbackBackend(
+    SshTerminalBackend(
+      connectionId: connection.id,
+      store: HmSshStore.instance,
+      connector: const DartSsh2Connector(),
+      trustPrompt: (host, type, fingerprint) => hmConfirmSshHost(
+        navigator.context,
+        host: host,
+        type: type,
+        fingerprint: fingerprint,
+      ),
+      cwdLookup: host.workingDirectory,
+      fallback: host,
     ),
-    cwdLookup: host.workingDirectory,
-    fallback: host,
   );
   return navigator.push(
     MaterialPageRoute<void>(
@@ -63,6 +66,37 @@ Future<void> openHmTerminal(
       ),
     ),
   );
+}
+
+/// Opens the shell in the home folder when the chat's folder is unknown,
+/// as the official app does, instead of stopping at "Connect or refresh".
+///
+/// A stored chat often has no folder to give: nothing attached this app
+/// session (no `session.info.cwd`), and the host's session row keeps no
+/// `cwd` for chats it created without one (messaging sessions, a remote or
+/// sandbox terminal backend). A failed lookup is not worth losing the shell
+/// over either; the shell's own connect reports a real host problem.
+class HmHomeFallbackBackend implements HmTerminalBackend {
+  HmHomeFallbackBackend(this.inner);
+
+  final HmTerminalBackend inner;
+
+  /// The folder to open in; '' is the home folder.
+  @override
+  Future<String?> workingDirectory() async {
+    try {
+      return await inner.workingDirectory() ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  @override
+  Future<HmTerminalSession> open({
+    required String cwd,
+    required int cols,
+    required int rows,
+  }) => inner.open(cwd: cwd, cols: cols, rows: rows);
 }
 
 /// The instance's host name, offered as the SSH host: the dashboard
