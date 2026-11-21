@@ -360,7 +360,9 @@ class SynFace extends StatefulWidget {
 }
 
 class _SynFaceState extends State<SynFace> with SingleTickerProviderStateMixin {
-  late final Ticker _ticker = createTicker(_tick);
+  // Made in initState: a still face that first touched it in dispose would
+  // look up TickerMode on a deactivated element.
+  late final Ticker _ticker;
   final _clock = Stopwatch();
   final _rand = math.Random();
   Duration _last = Duration.zero;
@@ -379,6 +381,7 @@ class _SynFaceState extends State<SynFace> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _ticker = createTicker(_tick);
     _name = synExpressionFor(widget.state);
     _from = _to = synExpressions[_name]!;
     _clock.start();
@@ -389,8 +392,9 @@ class _SynFaceState extends State<SynFace> with SingleTickerProviderStateMixin {
   @override
   void didUpdateWidget(SynFace old) {
     super.didUpdateWidget(old);
-    if (old.state != widget.state)
+    if (old.state != widget.state) {
       _setExpression(synExpressionFor(widget.state));
+    }
     if (old.animate != widget.animate) {
       if (widget.animate && !_ticker.isActive) {
         _ticker.start();
@@ -425,8 +429,9 @@ class _SynFaceState extends State<SynFace> with SingleTickerProviderStateMixin {
     _morph = 0;
     _morphDur = 0.48 + _rand.nextDouble() * 0.12;
     if (react) _reactionUntil = _now + 0.55;
-    if (!_ticker.isActive)
+    if (!_ticker.isActive) {
       setState(() => _frame = _compose(_now, 0.016, still: true));
+    }
   }
 
   void _poke() {

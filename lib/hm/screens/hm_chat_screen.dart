@@ -1,7 +1,9 @@
 // A bot's chat: the floating header (back, character + name pill, More)
 // over the shared chat surface.
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
+import '../../core/services/voice_composer_adapter.dart';
 import '../../nextgen/data/chat_controller.dart';
 import '../../nextgen/theme/nextgen_theme.dart';
 import '../../nextgen/ui/chat_view.dart';
@@ -31,6 +33,7 @@ class HmChatScreen extends StatefulWidget {
     required this.onAction,
     required this.onNewChat,
     this.onOpenBot,
+    this.voiceFactory,
   });
 
   final HmBot bot;
@@ -39,11 +42,24 @@ class HmChatScreen extends StatefulWidget {
   final VoidCallback onNewChat;
   final VoidCallback? onOpenBot;
 
+  /// Test hook: the composer's speech recognizer (a fake dictation source).
+  @visibleForTesting
+  final VoiceComposerAdapter Function()? voiceFactory;
+
   @override
   State<HmChatScreen> createState() => _HmChatScreenState();
 }
 
 class _HmChatScreenState extends State<HmChatScreen> {
+  /// Written by the composer's mic, read by the header's avatar.
+  final _dictation = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    _dictation.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return NgChatView(
@@ -51,9 +67,12 @@ class _HmChatScreenState extends State<HmChatScreen> {
       onOpenSidebar: () => Navigator.of(context).maybePop(),
       onNewChat: widget.onNewChat,
       botName: widget.bot.displayName,
+      dictation: _dictation,
+      voiceFactory: widget.voiceFactory,
       appBar: _HmChatHeader(
         bot: widget.bot,
         chat: widget.chat,
+        dictation: _dictation,
         onOpenBot: widget.onOpenBot,
         onAction: widget.onAction,
       ),
@@ -65,12 +84,14 @@ class _HmChatHeader extends StatelessWidget implements PreferredSizeWidget {
   const _HmChatHeader({
     required this.bot,
     required this.chat,
+    required this.dictation,
     required this.onAction,
     this.onOpenBot,
   });
 
   final HmBot bot;
   final NgChatController chat;
+  final ValueListenable<bool> dictation;
   final Future<void> Function(HmChatAction action) onAction;
   final VoidCallback? onOpenBot;
 
@@ -108,7 +129,7 @@ class _HmChatHeader extends StatelessWidget implements PreferredSizeWidget {
                 child: GestureDetector(
                   onTap: onOpenBot,
                   child: ListenableBuilder(
-                    listenable: chat,
+                    listenable: Listenable.merge([chat, dictation]),
                     builder: (context, _) {
                       final title = chat.title.trim().isEmpty
                           ? bot.displayName
@@ -119,7 +140,13 @@ class _HmChatHeader extends StatelessWidget implements PreferredSizeWidget {
                           HmAvatar(
                             spec: bot.character,
                             size: 44,
-                            state: hmAvatarStateOf(chat),
+                            state: hmAvatarStateOf(
+                              chat,
+                              listening: dictation.value,
+                              reducedMotion: MediaQuery.of(
+                                context,
+                              ).disableAnimations,
+                            ),
                           ),
                           Transform.translate(
                             offset: const Offset(0, -6),
@@ -314,14 +341,33 @@ Future<T?> showHmMenu<T>(
 Future<void> showHmChatSettings(BuildContext context, NgChatController chat) =>
     showNgModelSheet(context, chat);
 
-/// What the chat's bot is doing: reply text streaming is speaking, a running
-/// turn before any text is thinking, a failed last turn is an error.
-HmAvatarState hmAvatarStateOf(NgChatController chat) {
-  if (chat.running) {
+/// What the chat's bot is doing, from the chat and the composer's mic alone:
+/// the person dictating is listening (even mid-turn, to steer); a running turn
+/// before reply text is thinking, streaming reply text is speaking; a failed
+/// last turn (or a refused send) is an error, else idle. With reduced motion every moving state
+/// is asleep; an error still shows, since it is news and does not move.
+HmAvatarState hmAvatarStateOf(
+  NgChatController chat, {
+  bool listening = false,
+  bool reducedMotion = false,
+}) {
+  final HmAvatarState state;
+  if (listening) {
+    state = HmAvatarState.listening;
+  } else if (chat.running) {
     final last = chat.items.isEmpty ? null : chat.items.last;
-    return last is NgAssistantItem && last.open && last.text.isNotEmpty
+    state = last is NgAssistantItem && last.open && last.text.isNotEmpty
         ? HmAvatarState.speaking
         : HmAvatarState.thinking;
+  } else {
+    final last = chat.items.isEmpty ? null : chat.items.last;
+    final refused = last is NgUserItem && last.failure != null;
+    state = chat.lastTurnFailed || refused
+        ? HmAvatarState.error
+        : HmAvatarState.idle;
   }
-  return chat.lastTurnFailed ? HmAvatarState.error : HmAvatarState.idle;
+  if (reducedMotion && state != HmAvatarState.error) {
+    return HmAvatarState.asleep;
+  }
+  return state;
 }

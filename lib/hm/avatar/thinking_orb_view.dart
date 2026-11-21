@@ -42,9 +42,9 @@ class ThinkingOrbView extends StatefulWidget {
 
 class _ThinkingOrbViewState extends State<ThinkingOrbView>
     with SingleTickerProviderStateMixin {
-  late final Ticker _ticker = createTicker(
-    (e) => setState(() => _t = e.inMicroseconds / 1e6),
-  );
+  // Made in initState: a still orb that first touched it in dispose would
+  // look up TickerMode on a deactivated element.
+  late final Ticker _ticker;
   double _t = 1.0;
 
   bool get _moving =>
@@ -55,6 +55,7 @@ class _ThinkingOrbViewState extends State<ThinkingOrbView>
   @override
   void initState() {
     super.initState();
+    _ticker = createTicker((e) => setState(() => _t = e.inMicroseconds / 1e6));
     if (_moving) _ticker.start();
   }
 
