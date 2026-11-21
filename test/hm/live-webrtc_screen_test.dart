@@ -59,10 +59,13 @@ Future<void> _frames(WidgetTester tester) async {
 String _status(WidgetTester tester) =>
     tester.widget<Text>(find.byKey(const ValueKey('live-status'))).data!;
 
-HmAvatarState _orbState(WidgetTester tester) => tester
-    .widgetList<HmAvatar>(find.byType(HmAvatar))
-    .firstWhere((a) => a.size == 180)
-    .state;
+final _orb = find.descendant(
+  of: find.byKey(const ValueKey('live-orb')),
+  matching: find.byType(HmAvatar),
+);
+
+HmAvatarState _orbState(WidgetTester tester) =>
+    tester.widget<HmAvatar>(_orb).state;
 
 Map<String, Object?> _delta(bool user, String text) => {
   'type': user
