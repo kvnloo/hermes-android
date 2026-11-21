@@ -1,14 +1,17 @@
 // Live Mode: a full-screen voice call with the bot (official S-LV1,
-// shots/official-s25/live-01.png): the bot pill at the top, a large glowing
-// orb, one status line, the call's transcript (You in muted italics, the bot
-// in full text) and round mic + close buttons at the bottom. The call runs
-// over GPT-Live (WebRTC) when the host offers it, else the chained loop.
+// shots/official-s25/live-01.png): an immersive dark surface in every app
+// theme, a translucent bot pill at the top, a glowing orb, one status line,
+// the call's transcript (You in muted italics, the bot in full text) and two
+// dark round mic + close buttons at the bottom. The call runs over GPT-Live
+// (WebRTC) when the host offers it, else the chained loop.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import '../../../core/services/android_voice_composer_adapter.dart';
 import '../../../nextgen/data/chat_controller.dart';
+import '../../../nextgen/nextgen_preferences.dart';
 import '../../../nextgen/theme/nextgen_theme.dart';
 import '../../avatar/hm_avatar.dart';
 import '../../avatar/hm_avatar_state.dart';
@@ -111,7 +114,33 @@ class _HmLiveScreenState extends State<HmLiveScreen>
 
   @override
   Widget build(BuildContext context) {
+    // The call is always dark, as the official one is, but in the active
+    // theme's own dark scheme so presets and accents still apply.
+    final theme = Theme.of(context);
+    return Theme(
+      data: theme.brightness == Brightness.dark
+          ? theme
+          : liveDarkTheme(NextGenLook.instance),
+      child: Builder(builder: _buildCall),
+    );
+  }
+
+  Widget _buildCall(BuildContext context) {
     final c = NgColors.of(context);
+    final width = MediaQuery.sizeOf(context).width;
+    // About a quarter of the screen across, glow included.
+    final orb = (width * 0.2).clamp(72.0, 112.0);
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: c.background.withValues(alpha: 0),
+        systemNavigationBarColor: c.background,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+      child: _call(context, c, orb),
+    );
+  }
+
+  Widget _call(BuildContext context, NgColors c, double orb) {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -124,19 +153,20 @@ class _HmLiveScreenState extends State<HmLiveScreen>
           builder: (context, _) => SafeArea(
             child: Column(
               children: [
-                const SizedBox(height: HmMetrics.headerTop + 8),
+                const SizedBox(height: HmMetrics.headerTop + 20),
                 _BotPill(bot: widget.bot),
-                const SizedBox(height: 28),
+                SizedBox(height: orb * 0.45),
                 Semantics(
+                  key: const ValueKey('live-orb'),
                   button: live.phase == LivePhase.speaking && !live.webRtc,
                   label: widget.bot.displayName,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: live.interrupt,
-                    child: _GlowOrb(bot: widget.bot, state: _avatar, size: 180),
+                    child: _GlowOrb(bot: widget.bot, state: _avatar, size: orb),
                   ),
                 ),
-                const SizedBox(height: 28),
+                SizedBox(height: orb * 0.45),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Text(
@@ -145,8 +175,9 @@ class _HmLiveScreenState extends State<HmLiveScreen>
                     textAlign: TextAlign.center,
                     style: HmType.display.copyWith(
                       color: live.phase == LivePhase.failed ? c.danger : c.text,
-                      fontWeight: FontWeight.w500,
-                      fontSize: live.phase == LivePhase.failed ? 18 : 24,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0,
+                      fontSize: live.phase == LivePhase.failed ? 17 : 24,
                     ),
                   ),
                 ),
@@ -159,12 +190,12 @@ class _HmLiveScreenState extends State<HmLiveScreen>
                       style: HmType.caption.copyWith(color: c.textMuted),
                     ),
                   ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 4),
                 Expanded(
                   child: _Transcript(live: live, bot: widget.bot),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 12, 0, 20),
+                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -173,14 +204,14 @@ class _HmLiveScreenState extends State<HmLiveScreen>
                             ? Icons.mic_off_rounded
                             : Icons.mic_rounded,
                         label: live.muted ? LiveText.unmute : LiveText.mute,
-                        size: 72,
+                        size: 56,
                         onPressed: live.isOver ? null : live.toggleMute,
                       ),
-                      const SizedBox(width: 24),
+                      const SizedBox(width: 16),
                       HmRoundButton(
                         icon: Icons.close_rounded,
                         label: LiveText.end,
-                        size: 72,
+                        size: 56,
                         onPressed: _close,
                       ),
                     ],
@@ -203,23 +234,24 @@ class _BotPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = NgColors.of(context);
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 8, 22, 8),
+      key: const ValueKey('live-pill'),
+      padding: const EdgeInsets.fromLTRB(7, 7, 20, 7),
       decoration: BoxDecoration(
-        color: c.surface,
+        color: c.surface3.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(40),
-        border: Border.all(color: c.stroke),
+        border: Border.all(color: c.strokeStrong),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          HmAvatar(spec: bot.character, size: 36),
+          HmAvatar(spec: bot.character, size: 28),
           const SizedBox(width: 12),
           Text(
             bot.displayName,
             style: HmType.row.copyWith(
               color: c.text,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
+              fontSize: 17,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -247,9 +279,9 @@ class _GlowOrb extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: glow.withValues(alpha: lit ? 0.55 : 0.3),
-            blurRadius: lit ? 64 : 40,
-            spreadRadius: lit ? 10 : 4,
+            color: glow.withValues(alpha: lit ? 0.6 : 0.35),
+            blurRadius: size * (lit ? 0.32 : 0.22),
+            spreadRadius: size * (lit ? 0.06 : 0.02),
           ),
         ],
       ),
@@ -296,7 +328,7 @@ class _Transcript extends StatelessWidget {
       child: ListView(
         // Newest at the bottom, pinned there as lines arrive.
         reverse: true,
-        padding: const EdgeInsets.fromLTRB(28, 24, 28, 8),
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
         children: rows.reversed.toList(),
       ),
     );
@@ -318,7 +350,7 @@ class _Line extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = NgColors.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -327,16 +359,17 @@ class _Line extends StatelessWidget {
             style: HmType.caption.copyWith(
               color: c.textMuted,
               fontWeight: FontWeight.w700,
-              fontSize: 14,
+              fontSize: 12,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             text,
             style: HmType.body.copyWith(
               color: fromUser ? c.text3 : c.text,
               fontStyle: fromUser ? FontStyle.italic : FontStyle.normal,
-              fontSize: 19,
+              fontSize: 17,
+              height: 1.35,
             ),
           ),
         ],
@@ -344,3 +377,8 @@ class _Line extends StatelessWidget {
     );
   }
 }
+
+/// The Live call's theme under a light app theme: the active look's own dark
+/// scheme (preset, accent and pure-black all apply).
+ThemeData liveDarkTheme(NextGenLook look) =>
+    nextGenTheme(Brightness.dark, look);

@@ -55,10 +55,13 @@ Future<void> _frames(WidgetTester tester) async {
 String _status(WidgetTester tester) =>
     tester.widget<Text>(find.byKey(const ValueKey('live-status'))).data!;
 
-HmAvatarState _orbState(WidgetTester tester) => tester
-    .widgetList<HmAvatar>(find.byType(HmAvatar))
-    .firstWhere((a) => a.size == 180)
-    .state;
+final _orb = find.descendant(
+  of: find.byKey(const ValueKey('live-orb')),
+  matching: find.byType(HmAvatar),
+);
+
+HmAvatarState _orbState(WidgetTester tester) =>
+    tester.widget<HmAvatar>(_orb).state;
 
 void main() {
   setUp(() {
@@ -122,7 +125,7 @@ void main() {
     expect(rig.voice.playing, isTrue);
 
     await tester.tap(
-      find.byWidgetPredicate((w) => w is HmAvatar && w.size == 180),
+      find.byKey(const ValueKey('live-orb')),
     );
     await _frames(tester);
     expect(rig.voice.stops, 1);
