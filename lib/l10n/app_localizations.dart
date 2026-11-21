@@ -9869,6 +9869,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Read-only · taps inspect values locally'**
   String get openui_read_only;
+
+  /// No description provided for @turbo_section.
+  ///
+  /// In en, this message translates to:
+  /// **'Turbo'**
+  String get turbo_section;
+
+  /// No description provided for @turbo_description_parallel.
+  ///
+  /// In en, this message translates to:
+  /// **'Parallel fast free model pool'**
+  String get turbo_description_parallel;
+
+  /// No description provided for @turbo_description_quality.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality-focused free models'**
+  String get turbo_description_quality;
+
+  /// No description provided for @turbo_description_reasoning.
+  ///
+  /// In en, this message translates to:
+  /// **'Free models for reasoning'**
+  String get turbo_description_reasoning;
+
+  /// No description provided for @turbo_description_verify.
+  ///
+  /// In en, this message translates to:
+  /// **'Free models for checking answers'**
+  String get turbo_description_verify;
+
+  /// No description provided for @turbo_description_longctx.
+  ///
+  /// In en, this message translates to:
+  /// **'Free models for long contexts'**
+  String get turbo_description_longctx;
+
+  /// No description provided for @turbo_description_public.
+  ///
+  /// In en, this message translates to:
+  /// **'Public free model pool'**
+  String get turbo_description_public;
+
+  /// No description provided for @turbo_description_other.
+  ///
+  /// In en, this message translates to:
+  /// **'Routed through vLLM Semantic Router'**
+  String get turbo_description_other;
 }
 
 class _AppLocalizationsDelegate

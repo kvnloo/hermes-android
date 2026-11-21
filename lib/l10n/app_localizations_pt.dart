@@ -5904,6 +5904,30 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get openui_read_only =>
       'Somente leitura · os toques selecionam valores localmente';
+
+  @override
+  String get turbo_section => 'Turbo';
+
+  @override
+  String get turbo_description_parallel => 'Parallel fast free model pool';
+
+  @override
+  String get turbo_description_quality => 'Quality-focused free models';
+
+  @override
+  String get turbo_description_reasoning => 'Free models for reasoning';
+
+  @override
+  String get turbo_description_verify => 'Free models for checking answers';
+
+  @override
+  String get turbo_description_longctx => 'Free models for long contexts';
+
+  @override
+  String get turbo_description_public => 'Public free model pool';
+
+  @override
+  String get turbo_description_other => 'Routed through vLLM Semantic Router';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
