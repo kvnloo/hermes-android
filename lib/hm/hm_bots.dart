@@ -1,5 +1,6 @@
 // Bots: each profile a host serves is a bot. One connection (host) can hold
 // many bots; one gateway socket serves them all, scoped per call.
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,8 @@ import '../core/models/session.dart';
 import '../core/services/dashboard_api_client.dart';
 import '../nextgen/data/nextgen_gateway.dart';
 import 'avatar/hm_avatar.dart';
+import 'features/settings/cache_store.dart';
+import 'features/settings/cache_sync.dart';
 
 @immutable
 class HmBot {
@@ -86,7 +89,9 @@ class HmBotSummary {
 
 /// Loads and caches a host's bots and their sessions.
 class HmBotsModel extends ChangeNotifier {
-  HmBotsModel(this.gateway);
+  HmBotsModel(this.gateway) {
+    gateway.addListener(_onGateway);
+  }
 
   final NextGenGateway gateway;
   List<HmBot> bots = const [];
@@ -94,6 +99,92 @@ class HmBotsModel extends ChangeNotifier {
   bool loading = false;
   String? error;
   bool _disposed = false;
+
+  /// The REST profile rows behind [bots], kept so the socket's fuller
+  /// `ui_meta` can be laid over them.
+  List<Map<String, dynamic>> _rows = const [];
+
+  /// `ui_meta` by profile from WS `profiles.list`. REST `GET /api/profiles`
+  /// returns only the `hermes-bots` key, so a bot's chosen character
+  /// (`ui_meta.character`) comes from the socket.
+  Map<String, Map<String, dynamic>> _wsMeta = const {};
+  bool _metaPending = true;
+  bool _metaLoading = false;
+
+  /// Fills an empty list from the device cache so Home has something to
+  /// show before the host answers. Does nothing once bots are loaded.
+  Future<void> seedFromCache(String host, {HmCacheStore? store}) async {
+    if (bots.isNotEmpty) return;
+    try {
+      final kept = await hmCachedBots(host, store: store);
+      if (_disposed || bots.isNotEmpty || kept.bots.isEmpty) return;
+      bots = kept.bots;
+      sessions.addAll(kept.sessions);
+      _notify();
+    } catch (_) {
+      // Nothing kept, or unreadable: wait for the host.
+    }
+  }
+
+  void _onGateway() {
+    if (_metaPending && _rows.isNotEmpty && gateway.state.isConnected) {
+      unawaited(_loadWsMeta());
+    }
+  }
+
+  Future<void> _loadWsMeta() async {
+    if (_metaLoading || !gateway.state.isConnected) return;
+    _metaLoading = true;
+    try {
+      final res = await gateway.call('profiles.list', {
+        'include_sessions': false,
+      }, timeout: const Duration(seconds: 10));
+      final rows = res['profiles'];
+      _wsMeta = {
+        for (final r in (rows is List ? rows : const []).whereType<Map>())
+          if (r['ui_meta'] is Map)
+            (r['name'] ?? 'default').toString(): Map<String, dynamic>.from(
+              r['ui_meta'] as Map,
+            ),
+      };
+      _metaPending = false;
+      if (_disposed || _rows.isEmpty) return;
+      bots = _build(_rows);
+      _notify();
+    } catch (_) {
+      // Older host or socket down: the REST rows stand.
+    } finally {
+      _metaLoading = false;
+    }
+  }
+
+  List<HmBot> _build(List<Map<String, dynamic>> maps) {
+    final names = [for (final m in maps) (m['name'] ?? 'default').toString()]
+      ..sort();
+    final list = [
+      for (final m in maps)
+        HmBot.fromJson(
+          _withWsMeta(m),
+          rank: names.indexOf((m['name'] ?? 'default').toString()),
+        ),
+    ];
+    list.sort(
+      (a, b) => a.isDefault == b.isDefault ? 0 : (a.isDefault ? -1 : 1),
+    );
+    return list;
+  }
+
+  Map<String, dynamic> _withWsMeta(Map<String, dynamic> m) {
+    final ws = _wsMeta[(m['name'] ?? 'default').toString()];
+    if (ws == null) return m;
+    final rest = m['ui_meta'] is Map
+        ? Map<String, dynamic>.from(m['ui_meta'] as Map)
+        : const <String, dynamic>{};
+    return {
+      ...m,
+      'ui_meta': {...rest, ...ws},
+    };
+  }
 
   DashboardApiClient apiFor(HmBot bot) => bot.scope == null
       ? DashboardApiClient.withDashboard(gateway.dashboard)
@@ -129,20 +220,15 @@ class HmBotsModel extends ChangeNotifier {
       final maps = [
         for (final m in rows.whereType<Map>()) Map<String, dynamic>.from(m),
       ];
-      final names = [for (final m in maps) (m['name'] ?? 'default').toString()]
-        ..sort();
-      final list = [
-        for (final m in maps)
-          HmBot.fromJson(
-            m,
-            rank: names.indexOf((m['name'] ?? 'default').toString()),
-          ),
-      ];
-      list.sort(
-        (a, b) => a.isDefault == b.isDefault ? 0 : (a.isDefault ? -1 : 1),
-      );
+      _rows = maps;
+      // Each refresh re-reads the socket's ui_meta, so a new look shows.
+      _metaPending = true;
+      final list = _build(maps);
       bots = list;
-      await Future.wait([for (final b in list) _loadSessions(b)]);
+      await Future.wait([
+        for (final b in list) _loadSessions(b),
+        if (gateway.state.isConnected) _loadWsMeta(),
+      ]);
     } catch (e) {
       error = '$e';
     } finally {
@@ -167,6 +253,7 @@ class HmBotsModel extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    gateway.removeListener(_onGateway);
     super.dispose();
   }
 }

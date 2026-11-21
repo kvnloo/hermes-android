@@ -304,10 +304,16 @@ Future<T?> showHmMenu<T>(
                                   color: item.danger ? c.danger : c.text,
                                 ),
                                 const SizedBox(width: 18),
-                                Text(
-                                  item.label,
-                                  style: HmType.row.copyWith(
-                                    color: item.danger ? c.danger : c.text,
+                                // A long label (or large text) ellipsizes
+                                // instead of overflowing the fixed width.
+                                Flexible(
+                                  child: Text(
+                                    item.label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: HmType.row.copyWith(
+                                      color: item.danger ? c.danger : c.text,
+                                    ),
                                   ),
                                 ),
                               ],

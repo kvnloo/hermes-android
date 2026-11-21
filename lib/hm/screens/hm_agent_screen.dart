@@ -20,11 +20,19 @@ import '../hm_ui.dart';
 class HmAgentScreen extends StatelessWidget {
   const HmAgentScreen({super.key, required this.bot, required this.bots});
 
+  /// The bot as it was when opened; the screen shows [bots]'s newest copy.
   final HmBot bot;
   final HmBotsModel bots;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: bots,
+    // A Model save refreshes [bots]; the rows show it at once.
+    builder: (context, _) =>
+        _build(context, bots.byProfile(bot.profile) ?? bot),
+  );
+
+  Widget _build(BuildContext context, HmBot bot) {
     final c = NgColors.of(context);
     void push(Widget page) => Navigator.of(
       context,

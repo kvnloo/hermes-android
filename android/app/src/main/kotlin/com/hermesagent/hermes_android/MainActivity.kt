@@ -5,18 +5,21 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.provider.Settings
 import android.view.WindowManager
-import io.flutter.embedding.android.FlutterActivity
+// local_auth (the app lock) needs a FragmentActivity host.
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private val shareChannelName = "com.hermesagent.hermes_android/share"
     private val launchChannelName = "com.hermesagent.hermes_android/launch"
     private val keepAliveChannelName = "com.hermesagent.hermes_android/keepalive"
+    private val securityChannelName = "com.hermesagent.hermes_android/security"
     private val recordingScreenOwners = mutableSetOf<String>()
     private val quickChatAction = "com.hermesagent.hermes_android.action.QUICK_CHAT"
     private val maxSharedItems = 10
@@ -103,6 +106,18 @@ class MainActivity : FlutterActivity() {
                         stopService(Intent(this@MainActivity, ConnectionKeepAliveService::class.java))
                         result.success(true)
                     }
+                    else -> result.notImplemented()
+                }
+            }
+        }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, securityChannelName).apply {
+            setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "openSecuritySettings" -> result.success(
+                        runCatching {
+                            startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS))
+                        }.isSuccess,
+                    )
                     else -> result.notImplemented()
                 }
             }

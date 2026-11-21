@@ -79,13 +79,7 @@ class FakeRpc {
   ];
 }
 
-/// The test font draws every glyph a full em wide, so the shared popover
-/// menu (sized for real type) would overflow; a smaller scale keeps it in.
 Widget workHost(Widget child) => MaterialApp(
   theme: nextGenTheme(Brightness.light, NextGenLook.instance),
-  builder: (context, app) => MediaQuery(
-    data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(0.6)),
-    child: app!,
-  ),
   home: child,
 );

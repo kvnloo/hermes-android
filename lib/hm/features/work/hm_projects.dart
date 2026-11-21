@@ -6,12 +6,14 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/project_sessions_tree.dart';
+import '../../../core/models/session.dart';
 import '../../../core/models/projects_tree_overview.dart';
 import '../../../core/services/dashboard_api_client.dart';
 import '../../../nextgen/theme/nextgen_theme.dart';
 import '../../hm_bots.dart';
 import '../../hm_ui.dart';
 import '../../screens/hm_chat_screen.dart' show HmMenuItem, showHmMenu;
+import '../../screens/hm_home.dart' show hmOpenChat;
 import 'hm_work_kit.dart';
 
 Future<void> openHmProjects(
@@ -28,9 +30,24 @@ Future<void> openHmProjects(
     rpc: gateway.call,
   );
   return Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => HmProjectsPage(source: source)),
+    MaterialPageRoute<void>(
+      builder: (_) => HmProjectsPage(
+        source: source,
+        onOpenChat: (context, s) => hmOpenChat(
+          context,
+          bot: bot,
+          bots: bots,
+          sessionId: s.id,
+          title: s.title,
+        ),
+      ),
+    ),
   );
 }
+
+/// Opens one of a project's conversations.
+typedef HmOpenProjectChat =
+    Future<void> Function(BuildContext context, Session session);
 
 /// The bot's projects over REST (read) and JSON-RPC (writes).
 class HmProjectsSource {
@@ -77,8 +94,9 @@ class HmProjectsSource {
 }
 
 class HmProjectsPage extends StatefulWidget {
-  const HmProjectsPage({super.key, required this.source});
+  const HmProjectsPage({super.key, required this.source, this.onOpenChat});
   final HmProjectsSource source;
+  final HmOpenProjectChat? onOpenChat;
 
   @override
   State<HmProjectsPage> createState() => _HmProjectsPageState();
@@ -127,7 +145,11 @@ class _HmProjectsPageState extends State<HmProjectsPage> {
   Future<void> _open(ProjectOverviewNode p) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => HmProjectPage(project: p, source: widget.source),
+        builder: (_) => HmProjectPage(
+          project: p,
+          source: widget.source,
+          onOpenChat: widget.onOpenChat,
+        ),
       ),
     );
     if (changed == true) await _load();
@@ -330,9 +352,15 @@ enum _ProjectAction { edit, delete }
 
 /// One project: its repositories, worktrees and recent conversations.
 class HmProjectPage extends StatefulWidget {
-  const HmProjectPage({super.key, required this.project, required this.source});
+  const HmProjectPage({
+    super.key,
+    required this.project,
+    required this.source,
+    this.onOpenChat,
+  });
   final ProjectOverviewNode project;
   final HmProjectsSource source;
+  final HmOpenProjectChat? onOpenChat;
 
   @override
   State<HmProjectPage> createState() => _HmProjectPageState();
@@ -465,7 +493,9 @@ class _HmProjectPageState extends State<HmProjectPage> {
                             icon: Icons.chat_bubble_outline,
                             label: s.title,
                             subValue: s.preview.isEmpty ? null : s.preview,
-                            chevron: false,
+                            onTap: widget.onOpenChat == null
+                                ? null
+                                : () => widget.onOpenChat!(context, s),
                           ),
                         if (p.sessionCount > p.previewSessions.length)
                           HmRow(

@@ -57,23 +57,8 @@ class _FakeBackend implements HmTerminalBackend {
   }
 }
 
-Future<void> _pump(
-  WidgetTester tester,
-  HmTerminalBackend backend, {
-  double textScale = 1,
-}) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      // The test font's square glyphs are far wider than Nunito.
-      builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: TextScaler.linear(textScale)),
-        child: child!,
-      ),
-      home: HmTerminalPage(backend: backend),
-    ),
-  );
+Future<void> _pump(WidgetTester tester, HmTerminalBackend backend) async {
+  await tester.pumpWidget(MaterialApp(home: HmTerminalPage(backend: backend)));
   await tester.pump();
   await tester.pump();
 }
@@ -187,7 +172,7 @@ void main() {
         null,
       ),
     );
-    await _pump(tester, _FakeBackend(opens: [session]), textScale: 0.6);
+    await _pump(tester, _FakeBackend(opens: [session]));
     await tester.tap(find.byTooltip('More'));
     await tester.pumpAndSettle();
     expect(find.text('Copy'), findsOneWidget);

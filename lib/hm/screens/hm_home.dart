@@ -15,6 +15,7 @@ import '../features/artifacts/hm_artifacts.dart';
 import '../features/groups/hm_groups.dart';
 import '../features/groups/home_filters.dart';
 import '../features/live/hm_live.dart';
+import '../features/settings/cache_sync.dart';
 import '../features/terminal/hm_terminal.dart';
 import '../features/work/hm_execution.dart';
 import '../hm_bots.dart';
@@ -25,6 +26,119 @@ import 'hm_agent_screen.dart';
 import 'hm_chat_screen.dart';
 import 'hm_settings_screen.dart';
 
+/// Opens one of [bot]'s chats as Home does: the stored chat [sessionId]
+/// (its transcript loads at once), or a new chat when null. The chat menu
+/// works in full (Live, Terminal, Execution, Artifacts, Archive, Delete), and
+/// [bots] is refreshed when a new chat is stored and when the chat closes.
+/// Any feature screen can call this to open a chat row.
+Future<void> hmOpenChat(
+  BuildContext context, {
+  required HmBot bot,
+  required HmBotsModel bots,
+  String? sessionId,
+  String title = '',
+}) async {
+  final chat = NgChatController(
+    bots.gateway,
+    sessionId: sessionId,
+    title: title,
+    profile: bot.scope,
+    onCreated: (_) => bots.refresh(),
+  );
+  if (sessionId != null) unawaited(chat.open());
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (route) => HmChatScreen(
+        bot: bot,
+        chat: chat,
+        onNewChat: () {
+          Navigator.of(route).pop();
+          // The caller's context outlives this route.
+          if (context.mounted) {
+            unawaited(hmOpenChat(context, bot: bot, bots: bots));
+          }
+        },
+        onOpenBot: () => hmOpenAgent(route, bot, bots),
+        onAction: (a) => hmChatAction(route, bot, bots, chat, a),
+      ),
+    ),
+  );
+  chat.dispose();
+  unawaited(bots.refresh());
+}
+
+/// Agent settings for [bot].
+Future<void> hmOpenAgent(BuildContext context, HmBot bot, HmBotsModel bots) =>
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => HmAgentScreen(bot: bot, bots: bots),
+      ),
+    );
+
+/// Runs one chat-menu action for [chat].
+Future<void> hmChatAction(
+  BuildContext context,
+  HmBot bot,
+  HmBotsModel bots,
+  NgChatController chat,
+  HmChatAction a,
+) async {
+  switch (a) {
+    case HmChatAction.chatSettings:
+      await showHmChatSettings(context, chat);
+    case HmChatAction.archive:
+      final id = chat.storedId;
+      if (id == null) return;
+      await bots
+          .apiFor(bot)
+          .setSessionArchived(sessionId: id, archived: true)
+          .catchError((_) => false);
+      if (context.mounted) Navigator.of(context).pop();
+    case HmChatAction.delete:
+      final id = chat.storedId;
+      if (id == null) {
+        if (context.mounted) Navigator.of(context).pop();
+        return;
+      }
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Delete this chat?'),
+          content: const Text('It is removed from the host for every device.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      await bots.apiFor(bot).deleteSession(id).catchError((_) {});
+      if (context.mounted) Navigator.of(context).pop();
+    case HmChatAction.liveMode:
+      await openHmLive(context, bot: bot, bots: bots, chat: chat);
+    case HmChatAction.terminal:
+      await openHmTerminal(context, bot: bot, bots: bots, chat: chat);
+    case HmChatAction.execution:
+      await openHmExecution(context, bot: bot, bots: bots, chat: chat);
+    case HmChatAction.routines:
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (context) => NgScheduledPage(
+            onOpenSession: (_) => Navigator.of(context).pop(),
+          ),
+        ),
+      );
+    case HmChatAction.artifacts:
+      await openHmArtifacts(context, bot: bot, bots: bots, chat: chat);
+  }
+}
+
 class HmHome extends StatefulWidget {
   const HmHome({super.key});
 
@@ -34,6 +148,7 @@ class HmHome extends StatefulWidget {
 
 class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
   HmBotsModel? _bots;
+  VoidCallback? _detachCache;
   HmGroupsDirectory? _groups;
   final _filters = HmHomeFilterStore();
   final _groupChanges = StreamController<List<String>?>.broadcast();
@@ -57,8 +172,13 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
     final gateway = NgScope.of(context).gateway;
     if (!identical(gateway, _gateway)) {
       _gateway = gateway;
+      _detachCache?.call();
       _bots?.dispose();
-      _bots = HmBotsModel(gateway)..refresh();
+      final bots = _bots = HmBotsModel(gateway);
+      // A cold start shows the kept chat list until the host answers.
+      unawaited(bots.seedFromCache(gateway.connection.id));
+      unawaited(bots.refresh());
+      _detachCache = hmAttachChatListCache(bots, gateway.connection.id);
       _groups?.dispose();
       _groups = HmGroupsDirectory(hmGroupsApiFor(gateway))..refresh();
       _changes?.cancel();
@@ -95,109 +215,22 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
     _debounce?.cancel();
     _groupDebounce?.cancel();
     _groupChanges.close();
+    _detachCache?.call();
     _bots?.dispose();
     _groups?.dispose();
     _filters.dispose();
     super.dispose();
   }
 
-  Future<void> _openChat(HmBot bot, {Session? session}) async {
-    final gateway = NgScope.of(context).gateway;
-    final chat = NgChatController(
-      gateway,
-      sessionId: session?.id,
-      title: session?.title ?? '',
-      profile: bot.scope,
-      onCreated: (_) => _bots?.refresh(),
-    );
-    if (session != null) unawaited(chat.open());
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) => HmChatScreen(
-          bot: bot,
-          chat: chat,
-          onNewChat: () {
-            Navigator.of(context).pop();
-            unawaited(_openChat(bot));
-          },
-          onOpenBot: () => _openAgent(bot),
-          onAction: (a) => _chatAction(context, bot, chat, a),
-        ),
-      ),
-    );
-    chat.dispose();
-    unawaited(_bots?.refresh());
-  }
-
-  Future<void> _chatAction(
-    BuildContext context,
-    HmBot bot,
-    NgChatController chat,
-    HmChatAction a,
-  ) async {
-    switch (a) {
-      case HmChatAction.chatSettings:
-        await showHmChatSettings(context, chat);
-      case HmChatAction.archive:
-        final id = chat.storedId;
-        if (id == null) return;
-        await _bots
-            ?.apiFor(bot)
-            .setSessionArchived(sessionId: id, archived: true)
-            .catchError((_) => false);
-        if (context.mounted) Navigator.of(context).pop();
-      case HmChatAction.delete:
-        final id = chat.storedId;
-        if (id == null) {
-          if (context.mounted) Navigator.of(context).pop();
-          return;
-        }
-        final ok = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Delete this chat?'),
-            content: const Text(
-              'It is removed from the host for every device.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        );
-        if (ok != true) return;
-        await _bots?.apiFor(bot).deleteSession(id).catchError((_) {});
-        if (context.mounted) Navigator.of(context).pop();
-      case HmChatAction.liveMode:
-        await openHmLive(context, bot: bot, bots: _bots!, chat: chat);
-      case HmChatAction.terminal:
-        await openHmTerminal(context, bot: bot, bots: _bots!, chat: chat);
-      case HmChatAction.execution:
-        await openHmExecution(context, bot: bot, bots: _bots!, chat: chat);
-      case HmChatAction.routines:
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (context) => NgScheduledPage(
-              onOpenSession: (_) => Navigator.of(context).pop(),
-            ),
-          ),
-        );
-      case HmChatAction.artifacts:
-        await openHmArtifacts(context, bot: bot, bots: _bots!, chat: chat);
-    }
-  }
-
-  Future<void> _openAgent(HmBot bot) => Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => HmAgentScreen(bot: bot, bots: _bots!),
-    ),
+  Future<void> _openChat(HmBot bot, {Session? session}) => hmOpenChat(
+    context,
+    bot: bot,
+    bots: _bots!,
+    sessionId: session?.id,
+    title: session?.title ?? '',
   );
+
+  Future<void> _openAgent(HmBot bot) => hmOpenAgent(context, bot, _bots!);
 
   Future<void> _newSession() async {
     final bots = _bots;
