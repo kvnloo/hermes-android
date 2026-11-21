@@ -5882,6 +5882,28 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get ng_apply => 'Apply';
+
+  @override
+  String get openui_show_source => 'Mostrar código-fonte';
+
+  @override
+  String get openui_hide_source => 'Ocultar código-fonte';
+
+  @override
+  String get openui_board_unavailable =>
+      'Não foi possível exibir este painel. O código-fonte original está abaixo.';
+
+  @override
+  String get openui_board_incomplete =>
+      'Este painel está incompleto. O código-fonte original está abaixo.';
+
+  @override
+  String get openui_board_unsupported =>
+      'Este painel contém um componente ainda não compatível com Android. O código-fonte está abaixo.';
+
+  @override
+  String get openui_read_only =>
+      'Somente leitura · os toques selecionam valores localmente';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -11544,4 +11566,26 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get ng_notify_master_off => 'Notificações desativadas';
+
+  @override
+  String get openui_show_source => 'Mostrar código-fonte';
+
+  @override
+  String get openui_hide_source => 'Ocultar código-fonte';
+
+  @override
+  String get openui_board_unavailable =>
+      'Não foi possível exibir este painel. O código-fonte original está abaixo.';
+
+  @override
+  String get openui_board_incomplete =>
+      'Este painel está incompleto. O código-fonte original está abaixo.';
+
+  @override
+  String get openui_board_unsupported =>
+      'Este painel contém um componente ainda não compatível com Android. O código-fonte está abaixo.';
+
+  @override
+  String get openui_read_only =>
+      'Somente leitura · os toques selecionam valores localmente';
 }

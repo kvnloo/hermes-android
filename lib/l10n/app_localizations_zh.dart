@@ -5635,6 +5635,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get ng_apply => 'Apply';
+
+  @override
+  String get openui_show_source => '显示源代码';
+
+  @override
+  String get openui_hide_source => '隐藏源代码';
+
+  @override
+  String get openui_board_unavailable => '无法显示此面板。原始源代码如下。';
+
+  @override
+  String get openui_board_incomplete => '此面板尚未完成。原始源代码如下。';
+
+  @override
+  String get openui_board_unsupported => '此面板包含 Android 暂不支持的组件。原始源代码如下。';
+
+  @override
+  String get openui_read_only => '只读 · 点按选择仅保留在本机';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -11058,4 +11076,22 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get ng_notify_master_off => '通知已关闭';
+
+  @override
+  String get openui_show_source => '显示源代码';
+
+  @override
+  String get openui_hide_source => '隐藏源代码';
+
+  @override
+  String get openui_board_unavailable => '无法显示此面板。原始源代码如下。';
+
+  @override
+  String get openui_board_incomplete => '此面板尚未完成。原始源代码如下。';
+
+  @override
+  String get openui_board_unsupported => '此面板包含 Android 暂不支持的组件。原始源代码如下。';
+
+  @override
+  String get openui_read_only => '只读 · 点按选择仅保留在本机';
 }

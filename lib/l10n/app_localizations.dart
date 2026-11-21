@@ -9833,6 +9833,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Apply'**
   String get ng_apply;
+
+  /// No description provided for @openui_show_source.
+  ///
+  /// In en, this message translates to:
+  /// **'Show source'**
+  String get openui_show_source;
+
+  /// No description provided for @openui_hide_source.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide source'**
+  String get openui_hide_source;
+
+  /// No description provided for @openui_board_unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This board could not be displayed. Original source is below.'**
+  String get openui_board_unavailable;
+
+  /// No description provided for @openui_board_incomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'This board is incomplete. Original source is below.'**
+  String get openui_board_incomplete;
+
+  /// No description provided for @openui_board_unsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This board includes a panel not yet supported on Android. Original source is below.'**
+  String get openui_board_unsupported;
+
+  /// No description provided for @openui_read_only.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only · taps inspect values locally'**
+  String get openui_read_only;
 }
 
 class _AppLocalizationsDelegate

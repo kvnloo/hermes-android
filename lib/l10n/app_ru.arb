@@ -1606,5 +1606,11 @@
   "ng_notify_permission_granted": "Разрешение предоставлено",
   "ng_notify_permission_denied": "В разрешении отказано",
   "ng_notify_master_on": "Уведомления включены",
-  "ng_notify_master_off": "Уведомления выключены"
+  "ng_notify_master_off": "Уведомления выключены",
+  "openui_show_source": "Показать исходный код",
+  "openui_hide_source": "Скрыть исходный код",
+  "openui_board_unavailable": "Не удалось показать панель. Исходный код приведён ниже.",
+  "openui_board_incomplete": "Панель не завершена. Исходный код приведён ниже.",
+  "openui_board_unsupported": "Панель содержит элемент, пока не поддерживаемый на Android. Исходный код приведён ниже.",
+  "openui_read_only": "Только чтение · выбор значений остаётся на устройстве"
 }

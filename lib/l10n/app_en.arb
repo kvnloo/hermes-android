@@ -2490,5 +2490,11 @@
   "ng_copy_theme": "Copy theme JSON",
   "ng_paste_theme_json": "Paste a theme's JSON",
   "ng_theme_applied": "Theme applied",
-  "ng_apply": "Apply"
+  "ng_apply": "Apply",
+  "openui_show_source": "Show source",
+  "openui_hide_source": "Hide source",
+  "openui_board_unavailable": "This board could not be displayed. Original source is below.",
+  "openui_board_incomplete": "This board is incomplete. Original source is below.",
+  "openui_board_unsupported": "This board includes a panel not yet supported on Android. Original source is below.",
+  "openui_read_only": "Read-only · taps inspect values locally"
 }
