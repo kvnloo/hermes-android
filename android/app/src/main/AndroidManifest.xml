@@ -47,7 +47,7 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/screen_share_paths" />
         </provider>
-        <activity android:name=".ScreenPreviewActivity" android:exported="false" />
+        <activity android:name=".ScreenCaptureActivity" android:exported="false" />
         <service android:name=".ScreenShareService" android:exported="false"
             android:foregroundServiceType="mediaProjection" />
         <activity
