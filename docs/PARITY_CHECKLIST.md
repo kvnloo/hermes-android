@@ -85,7 +85,7 @@ Built in PR #27 unless a reason is given.
 - [x] Share target: shared text lands as a NextGen new-chat draft: `parity/a3-share-text.jpg` (emu-s).
 - [ ] System assistant: VoiceInteractionService, assist overlay, screen share. Reason: not built. It needs a VoiceInteractionService, a session service, an assist overlay activity and a screen-share foreground service, which is its own feature. Follow-up card.
 - [ ] Device access: Health Connect, calendar, contacts, location, exact alarms. Reason: not built. Each source needs a permission flow on the phone and a tool contract with the host. Follow-up card.
-- [ ] App Functions: opt-in AndroidX service prepares a chat draft or opens routines for user review. Needs generated-schema/build verification and emulator/S25 screenshot with a supported caller.
+- [ ] App Functions: opt-in AndroidX service prepares a chat draft or opens routines for user review. Generated schema inspected in opt-in debug APK; needs emulator/S25 screenshot with a supported caller.
 - [x] Bot directory import (`application/vnd.ai.nousresearch.hermes.mobile.bot+json`): opening a bot file shows Import bot with name, title and description: local `fork/a3-bot-import.png` `5a5afe92d2c5` (emu-s). Fields beyond `name`, `title` and `description` aren't confirmed from the official app.
 - [ ] Document scanner. Reason: not built. The official app uses the ML Kit document scanner, which adds a Google Play services dependency. Follow-up card.
 - [ ] Push notifications with actions. The fork has `MobilePushService`; not compared. Reason: the official app pushes through Firebase and the fork through UnifiedPush. Comparing actions needs both apps registered for push on one host, which this round didn't set up.
