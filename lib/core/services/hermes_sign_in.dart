@@ -1000,6 +1000,147 @@ class HermesSignIn {
   }
 }
 
+/// Why [brokeredPasswordSignIn] could not get tokens.
+enum BrokeredSignInFailure {
+  /// The host has no native sign-in for this provider (an older Hermes).
+  unsupported,
+  invalidCredentials,
+  rateLimited,
+  rejected,
+}
+
+class BrokeredSignInException implements Exception {
+  final BrokeredSignInFailure failure;
+  final String message;
+  const BrokeredSignInException(this.failure, this.message);
+
+  @override
+  String toString() => message;
+}
+
+final _pkceCookie = RegExp(
+  r'((?:__Host-|__Secure-)?hermes_session_pkce(?:_[0-9a-f]+)?)=([^;,\s]+)',
+);
+
+/// Password sign-in for a native app, the way Hermes brokers it
+/// (`hermes_cli/dashboard_auth/routes.py`): `/auth/native/authorize` for a
+/// password provider answers a redirect to its `/login` form and sets a PKCE
+/// cookie naming a pending native sign-in; `/auth/password-login` with that
+/// cookie verifies the password and, instead of session cookies, returns
+/// `next` = the loopback redirect carrying a one-time code; `/auth/native/token`
+/// redeems the code with the PKCE verifier for bearer tokens in the JSON body.
+/// No loopback listener is needed: the code is read from `next`, the redirect
+/// is never followed.
+///
+/// Tokens never travel as cookies, so this works where the session cookies of
+/// a plain `/auth/password-login` don't reach the app.
+Future<NativeSession> brokeredPasswordSignIn(
+  http.Client client,
+  String baseUrl, {
+  required String username,
+  required String password,
+  String provider = 'basic',
+  Map<String, String> headers = const {},
+  Duration timeout = const Duration(seconds: 20),
+}) async {
+  final base = baseUrl.endsWith('/')
+      ? baseUrl.substring(0, baseUrl.length - 1)
+      : baseUrl;
+  final verifier = _randomToken(32);
+  final state = _randomToken(16);
+  const redirectUri = 'http://127.0.0.1/callback';
+  final authorize = Uri.parse('$base/auth/native/authorize').replace(
+    queryParameters: {
+      'provider': provider,
+      'code_challenge': pkceChallengeFor(verifier),
+      'code_challenge_method': 'S256',
+      'redirect_uri': redirectUri,
+      'state': state,
+    },
+  );
+  final start = http.Request('GET', authorize)
+    ..followRedirects = false
+    ..headers.addAll({'Accept': 'application/json', ...headers});
+  final started = await http.Response.fromStream(
+    await client.send(start).timeout(timeout),
+  ).timeout(timeout);
+  final pkce = _pkceCookie
+      .allMatches(started.headers['set-cookie'] ?? '')
+      .where((m) => m.group(2) != '""')
+      .firstOrNull;
+  if (started.statusCode < 300 || started.statusCode >= 400 || pkce == null) {
+    throw BrokeredSignInException(
+      BrokeredSignInFailure.unsupported,
+      'Dashboard has no native password sign-in '
+      '(HTTP ${started.statusCode})',
+    );
+  }
+  final login = await client
+      .post(
+        Uri.parse('$base/auth/password-login'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...headers,
+          'Cookie': '${pkce.group(1)}=${pkce.group(2)}',
+        },
+        body: jsonEncode({
+          'provider': provider,
+          'username': username,
+          'password': password,
+        }),
+      )
+      .timeout(timeout);
+  if (login.statusCode == 401) {
+    throw const BrokeredSignInException(
+      BrokeredSignInFailure.invalidCredentials,
+      'Dashboard login failed: invalid username or password',
+    );
+  }
+  if (login.statusCode == 429) {
+    throw const BrokeredSignInException(
+      BrokeredSignInFailure.rateLimited,
+      'Dashboard login failed: too many attempts, try again shortly',
+    );
+  }
+  if (login.statusCode != 200) {
+    throw BrokeredSignInException(
+      BrokeredSignInFailure.rejected,
+      'Dashboard login failed: HTTP ${login.statusCode}',
+    );
+  }
+  final decoded = jsonDecode(login.body);
+  final next = decoded is Map ? Uri.tryParse('${decoded['next'] ?? ''}') : null;
+  final code = next?.queryParameters['code'] ?? '';
+  if (code.isEmpty || next?.queryParameters['state'] != state) {
+    throw const BrokeredSignInException(
+      BrokeredSignInFailure.rejected,
+      'Dashboard login succeeded but issued no native sign-in code',
+    );
+  }
+  final redeemed = await client
+      .post(
+        Uri.parse('$base/auth/native/token'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...headers,
+        },
+        body: jsonEncode({'code': code, 'code_verifier': verifier}),
+      )
+      .timeout(timeout);
+  final session = redeemed.statusCode == 200
+      ? NativeSession.fromJson(jsonDecode(redeemed.body))
+      : null;
+  if (session == null) {
+    throw BrokeredSignInException(
+      BrokeredSignInFailure.rejected,
+      'Dashboard refused the sign-in code (HTTP ${redeemed.statusCode})',
+    );
+  }
+  return session;
+}
+
 String _callbackPage(String title, String body) =>
     '<!doctype html><html><head><meta name="viewport" '
     'content="width=device-width,initial-scale=1"><title>$title</title>'
