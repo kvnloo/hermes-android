@@ -55,8 +55,6 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        documentScanner?.close()
-        documentScanner = DocumentScanner(this, flutterEngine.dartExecutor.binaryMessenger)
         glassWindow.attach(flutterEngine)
         VoiceDraftMedia.install(this, flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
@@ -79,6 +77,8 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             }
         }
+        documentScanner?.close()
+        documentScanner = DocumentScanner(this, flutterEngine.dartExecutor.binaryMessenger)
         attachmentPdfPreview?.close()
         attachmentPdfPreview = AttachmentPdfPreview(this, flutterEngine.dartExecutor.binaryMessenger)
         if (!BuildConfig.PLAY_BUILD) {
