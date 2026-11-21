@@ -44,6 +44,11 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'package:hermes_android/core/l10n/l10n.dart';
 
+import 'hm/features/settings/app_lock.dart';
+import 'hm/features/settings/cache_store.dart';
+import 'hm/features/settings/settings_prefs.dart';
+import 'nextgen/data/chat_controller.dart'
+    show NgChatController, NgMessageCache;
 import 'nextgen/nextgen_home.dart';
 import 'nextgen/ui/connect_screen.dart';
 import 'nextgen/nextgen_l10n.dart';
@@ -103,6 +108,8 @@ class _StartupAppState extends State<StartupApp> {
       () async {
         prefs = await SharedPreferences.getInstance();
         NextGenPreferences.load(prefs);
+        HmSettingsPrefs.instance.load(prefs);
+        NgChatController.messageCache = const _HmMessageCache();
         try {
           // Browser sign-ins and Cloudflare Access tokens, shared by both
           // interfaces; a Keystore fault only costs those sign-ins.
@@ -422,7 +429,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
     );
     _keepAlive.onAppLifecycleState(
       lifecycle ?? AppLifecycleState.resumed,
-      hasActiveTurn: _hasActiveTurn,
+      hasActiveTurn: _needsProcess,
     );
     // The keep-alive follows the work: a turn settling (or starting) while
     // backgrounded must end (or earn) the foreground service immediately,
@@ -430,6 +437,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
     _keepAliveTurnActivityToken = _turnApplicationController
         .addTurnActivityListener(_onTurnActivityChanged);
     nextGenTurnActive.addListener(_onTurnActivityChanged);
+    browserSignInPending.addListener(_onTurnActivityChanged);
     backgroundWorkEnabled.addListener(_onBackgroundWorkPolicyChanged);
     BackgroundWorkPrefsStore.pendingChoice.addListener(
       _onBackgroundWorkPolicyChanged,
@@ -479,10 +487,13 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
     }
   }
 
-  /// A classic turn, or NextGen's open chat running (Kyllene's ChatService
-  /// follows the open chat the same way).
-  bool get _hasActiveTurn =>
-      _turnApplicationController.hasActiveTurn || nextGenTurnActive.value;
+  /// Work the process must stay up for while backgrounded: a classic turn,
+  /// NextGen's open chat running (Kyllene's ChatService follows the open chat
+  /// the same way), or a browser sign-in waiting for its code.
+  bool get _needsProcess =>
+      _turnApplicationController.hasActiveTurn ||
+      nextGenTurnActive.value ||
+      browserSignInPending.value;
 
   bool get _protectBackgroundWork =>
       _confirmedBackgroundPolicy == true &&
@@ -526,7 +537,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
       backgroundWorkEnabled: _protectBackgroundWork,
     );
     _syncOngoingChats();
-    _keepAlive.onAppLifecycleState(state, hasActiveTurn: _hasActiveTurn);
+    _keepAlive.onAppLifecycleState(state, hasActiveTurn: _needsProcess);
   }
 
   void _pruneApprovalActions() {
@@ -571,7 +582,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
 
   void _onTurnActivityChanged() {
     if (_closingTurnOwner) return;
-    _keepAlive.onTurnActivityChanged(_hasActiveTurn);
+    _keepAlive.onTurnActivityChanged(_needsProcess);
     _syncOngoingChats();
   }
 
@@ -1256,7 +1267,14 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
             data: systemMediaQuery.copyWith(
               textScaler: preference.applyTo(systemMediaQuery.textScaler),
             ),
-            child: nextGen ? NgLocalizationScope(child: child!) : child!,
+            child: nextGen
+                ? NgLocalizationScope(
+                    child: HmLockGate(
+                      prefs: widget.connManager.prefs,
+                      child: child!,
+                    ),
+                  )
+                : child!,
           ),
         );
       },
@@ -1290,6 +1308,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
       notificationResponseHandler = null;
     }
     nextGenTurnActive.removeListener(_onTurnActivityChanged);
+    browserSignInPending.removeListener(_onTurnActivityChanged);
     backgroundWorkEnabled.removeListener(_onBackgroundWorkPolicyChanged);
     BackgroundWorkPrefsStore.pendingChoice.removeListener(
       _onBackgroundWorkPolicyChanged,
@@ -3527,4 +3546,21 @@ class _LanDiscoverySheetState extends State<LanDiscoverySheet> {
       ),
     );
   }
+}
+
+/// Settings → Caching → Messages: NextGen chats keep their newest page on
+/// the device and read it back when the host can't be reached.
+class _HmMessageCache implements NgMessageCache {
+  const _HmMessageCache();
+
+  @override
+  Future<void> put(
+    String host,
+    String sessionId,
+    List<Map<String, dynamic>> rows,
+  ) => HmCacheStore.instance.putMessages(host, sessionId, rows);
+
+  @override
+  Future<List<Map<String, dynamic>>?> read(String host, String sessionId) =>
+      HmCacheStore.instance.readMessages(host, sessionId);
 }

@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/services/connection_manager.dart';
+import '../../core/services/dashboard_api_client.dart';
 import '../../core/services/hermes_sign_in.dart';
 import '../../core/services/lan_discovery_service.dart';
 import '../../core/widgets/setup_interface_choice.dart';
@@ -18,6 +19,7 @@ import '../theme/nextgen_theme.dart';
 import 'certificate_picker.dart';
 import 'widgets.dart';
 import '../nextgen_l10n.dart';
+import '../nextgen_preferences.dart';
 
 class NgConnectScreen extends StatefulWidget {
   const NgConnectScreen({
@@ -153,8 +155,27 @@ class _NgConnectScreenState extends State<NgConnectScreen> {
       if (result is ProbeAccessBlocked) _showAccess = true;
       if (result is ProbeClientCertRequired) _showCertificate = true;
       final profiles = _status?.profiles ?? const [];
-      if (_profile != null && !profiles.contains(_profile)) _profile = null;
+      if (_profile != null &&
+          profiles.isNotEmpty &&
+          !profiles.contains(_profile)) {
+        _profile = null;
+      }
     });
+  }
+
+  Future<String?> _profileHoldingChats(
+    SavedConnection saved,
+    List<String> profiles,
+  ) async {
+    final client = DashboardApiClient.fromConnection(saved);
+    try {
+      final owner = profileOwningAllChats(await client.profileSessionCounts());
+      return owner != null && profiles.contains(owner) ? owner : null;
+    } catch (_) {
+      return null; // best effort: keep the server default
+    } finally {
+      client.close();
+    }
   }
 
   Future<void> _findOnNetwork() async {
@@ -172,16 +193,29 @@ class _NgConnectScreenState extends State<NgConnectScreen> {
   Future<void> _save(String method) async {
     final url = _url!;
     final certificate = await _certificate.commit();
-    final saved = await widget.connManager.saveSingleLoginConnection(
-      url: url,
-      signInMethod: method,
-      label: widget.existing?.label,
-      username: method == 'password' ? _username.text : null,
-      password: method == 'password' ? _password.text : null,
-      profile: _profile,
-      clientCertificate: certificate,
-      clearClientCertificate: _certificate.cleared,
-    );
+    Future<SavedConnection> persist(String? profile) =>
+        widget.connManager.saveSingleLoginConnection(
+          url: url,
+          signInMethod: method,
+          label: widget.existing?.label,
+          username: method == 'password' ? _username.text : null,
+          password: method == 'password' ? _password.text : null,
+          profile: profile,
+          clientCertificate: certificate,
+          clearClientCertificate: _certificate.cleared,
+        );
+    var saved = await persist(_profile);
+    // A multiplexed gateway answers a request without a profile from its
+    // default store, so chats kept in another profile would never show. When
+    // none was chosen and exactly one other profile holds them, use it.
+    final profiles = _status?.profiles ?? const <String>[];
+    if (_profile == null && profiles.length > 1) {
+      final owner = await _profileHoldingChats(saved, profiles);
+      if (owner != null) {
+        _profile = owner;
+        saved = await persist(owner);
+      }
+    }
     // A replaced or removed identity is no longer referenced.
     unawaited(widget.connManager.cleanupUnreferencedCertificates());
     if (!mounted) return;
@@ -215,14 +249,62 @@ class _NgConnectScreenState extends State<NgConnectScreen> {
       _waitingForBrowser = true;
       _signInError = null;
     });
-    final result = await HermesSignIn().browserSignIn(
-      _url!,
-      certificate: _certificate.config,
-      openBrowser: (uri) =>
-          launchUrl(uri, mode: LaunchMode.externalApplication),
-    );
+    // Android still freezes this process behind the Custom Tab (measured on
+    // a Galaxy S25: an OIDC sign-in hung on "Loading" with the app frozen),
+    // so the app root holds its foreground service until the code is back.
+    browserSignInPending.value = true;
+    final SignInResult result;
+    try {
+      result = await HermesSignIn().browserSignIn(
+        _url!,
+        certificate: _certificate.config,
+        openBrowser: (uri) =>
+            launchUrl(uri, mode: LaunchMode.inAppBrowserView),
+        onBrowserDone: () => unawaited(closeInAppWebView()),
+        untilForeground: _untilResumed,
+        // Back in the app with no code: the browser was closed. Give a late
+        // redirect a moment to land first.
+        cancelled: _nextReturn().then(
+          (_) => Future<void>.delayed(const Duration(seconds: 2)),
+        ),
+      );
+    } finally {
+      browserSignInPending.value = false;
+    }
     if (!mounted) return;
     await _handle(result, 'browser');
+  }
+
+  /// Completes the next time the app comes back after leaving.
+  static Future<void> _nextReturn() {
+    final done = Completer<void>();
+    var left = false;
+    late final AppLifecycleListener listener;
+    listener = AppLifecycleListener(
+      onHide: () => left = true,
+      onResume: () {
+        if (!left) return;
+        listener.dispose();
+        if (!done.isCompleted) done.complete();
+      },
+    );
+    return done.future;
+  }
+
+  static Future<void> _untilResumed() {
+    final binding = WidgetsBinding.instance;
+    if (binding.lifecycleState == AppLifecycleState.resumed) {
+      return Future.value();
+    }
+    final done = Completer<void>();
+    late final AppLifecycleListener listener;
+    listener = AppLifecycleListener(
+      onResume: () {
+        listener.dispose();
+        if (!done.isCompleted) done.complete();
+      },
+    );
+    return done.future;
   }
 
   Future<void> _handle(SignInResult result, String method) async {
@@ -241,6 +323,8 @@ class _NgConnectScreenState extends State<NgConnectScreen> {
         _signInError = ngL.ng_too_many_attempts_wait_a_moment;
       case SignInFailed(:final message):
         _signInError = message;
+      case SignInCancelled():
+        break;
     }
     if (mounted) {
       setState(() {

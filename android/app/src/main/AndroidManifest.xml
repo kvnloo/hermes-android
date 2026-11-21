@@ -7,6 +7,11 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Settings → Security: the app lock's biometric prompt. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- Live Mode over GPT-Live (WebRTC): call audio routing to the speaker. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <application
         android:label="${appLabel}"
         android:name="${applicationName}"
@@ -41,6 +46,23 @@
                 <action android:name="com.hermesagent.hermes_android.action.QUICK_CHAT" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <!-- Connections: the hosted sign-in ends at hermes://connections/done,
+                 which brings the app straight back; the page then wakes the
+                 host's operation (connectors.operation.wake) on resume. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="hermes"
+                    android:host="connections"
+                    android:path="/done" />
+            </intent-filter>
+            <!-- The link only returns to the app: the screens have no named
+                 routes, so Flutter must not push it as one. -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <action android:name="android.intent.action.SEND_MULTIPLE" />

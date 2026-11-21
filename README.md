@@ -3,6 +3,15 @@
 </p>
 
 <p align="center">
+  <a href="https://play.google.com/store/apps/details?id=com.hermesagent.hermes_android&amp;utm_source=github&amp;utm_campaign=ares_readme" target="_blank">
+    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="60">
+  </a>
+  <a href="https://f-droid.org/packages/com.hermesagent.hermes_android/" target="_blank">
+    <img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="60">
+  </a>
+</p>
+
+<p align="center">
   <a href="https://buymeacoffee.com/rusty4" target="_blank">
     <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="50">
   </a>
@@ -16,12 +25,12 @@
 
 [![Ares 4.0.0 showcase: Classic and NextGen](docs/video/ares-4.0-poster.png)](docs/video/ares-4.0-showcase.mp4)
 
-**[Watch the 80 second showcase](docs/video/ares-4.0-showcase.mp4).** No voiceover. The score is original synthwave written for this film. It was recorded on the production-signed [4.0.0-rc.7](https://github.com/rusty4444/hermes-android/releases/tag/v4.0.0-rc.7) build during the candidate cycle, with illustrative fixture chats. **4.0.3** is the latest stable release. NextGen adapts the [Kyllene](https://github.com/Giton22/kyllene) design by Giton22 (MIT).
+**[Watch the 80 second showcase](docs/video/ares-4.0-showcase.mp4).** No voiceover. The score is original synthwave written for this film. It was recorded on the production-signed [4.0.0-rc.7](https://github.com/rusty4444/hermes-android/releases/tag/v4.0.0-rc.7) build during the candidate cycle, with illustrative fixture chats. **4.0.9** is the latest stable release. NextGen adapts the [Kyllene](https://github.com/Giton22/kyllene) design by Giton22 (MIT).
 
-# Ares - formerly Hermes Android v4.0.3
+# Ares - formerly Hermes Android v4.0.9
 
 > **Hermes Android is now Ares.** In 4.0.0 the app is called "Ares - formerly
-> Hermes Android", and the launcher label is Ares. **4.0.3** is the latest
+> Hermes Android", and the launcher label is Ares. **4.0.9** is the latest
 > stable release. The package
 > `com.hermesagent.hermes_android` and the signing key are unchanged, so the
 > update installs over the existing app. It still connects to
@@ -89,20 +98,20 @@ Emulator captures of production-signed **4.0.0-rc.7** (version code 30432). Clas
 
 ## Current release
 
-**4.0.3** (base build **3060**) is the latest stable release. Its ABI splits are
-`30601`, `30602` and `30603`, each above the highest published 4.0.2
-split (`30503`). The production package and signer are unchanged. Install over
-the existing app; do not uninstall or clear app data. 4.0.3 covers all changes
-since 4.0.2: a long-press drag now selects the whole reply across paragraphs,
-lists and fenced code in both Classic and NextGen.
+**4.0.9** (base build **3065**) is the latest stable release. Its ABI splits are
+`30651`, `30652` and `30653`, each above the highest published 4.0.8
+split (`30643`). The production package and signer are unchanged. Install over
+the existing app; do not uninstall or clear app data. 4.0.9 fixes sending and
+live updates on Hermes 0.23.x session-authority gateways, and NextGen now finds
+chats on multiplexed gateways without manually picking a profile.
 
 | Download | Device | Version code |
 | --- | --- | --- |
-| [ARM64 APK](https://github.com/rusty4444/ares/releases/download/v4.0.3/app-arm64-v8a-release.apk) | Most current Android phones/tablets | `30602` |
-| [ARMv7 APK](https://github.com/rusty4444/ares/releases/download/v4.0.3/app-armeabi-v7a-release.apk) | Older 32-bit ARM devices | `30601` |
-| [x86_64 APK](https://github.com/rusty4444/ares/releases/download/v4.0.3/app-x86_64-release.apk) | x86_64 Android devices/emulators | `30603` |
+| [ARM64 APK](https://github.com/rusty4444/ares/releases/download/v4.0.9/app-arm64-v8a-release.apk) | Most current Android phones/tablets | `30652` |
+| [ARMv7 APK](https://github.com/rusty4444/ares/releases/download/v4.0.9/app-armeabi-v7a-release.apk) | Older 32-bit ARM devices | `30651` |
+| [x86_64 APK](https://github.com/rusty4444/ares/releases/download/v4.0.9/app-x86_64-release.apk) | x86_64 Android devices/emulators | `30653` |
 
-[Release and checksums](https://github.com/rusty4444/ares/releases/tag/v4.0.3) · [4.0.3 release notes](docs/releases/4.0.3.md) · [Full changelog](CHANGELOG.md)
+[Release and checksums](https://github.com/rusty4444/ares/releases/tag/v4.0.9) · [4.0.9 release notes](docs/releases/4.0.9.md) · [Full changelog](CHANGELOG.md)
 
 Debug builds use the separate `com.hermesagent.hermes_android.dev` package and Android debug certificate. Older production APKs have lower version codes; downgrading can require uninstalling and restoring a backup.
 
@@ -319,33 +328,46 @@ sanitized implementation and validation record.
 NextGen adapts [Kyllene](https://github.com/Giton22/kyllene) by Giton22 (MIT).
 See [4.0.0 release notes](docs/releases/4.0.0.md).
 
-## What's new in v4.0.3
+## What's new in v4.0.9
 
-- **Full-message text selection.** A long-press drag now selects as much of a
-  reply as you want — across paragraphs, lists and fenced code — in both the
-  Classic **Select text** dialog and the NextGen inline reply, instead of being
-  confined to a single block.
+- **Sending works on Hermes 0.23.x session-authority gateways (#293, fixes
+  #291).** `session.create`/`session.resume` now use the canonical param
+  shapes the authority accepts, so messages no longer fail with "Not sent:
+  invalid_params" and live updates no longer report invalid_params. Older
+  gateways keep the previous shapes. Reported by
+  [@shmuelsash](https://github.com/shmuelsash).
+- **NextGen finds chats on multiplexed gateways (#292).** With the profile
+  left on Server default, saving a connection now auto-selects the single
+  non-default profile that holds all the chats; ambiguous cases keep the
+  server default. Thanks to
+  [@manuelanguitatrejo](https://github.com/manuelanguitatrejo).
 
-See [4.0.3 release notes](docs/releases/4.0.3.md).
+See [4.0.9 release notes](docs/releases/4.0.9.md).
 
-## What's new in v4.0.2
+## What's new in v4.0.8
 
-- **Collapsed session-arc summaries keep the assistant tail.** When an LCM
-  summary envelope is merged into an assistant turn, NextGen splits it into a
-  collapsed **Summary** card while the trailing assistant content stays visible.
+- **NextGen reads replies aloud (#289, fixes #288).** Every completed
+  assistant reply offers Read aloud/Stop with Classic's voice settings; one
+  reply plays at a time, and switching chats stops playback. Reported by
+  [@Susensio](https://github.com/Susensio).
+- **One-tap code-block copy in NextGen (#289).** Fenced code blocks show a
+  labelled Copy code button that copies just that block's source; Classic's
+  icon-only header is unchanged.
 
-See [4.0.2 release notes](docs/releases/4.0.2.md).
+See [4.0.8 release notes](docs/releases/4.0.8.md).
 
-## What's new in v4.0.1
+## What's new in v4.0.7
 
-- **Multi-chat performance and a Summary card (#276).** Switching chats reuses a
-  bounded LRU transcript cache instead of re-fetching multi-MB history; token
-  deltas batch to once per frame; tool JSON is compact-encoded under a 16 KB
-  cap; sidebar refreshes throttle; history skips inline images. LCM context
-  summaries collapse into a dedicated **Summary** card, localised across all 12
-  shipped locales.
+- **Sending works against Hermes 0.23.x gateways (#286, fixes #285).** Every
+  prompt now carries a `submission_id`, with a one-shot fallback for older
+  gateways, so messages no longer fail with "Not sent: invalid_params".
+  Reported by [@shmuelsash](https://github.com/shmuelsash).
+- **NextGen paging carries growth overlap forward (#284, fixes #280).** After
+  a burst of new rows, paging no longer re-fetches rows already on screen, and
+  a live turn's stored rows no longer page back in as older duplicates.
+  Thanks to [@Thaeland](https://github.com/Thaeland).
 
-See [4.0.1 release notes](docs/releases/4.0.1.md).
+See [4.0.7 release notes](docs/releases/4.0.7.md).
 
 ## Features
 
@@ -823,7 +845,7 @@ cp build/app/outputs/flutter-apk/app-*-release.apk release-apks/
 block in `android/app/build.gradle.kts` derives per-ABI codes as
 `base * 10 + ABI code` (armeabi-v7a = 1, arm64-v8a = 2, x86_64 = 3), so the
 codes stay ordered armeabi-v7a < arm64-v8a < x86_64 as fdroiddata requires.
-For v4.0.0, base `3048` produces codes `30481`/`30482`/`30483`.
+For v4.0.9, base `3065` produces codes `30651`/`30652`/`30653`.
 Before publication, CI verifies all three actual APKs: package, version, ABI,
 effective code, production signer and required licence/source assets. Releases
 include checksums and exact-commit source/relink materials. Release-floor checks
@@ -963,6 +985,16 @@ lib/
 - **simplaerai-sv** — added the Ukrainian locale, persistent in-app language
   selector, and related regression tests in PRs #261, #258, #257, #256 and #255
   (v3.2.3). Original commits preserved.
+- **manuelanguitatrejo** — reported and fixed dashboard password sign-in against
+  the gateway Webapp's suffixed session cookie and sign-in binding, with
+  regression tests (#281, PR #282, v4.0.5), and fixed NextGen profile
+  preselection on multiplexed gateways with regression tests (PR #292,
+  v4.0.9). Original commits preserved.
+- **Thaeland** — kept NextGen history paging alive while a running turn grows
+  the chat, with regression tests for page-aligned growth and long tool-heavy
+  turns (PR #275, v4.0.5), then carried the paging overlap forward so growth
+  bursts never re-fetch shown rows and a live turn's stored rows stop paging
+  back in (PR #284, v4.0.7). Original commits preserved.
 
 **AI assistance:** Hermes Agent assists with implementation, research, code
 review and regression tests, including the saved-memory viewer and compact chat
@@ -970,6 +1002,12 @@ details in v2.1.33. Existing contributor credits below remain unchanged.
 Automated checks do not substitute for device validation; release notes list
 the checks performed.
 
+- **shmuelsash** — reported the Hermes 0.23.x `prompt.submit` refusal with a
+  source-level diagnosis of the missing `submission_id` (#285, v4.0.7), then
+  the `session.create`/`session.resume` invalid_params refusals on Hermes
+  0.23.2 with a source-level diagnosis (#291, v4.0.9).
+- **Susensio** — reported the NextGen Read aloud / code-copy regression with a
+  source-level comparison against Classic (#288, v4.0.8), on behalf of a user.
 - **igitur** — reported the REST/API-server approval path regression (#229) with
   server-side frame evidence and a precise reproduction of the malformed SSE
   choices crash.

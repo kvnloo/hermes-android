@@ -147,37 +147,37 @@ class NgColors extends ThemeExtension<NgColors> {
   }
 
   NgColors _withTokens(Map<String, Color> t, bool glow) => NgColors(
-      background: t['background'] ?? background,
-      surface: t['surface'] ?? surface,
-      surface2: t['surface2'] ?? surface2,
-      surface3: t['surface3'] ?? surface3,
-      well: t['well'] ?? well,
-      thumb: t['thumb'] ?? thumb,
-      sheet: t['sheet'] ?? sheet,
-      input: t['input'] ?? input,
-      sidebar: t['sidebar'] ?? sidebar,
-      userBubble: t['userBubble'] ?? userBubble,
-      onUserBubble: t['onUserBubble'] ?? onUserBubble,
-      text: t['text'] ?? text,
-      text2: t['text2'] ?? text2,
-      text3: t['text3'] ?? text3,
-      textMuted: t['textMuted'] ?? textMuted,
-      accent: t['accent'] ?? accent,
-      onAccent: t['onAccent'] ?? onAccent,
-      accentText: t['accentText'] ?? accentText,
-      accentSoft: t['accentSoft'] ?? accentSoft,
-      inverse: t['inverse'] ?? inverse,
-      onInverse: t['onInverse'] ?? onInverse,
-      stroke: t['stroke'] ?? stroke,
-      strokeStrong: t['strokeStrong'] ?? strokeStrong,
-      danger: t['danger'] ?? danger,
-      success: t['success'] ?? success,
-      warning: t['warning'] ?? warning,
-      dangerSoft: t['dangerSoft'] ?? dangerSoft,
-      successSoft: t['successSoft'] ?? successSoft,
-      warningSoft: t['warningSoft'] ?? warningSoft,
-      glow: glow,
-    );
+    background: t['background'] ?? background,
+    surface: t['surface'] ?? surface,
+    surface2: t['surface2'] ?? surface2,
+    surface3: t['surface3'] ?? surface3,
+    well: t['well'] ?? well,
+    thumb: t['thumb'] ?? thumb,
+    sheet: t['sheet'] ?? sheet,
+    input: t['input'] ?? input,
+    sidebar: t['sidebar'] ?? sidebar,
+    userBubble: t['userBubble'] ?? userBubble,
+    onUserBubble: t['onUserBubble'] ?? onUserBubble,
+    text: t['text'] ?? text,
+    text2: t['text2'] ?? text2,
+    text3: t['text3'] ?? text3,
+    textMuted: t['textMuted'] ?? textMuted,
+    accent: t['accent'] ?? accent,
+    onAccent: t['onAccent'] ?? onAccent,
+    accentText: t['accentText'] ?? accentText,
+    accentSoft: t['accentSoft'] ?? accentSoft,
+    inverse: t['inverse'] ?? inverse,
+    onInverse: t['onInverse'] ?? onInverse,
+    stroke: t['stroke'] ?? stroke,
+    strokeStrong: t['strokeStrong'] ?? strokeStrong,
+    danger: t['danger'] ?? danger,
+    success: t['success'] ?? success,
+    warning: t['warning'] ?? warning,
+    dangerSoft: t['dangerSoft'] ?? dangerSoft,
+    successSoft: t['successSoft'] ?? successSoft,
+    warningSoft: t['warningSoft'] ?? warningSoft,
+    glow: glow,
+  );
 
   factory NgColors._base(
     Brightness brightness,
@@ -319,7 +319,7 @@ abstract final class NgRadii {
 
 /// NextGen type scale (Geist; hierarchy from size and colour steps).
 abstract final class NgType {
-  static const family = 'Geist';
+  static const family = 'Nunito';
   static const mono = 'GeistMono';
 
   static const display = TextStyle(

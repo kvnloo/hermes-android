@@ -165,3 +165,17 @@ Complete copyright, permission and warranty text: [licenses/kyllene-MIT.txt](lic
 Scope: `assets/fonts/geist/`. Copyright (c) 2023 Vercel, in collaboration with
 basement.studio. Licence: SIL Open Font License 1.1
 ([assets/fonts/geist/OFL.txt](../assets/fonts/geist/OFL.txt)).
+
+## Bot avatars — runtime material
+
+Scope: the three avatar styles a person picks in Settings → Look & Feel.
+
+- **AI Elements Persona** voice orbs: `assets/persona/*.riv`, the original
+  Rive files, Copyright 2023 Vercel, Inc., Apache License 2.0. Bundled
+  unchanged and hash-checked; see `ai-elements-persona/`.
+- **thinking-orbs** (MIT, Copyright (c) 2026 Jakub Antalik): the geometry
+  engine is ported to Dart in `lib/hm/avatar/thinking_orbs.dart`; see
+  `thinking-orbs/`.
+- **Syn face**, ported from kvnloo/synergy.ai, adapting **Moodie** (MIT,
+  Copyright (c) 2026 Moodie contributors) and **bloub** (MIT, Copyright (c)
+  2026 Jérémy Perret) in `lib/hm/avatar/syn_face.dart`; see `syn-face/`.

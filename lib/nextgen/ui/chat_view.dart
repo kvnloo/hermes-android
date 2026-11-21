@@ -23,8 +23,10 @@ import '../../core/services/android_voice_composer_adapter.dart';
 import '../../core/services/attachment_controller.dart' show attachmentMimeType;
 import '../../core/services/attachment_draft_service.dart';
 import '../../core/services/voice_composer_adapter.dart';
+import '../../hm/features/settings/settings_prefs.dart';
 import '../data/chat_controller.dart';
 import '../data/nextgen_gateway.dart';
+import '../data/read_aloud.dart';
 import '../theme/nextgen_theme.dart';
 import '../haptics.dart';
 import 'model_sheet.dart';
@@ -41,6 +43,11 @@ class NgChatView extends StatefulWidget {
     required this.onOpenSidebar,
     this.sessions,
     required this.onNewChat,
+    this.readAloudFactory,
+    this.appBar,
+    this.botName,
+    this.dictation,
+    this.voiceFactory,
   });
 
   final NgChatController chat;
@@ -49,6 +56,25 @@ class NgChatView extends StatefulWidget {
   /// The sidebar's list, for a dot on its button while other chats are unread.
   final NgSessionsModel? sessions;
   final VoidCallback onNewChat;
+
+  /// Test hook: supplies the read-aloud controller (e.g. a fake speaker).
+  @visibleForTesting
+  final NgReadAloud Function()? readAloudFactory;
+
+  /// Replaces the default app bar (the Hermes-style bot header).
+  final PreferredSizeWidget? appBar;
+
+  /// The bot this chat talks to, named in the composer hint.
+  final String? botName;
+
+  /// Whether the composer is dictating. Pass one to watch it from outside
+  /// (the bot header's avatar listens); the view writes it, nothing else
+  /// should. Without one the view keeps its own.
+  final ValueNotifier<bool>? dictation;
+
+  /// Test hook: supplies the speech recognizer (e.g. a fake dictation source).
+  @visibleForTesting
+  final VoiceComposerAdapter Function()? voiceFactory;
 
   @override
   State<NgChatView> createState() => _NgChatViewState();
@@ -78,8 +104,18 @@ class _NgChatViewState extends State<NgChatView> {
   final _imagePicker = ImagePicker();
 
   VoiceComposerAdapter? _voice;
-  bool _listening = false;
+
+  /// The one dictation flag: the parent's notifier when it passed one.
+  ValueNotifier<bool>? _ownDictation;
+  ValueNotifier<bool> get _dictation =>
+      widget.dictation ?? (_ownDictation ??= ValueNotifier(false));
+  bool get _listening => _dictation.value;
+  set _listening(bool value) => _dictation.value = value;
   String _beforeDictation = '';
+
+  /// One read-aloud engine for this transcript: the reading reply's action
+  /// row shows Stop, and starting another reply stops the current one.
+  late final NgReadAloud _readAloud;
 
   NgChatController get chat => widget.chat;
 
@@ -87,6 +123,13 @@ class _NgChatViewState extends State<NgChatView> {
   void initState() {
     super.initState();
     chat.addListener(_onChat);
+    _readAloud = (widget.readAloudFactory ?? NgReadAloud.new)();
+    _readAloud.addListener(_onReadAloud);
+    _readAloud.onUnavailable = () {
+      if (mounted) {
+        ngToast(context, ngL.read_aloud_is_unavailable_on_this_device);
+      }
+    };
     _input.addListener(() => setState(() {}));
     _scroll.addListener(() {
       if (_scroll.hasClients &&
@@ -107,6 +150,18 @@ class _NgChatViewState extends State<NgChatView> {
       old.chat.removeListener(_onChat);
       chat.addListener(_onChat);
       _wasRunning = chat.running;
+      // A reply being read belongs to the chat we left.
+      unawaited(_readAloud.stop());
+    }
+    if (old.dictation != widget.dictation) {
+      final was = (old.dictation ?? _ownDictation)?.value ?? false;
+      if (was != _listening) {
+        // The flag moved to another notifier mid-dictation: carry it over
+        // after this build, so its listeners don't rebuild during one.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _listening = was;
+        });
+      }
     }
   }
 
@@ -114,12 +169,31 @@ class _NgChatViewState extends State<NgChatView> {
   /// turn gets one success (or error) pulse, as in Dash.
   late bool _wasRunning = chat.running;
 
+  void _onReadAloud() {
+    if (!mounted) return;
+    // Classic settles dictation before reading a reply aloud; do not let
+    // the mic keep listening to the engine's own playback.
+    if (_readAloud.readingKey != null && _listening) {
+      _listening = false;
+      final voice = _voice;
+      if (voice != null) unawaited(voice.stop());
+    }
+    setState(() {});
+  }
+
   void _onChat() {
     if (_wasRunning && !chat.running) {
       chat.error == null ? NgHaptics.success() : NgHaptics.error();
     }
     _wasRunning = chat.running;
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    // A retry or history reload can remove the reply being read; do not
+    // keep speaking a row that no longer has a Stop affordance.
+    final reading = _readAloud.readingKey;
+    if (reading != null && !chat.items.any((item) => item.key == reading)) {
+      unawaited(_readAloud.stop());
+    }
+    setState(() {});
   }
 
   /// The transcript is reversed, so its top is the scroll's far end: fetch
@@ -142,11 +216,14 @@ class _NgChatViewState extends State<NgChatView> {
   @override
   void dispose() {
     chat.removeListener(_onChat);
+    _readAloud.removeListener(_onReadAloud);
+    _readAloud.dispose();
     _ticker?.cancel();
     _input.dispose();
     _focus.dispose();
     _scroll.dispose();
     _voice?.dispose();
+    _ownDictation?.dispose();
     // Unsent picks only live in the app cache.
     if (_drafts.isNotEmpty) {
       unawaited(chat.attachmentService.removeAll(List.of(_drafts)));
@@ -272,6 +349,8 @@ class _NgChatViewState extends State<NgChatView> {
     final text = _input.text.trim();
     if (text.isEmpty && _drafts.isEmpty) return;
     NgHaptics.tap();
+    _settleDictation();
+    if (ngChatDisplay().dismissKeyboard) FocusScope.of(context).unfocus();
     if (_drafts.isNotEmpty && !chat.running) {
       final drafts = List.of(_drafts);
       _input.clear();
@@ -338,13 +417,27 @@ class _NgChatViewState extends State<NgChatView> {
     );
   }
 
+  /// Bumped when a message goes out, so a dictation still finishing can't
+  /// write its words back into the cleared composer.
+  int _dictationRound = 0;
+
+  /// Sending ends dictation: the words are in the message now.
+  void _settleDictation() {
+    _dictationRound++;
+    if (!_listening) return;
+    final voice = _voice;
+    if (voice != null) unawaited(voice.stop());
+    setState(() => _listening = false);
+  }
+
   Future<void> _toggleDictation() async {
     if (_listening) {
       await _voice?.stop();
       setState(() => _listening = false);
       return;
     }
-    final voice = _voice ??= createVoiceComposerAdapter();
+    final voice = _voice ??=
+        (widget.voiceFactory ?? createVoiceComposerAdapter)();
     final ok = await voice.initialize(
       onStatus: (status) {
         if ((status == 'done' || status == 'notListening') && mounted) {
@@ -363,8 +456,10 @@ class _NgChatViewState extends State<NgChatView> {
     }
     _beforeDictation = _input.text.trim();
     setState(() => _listening = true);
+    final round = _dictationRound;
     await voice.listen(
       onResult: ({required transcript, required isFinal}) {
+        if (round != _dictationRound || !mounted) return;
         final joined = [
           if (_beforeDictation.isNotEmpty) _beforeDictation,
           transcript,
@@ -405,72 +500,82 @@ class _NgChatViewState extends State<NgChatView> {
         final state = gateway.state;
         return Scaffold(
           backgroundColor: c.background,
-          appBar: AppBar(
-            backgroundColor: c.background,
-            surfaceTintColor: Colors.transparent,
-            leading: ListenableBuilder(
-              listenable: widget.sessions == null
-                  ? const _NoListenable()
-                  : Listenable.merge([widget.sessions, gateway]),
-              builder: (context, _) {
-                final unread = widget.sessions?.unreadCount ?? 0;
-                final dot = switch (widget.sessions?.topAttention) {
-                  NgChatAttention.waiting => c.warning,
-                  NgChatAttention.finished => c.success,
-                  _ => c.accent,
-                };
-                return IconButton(
-                  key: const ValueKey('ng-sidebar-button'),
-                  tooltip: unread > 0
-                      ? ngL.ng_chats_unread(unread)
-                      : ngL.ng_chats,
-                  icon: Badge(
-                    isLabelVisible: unread > 0,
-                    smallSize: 8,
-                    backgroundColor: dot,
-                    child: const Icon(Icons.view_sidebar_outlined),
+          appBar:
+              widget.appBar ??
+              AppBar(
+                backgroundColor: c.background,
+                surfaceTintColor: Colors.transparent,
+                leading: ListenableBuilder(
+                  listenable: widget.sessions == null
+                      ? const _NoListenable()
+                      : Listenable.merge([widget.sessions, gateway]),
+                  builder: (context, _) {
+                    final unread = widget.sessions?.unreadCount ?? 0;
+                    final dot = switch (widget.sessions?.topAttention) {
+                      NgChatAttention.waiting => c.warning,
+                      NgChatAttention.finished => c.success,
+                      _ => c.accent,
+                    };
+                    return IconButton(
+                      key: const ValueKey('ng-sidebar-button'),
+                      tooltip: unread > 0
+                          ? ngL.ng_chats_unread(unread)
+                          : ngL.ng_chats,
+                      icon: Badge(
+                        isLabelVisible: unread > 0,
+                        smallSize: 8,
+                        backgroundColor: dot,
+                        child: const Icon(Icons.view_sidebar_outlined),
+                      ),
+                      onPressed: widget.onOpenSidebar,
+                    );
+                  },
+                ),
+                titleSpacing: 0,
+                title: GestureDetector(
+                  onTap: chat.isNew ? null : _rename,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        chat.title.isEmpty ? ngL.ng_new_chat : chat.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: NgType.heading.copyWith(color: c.text),
+                      ),
+                      Text(
+                        _subtitle(state),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: NgType.caption.copyWith(
+                          color: state.isConnected ? c.text3 : c.warning,
+                        ),
+                      ),
+                    ],
                   ),
-                  onPressed: widget.onOpenSidebar,
-                );
-              },
-            ),
-            titleSpacing: 0,
-            title: GestureDetector(
-              onTap: chat.isNew ? null : _rename,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    chat.title.isEmpty ? ngL.ng_new_chat : chat.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: NgType.heading.copyWith(color: c.text),
+                ),
+                actions: [
+                  // The model sheet's entry in this bar; the Hermes-style
+                  // header reaches it through More -> Chat Settings.
+                  IconButton(
+                    key: const ValueKey('ng-model-picker'),
+                    tooltip: ngL.ng_model,
+                    icon: const Icon(Icons.tune),
+                    onPressed: () => showNgModelSheet(context, chat),
                   ),
-                  Text(
-                    _subtitle(state),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: NgType.caption.copyWith(
-                      color: state.isConnected ? c.text3 : c.warning,
+                  if (chat.usage != null)
+                    IconButton(
+                      tooltip: ngL.ng_usage,
+                      icon: const Icon(Icons.data_usage),
+                      onPressed: _showUsage,
                     ),
+                  IconButton(
+                    tooltip: ngL.ng_new_chat,
+                    icon: const Icon(Icons.edit_square),
+                    onPressed: widget.onNewChat,
                   ),
                 ],
               ),
-            ),
-            actions: [
-              if (chat.usage != null)
-                IconButton(
-                  tooltip: ngL.ng_usage,
-                  icon: const Icon(Icons.data_usage),
-                  onPressed: _showUsage,
-                ),
-              IconButton(
-                tooltip: ngL.ng_new_chat,
-                icon: const Icon(Icons.edit_square),
-                onPressed: widget.onNewChat,
-              ),
-            ],
-          ),
           body: Column(
             children: [
               if (!state.isConnected) _connectionBanner(c, gateway),
@@ -732,6 +837,7 @@ class _NgChatViewState extends State<NgChatView> {
         filesIdentity: (NgScope.of(context).connection.id, chat.storedId),
         last: i == items.length - 1,
         onRetry: i == items.length - 1 && !chat.running ? chat.retryLast : null,
+        readAloud: _readAloud,
       ),
       NgSystemItem() => _SystemCard(item: item),
       NgNoticeItem() => Padding(
@@ -779,22 +885,84 @@ class _NgChatViewState extends State<NgChatView> {
   Widget _composer(NgColors c, NgConnectionState state) {
     final hasText = _input.text.trim().isNotEmpty;
     final canSend = hasText || (_drafts.isNotEmpty && !chat.running);
-    final modelLabel = [
-      chat.model == null ? ngL.ng_default_model : _shortModel(chat.model!),
-      if (chat.reasoningEffort != null && chat.reasoningEffort!.isNotEmpty)
-        ngEffortLabel(chat.reasoningEffort),
-    ].join(' · ');
+    final shadow = [
+      BoxShadow(
+        color: Colors.black.withValues(
+          alpha: c.background.computeLuminance() > 0.5 ? 0.08 : 0.35,
+        ),
+        blurRadius: 12,
+        offset: const Offset(0, 3),
+      ),
+    ];
+    Widget round({
+      required IconData icon,
+      required String tooltip,
+      required VoidCallback? onTap,
+      required Color bg,
+      required Color fg,
+      bool lifted = false,
+      Key? key,
+    }) => Tooltip(
+      message: tooltip,
+      child: SizedBox.square(
+        key: key,
+        dimension: 48,
+        child: Material(
+          color: bg,
+          shape: const CircleBorder(),
+          elevation: lifted ? 3 : 0,
+          shadowColor: Colors.black.withValues(alpha: 0.35),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Icon(icon, color: fg, size: 24),
+          ),
+        ),
+      ),
+    );
+    final Widget action;
+    if (chat.running && !hasText) {
+      action = round(
+        tooltip: ngL.ng_stop,
+        icon: Icons.stop_rounded,
+        bg: c.inverse,
+        fg: c.onInverse,
+        onTap: () {
+          NgHaptics.tap();
+          chat.stop();
+        },
+      );
+    } else if (canSend) {
+      action = round(
+        key: const ValueKey('ng-send'),
+        tooltip: ngL.ng_send,
+        icon: Icons.arrow_upward_rounded,
+        bg: c.accent,
+        fg: c.onAccent,
+        onTap: _send,
+      );
+    } else {
+      action = round(
+        tooltip: _listening ? ngL.ng_stop_dictation : ngL.ng_dictate,
+        icon: _listening ? Icons.mic : Icons.mic_none_rounded,
+        bg: _listening ? c.accent : c.accentSoft,
+        fg: _listening ? c.onAccent : c.accentText,
+        onTap: _toggleDictation,
+      );
+    }
+    final name = widget.botName;
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+        padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
         child: Container(
           decoration: BoxDecoration(
-            color: c.input,
-            borderRadius: BorderRadius.circular(NgRadii.xl),
+            color: c.surface,
+            borderRadius: BorderRadius.circular(32),
             border: Border.all(color: c.stroke),
+            boxShadow: shadow,
           ),
-          padding: const EdgeInsets.fromLTRB(6, 4, 6, 6),
+          padding: const EdgeInsets.all(8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -803,7 +971,7 @@ class _NgChatViewState extends State<NgChatView> {
                   height: 44,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
+                    padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
                     children: [
                       for (final d in _drafts)
                         Padding(
@@ -837,85 +1005,60 @@ class _NgChatViewState extends State<NgChatView> {
                     ],
                   ),
                 ),
-              TextField(
-                key: const ValueKey('ng-composer-field'),
-                controller: _input,
-                focusNode: _focus,
-                onTap: () {
-                  // Android can hide the keyboard with Back while this node
-                  // retains focus. Explicitly show it on every composer tap.
-                  _focus.requestFocus();
-                  unawaited(
-                    SystemChannels.textInput.invokeMethod<void>(
-                      'TextInput.show',
-                    ),
-                  );
-                },
-                minLines: 1,
-                maxLines: 8,
-                textCapitalization: TextCapitalization.sentences,
-                style: NgType.body.copyWith(color: c.text),
-                decoration: InputDecoration(
-                  hintText: _listening
-                      ? ngL.ng_listening
-                      : chat.running
-                      ? ngL.ng_steer_or_queue_a_message
-                      : ngL.ng_message_hermes,
-                  hintStyle: NgType.body.copyWith(color: c.textMuted),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-                ),
-              ),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  IconButton(
+                  round(
                     tooltip: ngL.ng_attach,
-                    icon: Icon(Icons.add_circle_outline, color: c.text2),
-                    onPressed: _preparing ? null : _attach,
+                    icon: Icons.add,
+                    bg: c.surface,
+                    fg: c.text,
+                    lifted: true,
+                    onTap: _preparing ? null : _attach,
                   ),
-                  Flexible(
-                    child: NgPill(
-                      key: const ValueKey('ng-model-picker'),
-                      modelLabel,
-                      icon: Icons.auto_awesome,
-                      onTap: () => showNgModelSheet(context, chat),
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    tooltip: _listening
-                        ? ngL.ng_stop_dictation
-                        : ngL.ng_dictate,
-                    icon: Icon(
-                      _listening ? Icons.mic : Icons.mic_none,
-                      color: _listening ? c.accent : c.text2,
-                    ),
-                    onPressed: _toggleDictation,
-                  ),
-                  if (chat.running && !hasText)
-                    IconButton.filled(
-                      tooltip: ngL.ng_stop,
-                      style: IconButton.styleFrom(
-                        backgroundColor: c.inverse,
-                        foregroundColor: c.onInverse,
-                      ),
-                      icon: const Icon(Icons.stop_rounded),
-                      onPressed: () {
-                        NgHaptics.tap();
-                        chat.stop();
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('ng-composer-field'),
+                      controller: _input,
+                      focusNode: _focus,
+                      onTap: () {
+                        // Android can hide the keyboard with Back while this
+                        // node retains focus. Show it on every composer tap.
+                        _focus.requestFocus();
+                        unawaited(
+                          SystemChannels.textInput.invokeMethod<void>(
+                            'TextInput.show',
+                          ),
+                        );
                       },
-                    )
-                  else
-                    IconButton.filled(
-                      tooltip: ngL.ng_send,
-                      style: IconButton.styleFrom(
-                        backgroundColor: c.accent,
-                        foregroundColor: c.onAccent,
-                        disabledBackgroundColor: c.surface3,
+                      minLines: 1,
+                      maxLines: 6,
+                      textCapitalization: TextCapitalization.sentences,
+                      style: NgType.body.copyWith(color: c.text),
+                      decoration: InputDecoration(
+                        hintText: _listening
+                            ? ngL.ng_listening
+                            : chat.running
+                            ? ngL.ng_steer_or_queue_a_message
+                            : name == null
+                            ? ngL.ng_message_hermes
+                            : 'Message $name…',
+                        hintStyle: NgType.body.copyWith(color: c.textMuted),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.fromLTRB(
+                          12,
+                          13,
+                          8,
+                          13,
+                        ),
                       ),
-                      icon: const Icon(Icons.arrow_upward_rounded),
-                      onPressed: canSend ? _send : null,
                     ),
+                  ),
+                  action,
                 ],
               ),
             ],
@@ -923,11 +1066,6 @@ class _NgChatViewState extends State<NgChatView> {
         ),
       ),
     );
-  }
-
-  static String _shortModel(String model) {
-    final slash = model.lastIndexOf('/');
-    return slash >= 0 ? model.substring(slash + 1) : model;
   }
 }
 
@@ -1034,14 +1172,51 @@ class _SystemCardState extends State<_SystemCard> {
   }
 }
 
+/// The chat display options from Settings → Chat. Until the app has loaded
+/// them (the classic shell, widget tests) the transcript shows as it always
+/// has: thinking and tools present, finished turns folded, standard style.
+@visibleForTesting
+({
+  bool thinking,
+  bool tools,
+  bool foldFinished,
+  bool bubbles,
+  bool dismissKeyboard,
+})
+ngChatDisplay() {
+  final p = HmSettingsPrefs.instance;
+  if (!p.isLoaded) {
+    return (
+      thinking: true,
+      tools: true,
+      foldFinished: true,
+      bubbles: false,
+      dismissKeyboard: false,
+    );
+  }
+  return (
+    thinking: p.showThinking,
+    tools: p.showToolCalls,
+    foldFinished: p.foldFinishedTurns,
+    bubbles: p.chatStyle == HmChatStyle.bubbles,
+    dismissKeyboard: p.dismissKeyboardAfterSend,
+  );
+}
+
 class _UserBubble extends StatelessWidget {
   const _UserBubble({required this.item, this.onRetry});
   final NgUserItem item;
   final VoidCallback? onRetry;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: HmSettingsPrefs.instance,
+    builder: (context, _) => _build(context),
+  );
+
+  Widget _build(BuildContext context) {
     final c = NgColors.of(context);
+    final bubbles = ngChatDisplay().bubbles;
     return Padding(
       padding: const EdgeInsets.only(top: 14, bottom: 4, left: 48),
       child: Column(
@@ -1067,13 +1242,13 @@ class _UserBubble extends StatelessWidget {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: c.userBubble,
+                  color: bubbles ? c.accentSoft : c.userBubble,
                   borderRadius: BorderRadius.circular(NgRadii.lg),
                 ),
                 child: SelectableText(
                   ngCapShown(item.text),
                   style: NgType.body.copyWith(
-                    color: c.onUserBubble.withValues(
+                    color: (bubbles ? c.accentText : c.onUserBubble).withValues(
                       alpha: item.pending ? 0.6 : 1,
                     ),
                   ),
@@ -1272,6 +1447,7 @@ class _AssistantBlock extends StatefulWidget {
     required this.last,
     required this.files,
     required this.filesIdentity,
+    required this.readAloud,
     this.onRetry,
   });
   final NgAssistantItem item;
@@ -1282,6 +1458,9 @@ class _AssistantBlock extends StatefulWidget {
   final bool last;
   final VoidCallback? onRetry;
 
+  /// Shared transcript playback: this reply's row shows Stop while it reads.
+  final NgReadAloud readAloud;
+
   @override
   State<_AssistantBlock> createState() => _AssistantBlockState();
 }
@@ -1289,6 +1468,16 @@ class _AssistantBlock extends StatefulWidget {
 class _AssistantBlockState extends State<_AssistantBlock> {
   bool _showThinking = false;
   bool _showTools = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // "Fold finished turns" off: a finished reply opens with its thinking
+    // and tool calls shown.
+    if (!widget.item.open && !ngChatDisplay().foldFinished) {
+      _showThinking = _showTools = true;
+    }
+  }
 
   /// Rendered content by source text. Returning the same widget lets Flutter
   /// skip it, so typing, the turn timer and streamed tokens re-parse only
@@ -1364,6 +1553,9 @@ class _AssistantBlockState extends State<_AssistantBlock> {
           code: fence.code,
           language: fence.language,
           selectable: false,
+          // A labelled Copy button: one obvious tap on a phone, no need to
+          // discover the icon or drag a selection across the fence (#288).
+          showCopyLabel: true,
         );
       });
     }
@@ -1445,17 +1637,24 @@ class _AssistantBlockState extends State<_AssistantBlock> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: HmSettingsPrefs.instance,
+    builder: (context, _) => _build(context),
+  );
+
+  Widget _build(BuildContext context) {
+    final display = ngChatDisplay();
     final c = NgColors.of(context);
     final item = widget.item;
     final tools = item.tools;
     final runningTool = tools.where((t) => t.running).lastOrNull;
+    final reading = widget.readAloud.isReading(item.key);
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (item.reasoning.trim().isNotEmpty)
+          if (display.thinking && item.reasoning.trim().isNotEmpty)
             _Disclosure(
               icon: Icons.psychology_outlined,
               label: item.open && item.text.isEmpty
@@ -1468,7 +1667,7 @@ class _AssistantBlockState extends State<_AssistantBlock> {
                 style: NgType.bodySmall.copyWith(color: c.text3),
               ),
             ),
-          if (tools.isNotEmpty)
+          if (display.tools && tools.isNotEmpty)
             _Disclosure(
               icon: Icons.build_outlined,
               label: runningTool != null
@@ -1488,10 +1687,14 @@ class _AssistantBlockState extends State<_AssistantBlock> {
             // select across paragraphs, lists and code fences — as much of
             // the response as the user wants, not just one block.
             SelectionArea(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: _content(c, item),
+              child: _bubble(
+                c,
+                display.bubbles,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: _content(c, item),
+                ),
               ),
             ),
           if (!item.open && item.text.isNotEmpty)
@@ -1506,6 +1709,19 @@ class _AssistantBlockState extends State<_AssistantBlock> {
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: item.text));
                       ngToast(context, ngL.ng_copied);
+                    },
+                  ),
+                  _ActionIcon(
+                    icon: reading
+                        ? Icons.stop_circle_outlined
+                        : Icons.volume_up_outlined,
+                    tooltip: reading ? ngL.ng_stop : ngL.ng_read_aloud,
+                    onTap: () {
+                      if (reading) {
+                        unawaited(widget.readAloud.stop());
+                      } else {
+                        unawaited(widget.readAloud.read(item.key, item.text));
+                      }
                     },
                   ),
                   _ActionIcon(
@@ -1544,6 +1760,20 @@ class _AssistantBlockState extends State<_AssistantBlock> {
     );
   }
 }
+
+/// Bubbles style: the reply sits in a rounded card, like the user's message.
+Widget _bubble(NgColors c, bool on, Widget child) => !on
+    ? child
+    : Container(
+        key: const ValueKey('ng-reply-bubble'),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        margin: const EdgeInsets.only(right: 48),
+        decoration: BoxDecoration(
+          color: c.surface2,
+          borderRadius: BorderRadius.circular(NgRadii.lg),
+        ),
+        child: child,
+      );
 
 class _ActionIcon extends StatelessWidget {
   const _ActionIcon({

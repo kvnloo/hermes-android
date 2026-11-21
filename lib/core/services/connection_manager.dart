@@ -2504,7 +2504,9 @@ class DownloadSizeLimitException implements Exception {
 ///    performs the `/auth/password-login` flow (provider `basic`) and
 ///    authenticates subsequent `/api/` calls with the returned
 ///    `hermes_session_at` session cookie. This is what hermes-desktop does and
-///    is required when the dashboard runs with basic-auth.
+///    is required when the dashboard runs with basic-auth. When the login is
+///    accepted but no access cookie reaches the app, it signs in through the
+///    host's native password broker instead and uses bearer tokens.
 ///  * **Insecure (open) dashboard** — when no credentials are given, falls back
 ///    to scraping the ephemeral SPA session token from the homepage. Only works
 ///    on a dashboard started with `--insecure`.
@@ -2613,7 +2615,9 @@ class DashboardClient {
     // login completing after a 401 reset must not overwrite its replacement.
     future
         .then((cookie) {
-          if (_authGeneration == generation &&
+          // '' means the login left bearer tokens in the vault instead.
+          if (cookie.isNotEmpty &&
+              _authGeneration == generation &&
               identical(_cookieInFlight, future)) {
             _cookie = cookie;
           }
@@ -2651,17 +2655,70 @@ class DashboardClient {
     final setCookie = res.headers['set-cookie'] ?? '';
     // The `http` package folds multiple Set-Cookie headers into one
     // comma-joined string; cookie expiry dates also contain commas, so match
-    // the access-token cookie by name and take its value up to the first
-    // delimiter. Handles the bare name plus the __Host-/__Secure- prefixes
-    // Hermes uses on HTTPS binds.
-    final match = RegExp(
-      r'((?:__Host-|__Secure-)?hermes_session_at)=([^;,\s]+)',
-    ).firstMatch(setCookie);
-    if (match == null) {
-      throw Exception('Dashboard login succeeded but no session cookie found');
+    // each cookie by name and take its value up to the first delimiter.
+    // Every name may carry the __Host-/__Secure- prefixes Hermes uses on HTTPS
+    // binds and the `_<gateway>` suffix its gateway Webapp appends to all
+    // sign-in cookie names (the suffix is a 16-char hex digest of the
+    // gateway's home). The matched names are sent back verbatim.
+    String? matchCookie(String name) {
+      final match = RegExp(
+        '((?:__Host-|__Secure-)?$name(?:_[0-9a-f]+)?)=([^;,\\s]+)',
+      ).firstMatch(setCookie);
+      return match == null ? null : '${match.group(1)}=${match.group(2)}';
     }
-    return '${match.group(1)}=${match.group(2)}';
+
+    final access = matchCookie('hermes_session_at');
+    if (access == null) {
+      // The password was accepted but no access-token cookie reached the
+      // app (measured on a Tailscale Serve HTTPS host: the audit log records
+      // `login_success`, Set-Cookie carries only the provider hint). Sign in
+      // the way the host brokers passwords for native apps instead: bearer
+      // tokens in a JSON body, no session cookies (see
+      // [brokeredPasswordSignIn]). Returning '' tells [_authHeaders] to use
+      // the bearer the vault now holds.
+      await _signInNatively();
+      return '';
+    }
+    // Behind the gateway Webapp's sign-in gate a cookie session additionally
+    // needs the sign-in binding the login just set: without it the gate treats
+    // the session as signed out (`hermes_cli/webapp_sign_in.py`).
+    final signIn = matchCookie('hermes_webapp_signin');
+    return signIn == null ? access : '$access; $signIn';
   }
+
+  Future<void> _signInNatively() async {
+    final NativeSession session;
+    try {
+      session = await brokeredPasswordSignIn(
+        _http,
+        _baseUrl,
+        username: _username!,
+        password: _password!,
+        headers: HermesSignInVault.instance.accessHeadersFor(
+          Uri.parse(_baseUrl),
+        ),
+        timeout: ApiClient.requestTimeout,
+      );
+    } on BrokeredSignInException catch (e) {
+      if (e.failure == BrokeredSignInFailure.unsupported) {
+        throw Exception(
+          'Dashboard login succeeded but no session cookie found',
+        );
+      }
+      throw Exception(e.message);
+    }
+    await HermesSignInVault.instance.setSession(_baseUrl, session);
+  }
+
+  /// Whether this origin is a loopback-mode dashboard (no sign-in), which
+  /// guards `/api` and `/api/ws` with the session token it injects into its
+  /// page instead of a login: no ticket can be minted there, so the socket
+  /// dials with `?token=`.
+  bool get usesSessionToken =>
+      !usesBrowserSignIn && !_proxied && !_usesPasswordAuth;
+
+  /// The dashboard's page-injected session token (see [usesSessionToken]).
+  Future<String> sessionToken() => _getToken();
 
   /// Returns the SPA session token, reusing a cached value or an in-flight fetch.
   Future<String> _getToken() {
@@ -2736,7 +2793,14 @@ class DashboardClient {
     final access = HermesSignInVault.instance.accessHeadersFor(
       Uri.parse(_baseUrl),
     );
-    final bearer = await _bearerHeader();
+    String? bearer;
+    try {
+      bearer = await _bearerHeader();
+    } on DashboardHttpException catch (e) {
+      // A password connection whose brokered tokens can no longer be renewed
+      // signs in again with the saved password.
+      if (!_usesPasswordAuth || e.statusCode != 401) rethrow;
+    }
     if (bearer != null) {
       return {
         ...access,
@@ -2746,11 +2810,19 @@ class DashboardClient {
     }
     if (_proxied) return {...access, 'Content-Type': 'application/json'};
     if (_usesPasswordAuth) {
-      return {
-        ...access,
-        'Cookie': await _getCookie(),
-        'Content-Type': 'application/json',
-      };
+      final cookie = await _getCookie();
+      if (cookie.isEmpty) {
+        final issued = await _bearerHeader();
+        if (issued == null) {
+          throw Exception('Dashboard login succeeded but issued no session');
+        }
+        return {
+          ...access,
+          'Authorization': issued,
+          'Content-Type': 'application/json',
+        };
+      }
+      return {...access, 'Cookie': cookie, 'Content-Type': 'application/json'};
     }
     return {
       ...access,
