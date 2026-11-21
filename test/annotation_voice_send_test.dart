@@ -38,8 +38,9 @@ class FakeAnnotationPort implements AnnotationSendPort {
   int submits = 0;
   String? lastMode;
   Completer<AnnotationReceipt> observation = Completer<AnnotationReceipt>();
-  AnnotationReceipt submissionResult =
-      const AnnotationReceipt(AnnotationReceiptKind.pending);
+  AnnotationReceipt submissionResult = const AnnotationReceipt(
+    AnnotationReceiptKind.pending,
+  );
 
   @override
   bool get isOnline => online;
@@ -69,12 +70,7 @@ class FakeAnnotationPort implements AnnotationSendPort {
   }) => observation.future;
 }
 
-const screen = ScreenInfo(
-  id: 'chat',
-  route: '/chat',
-  width: 400,
-  height: 800,
-);
+const screen = ScreenInfo(id: 'chat', route: '/chat', width: 400, height: 800);
 Stroke stroke(int time, {int id = 1, double x = 0.4}) => Stroke(
   id: id,
   tool: 'pen',
@@ -141,59 +137,68 @@ void main() {
     expect(store.clears, 1);
   });
 
-  test('changed drawing or transcript during pending blocks a new turn', () async {
-    final store = MemoryPendingStore();
-    final port = FakeAnnotationPort()
-      ..observation.complete(
-        const AnnotationReceipt(AnnotationReceiptKind.pending),
+  test(
+    'changed drawing or transcript during pending blocks a new turn',
+    () async {
+      final store = MemoryPendingStore();
+      final port = FakeAnnotationPort()
+        ..observation.complete(
+          const AnnotationReceipt(AnnotationReceiptKind.pending),
+        );
+      final sender = AnnotationVoiceSendController(store: store, port: port);
+      final first = draft();
+      expect((await sender.send(first)).confirmed, isFalse);
+
+      await expectLater(sender.send(draft(x: 0.3)), throwsStateError);
+      await expectLater(
+        sender.send(draft(spoken: 'move the other one')),
+        throwsStateError,
       );
-    final sender = AnnotationVoiceSendController(store: store, port: port);
-    final first = draft();
-    expect((await sender.send(first)).confirmed, isFalse);
+      expect(store.pending?.fingerprint, first.fingerprint);
+      expect(port.reserves, 1);
+      expect(port.submits, 1);
+      expect(first.strokes.single.points.first.x, 0.4);
+    },
+  );
 
-    await expectLater(sender.send(draft(x: 0.3)), throwsStateError);
-    await expectLater(
-      sender.send(draft(spoken: 'move the other one')),
-      throwsStateError,
-    );
-    expect(store.pending?.fingerprint, first.fingerprint);
-    expect(port.reserves, 1);
-    expect(port.submits, 1);
-    expect(first.strokes.single.points.first.x, 0.4);
-  });
+  test(
+    'offline before admission preserves annotation without write or send',
+    () async {
+      final store = MemoryPendingStore();
+      final port = FakeAnnotationPort()..online = false;
+      final sender = AnnotationVoiceSendController(store: store, port: port);
+      final envelope = draft();
+      await expectLater(sender.send(envelope), throwsStateError);
+      expect(port.reserves, 0);
+      expect(port.submits, 0);
+      expect(store.writes, 0);
+      expect(store.pending, isNull);
+      expect(envelope.strokes.single.id, 1);
+      expect(envelope.segments.single.text, 'move this');
+    },
+  );
 
-  test('offline before admission preserves annotation without write or send', () async {
-    final store = MemoryPendingStore();
-    final port = FakeAnnotationPort()..online = false;
-    final sender = AnnotationVoiceSendController(store: store, port: port);
-    final envelope = draft();
-    await expectLater(sender.send(envelope), throwsStateError);
-    expect(port.reserves, 0);
-    expect(port.submits, 0);
-    expect(store.writes, 0);
-    expect(store.pending, isNull);
-    expect(envelope.strokes.single.id, 1);
-    expect(envelope.segments.single.text, 'move this');
-  });
+  test(
+    'failed receipt is retained and retry inspects, never resends',
+    () async {
+      final store = MemoryPendingStore();
+      final port = FakeAnnotationPort()
+        ..observation.complete(
+          const AnnotationReceipt(AnnotationReceiptKind.failed),
+        );
+      final sender = AnnotationVoiceSendController(store: store, port: port);
+      final envelope = draft();
 
-  test('failed receipt is retained and retry inspects, never resends', () async {
-    final store = MemoryPendingStore();
-    final port = FakeAnnotationPort()
-      ..observation.complete(
-        const AnnotationReceipt(AnnotationReceiptKind.failed),
-      );
-    final sender = AnnotationVoiceSendController(store: store, port: port);
-    final envelope = draft();
-
-    final failed = await sender.send(envelope);
-    expect(failed.receipt.kind, AnnotationReceiptKind.failed);
-    expect(store.pending?.turnId, failed.turn.turnId);
-    final observed = await sender.send(envelope);
-    expect(observed.didDispatch, isFalse);
-    expect(observed.receipt.kind, AnnotationReceiptKind.failed);
-    expect(port.submits, 1);
-    expect(store.clears, 0);
-  });
+      final failed = await sender.send(envelope);
+      expect(failed.receipt.kind, AnnotationReceiptKind.failed);
+      expect(store.pending?.turnId, failed.turn.turnId);
+      final observed = await sender.send(envelope);
+      expect(observed.didDispatch, isFalse);
+      expect(observed.receipt.kind, AnnotationReceiptKind.failed);
+      expect(port.submits, 1);
+      expect(store.clears, 0);
+    },
+  );
 
   test('missing receipt times out without clearing drawing or ID', () async {
     final store = MemoryPendingStore();
@@ -214,8 +219,9 @@ void main() {
     final store = MemoryPendingStore();
     final port = FakeAnnotationPort()
       ..running = true
-      ..submissionResult =
-          const AnnotationReceipt(AnnotationReceiptKind.accepted);
+      ..submissionResult = const AnnotationReceipt(
+        AnnotationReceiptKind.accepted,
+      );
     final sender = AnnotationVoiceSendController(store: store, port: port);
     final result = await sender.send(draft());
     expect(result.confirmed, isTrue);
@@ -248,19 +254,22 @@ void main() {
     expect(port.submits, 1);
   });
 
-  test('fingerprint is stable across createdAt and catches timestamp changes', () {
-    final first = draft();
-    final rewrapped = AnnotationSendEnvelope(
-      conversationId: first.conversationId,
-      strokes: first.strokes,
-      segments: first.segments,
-      screen: first.screen,
-      createdAt: 1700000005000,
-    );
-    expect(first.fingerprint, rewrapped.fingerprint);
-    expect(first.fingerprint.length, 64);
-    expect(first.fingerprint, isNot(draft(time: 1001).fingerprint));
-    expect(first.document['schema'], 'dash.annotation.v1');
-    expect(first.text, contains('⟦stroke 1⟧'));
-  });
+  test(
+    'fingerprint is stable across createdAt and catches timestamp changes',
+    () {
+      final first = draft();
+      final rewrapped = AnnotationSendEnvelope(
+        conversationId: first.conversationId,
+        strokes: first.strokes,
+        segments: first.segments,
+        screen: first.screen,
+        createdAt: 1700000005000,
+      );
+      expect(first.fingerprint, rewrapped.fingerprint);
+      expect(first.fingerprint.length, 64);
+      expect(first.fingerprint, isNot(draft(time: 1001).fingerprint));
+      expect(first.document['schema'], 'dash.annotation.v1');
+      expect(first.text, contains('⟦stroke 1⟧'));
+    },
+  );
 }

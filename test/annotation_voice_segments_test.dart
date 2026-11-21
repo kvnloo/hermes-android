@@ -87,7 +87,10 @@ void main() {
       textController: text,
       adapter: adapter,
     );
-    final history = AnnotationVoiceSegments(composer: composer, clock: () => 50);
+    final history = AnnotationVoiceSegments(
+      composer: composer,
+      clock: () => 50,
+    );
     addTearDown(composer.dispose);
     addTearDown(text.dispose);
 

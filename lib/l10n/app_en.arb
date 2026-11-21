@@ -2504,5 +2504,10 @@
   "turbo_description_verify": "Free models for checking answers",
   "turbo_description_longctx": "Free models for long contexts",
   "turbo_description_public": "Public free model pool",
-  "turbo_description_other": "Routed through vLLM Semantic Router"
+  "turbo_description_other": "Routed through vLLM Semantic Router",
+  "annotation_mode": "Annotate screen",
+  "annotation_undo": "Undo annotation",
+  "annotation_clear": "Clear markings",
+  "annotation_snapshot": "Attach annotated screenshot",
+  "annotation_exit": "Exit annotation mode"
 }

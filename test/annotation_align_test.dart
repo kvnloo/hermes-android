@@ -8,19 +8,9 @@ Segment segment(
   int start,
   int end, {
   String source = 'mic',
-}) => Segment(
-  id: id,
-  text: text,
-  start: start,
-  end: end,
-  source: source,
-);
+}) => Segment(id: id, text: text, start: start, end: end, source: source);
 
-Stroke stroke(
-  int id,
-  int startedAt, {
-  int? endedAt,
-}) => Stroke(
+Stroke stroke(int id, int startedAt, {int? endedAt}) => Stroke(
   id: id,
   tool: 'pen',
   color: 'accent',
@@ -57,10 +47,9 @@ void main() {
       ];
       expect(segmentFor(stroke(1, 1400), segments)?.id, 'near');
       expect(
-        segmentFor(
-          stroke(2, 400, endedAt: 750),
-          <Segment>[segment('crossed', 'middle', 600, 650)],
-        )?.id,
+        segmentFor(stroke(2, 400, endedAt: 750), <Segment>[
+          segment('crossed', 'middle', 600, 650),
+        ])?.id,
         'crossed',
       );
     });
@@ -119,13 +108,10 @@ void main() {
     });
 
     test('retains input order for equal-start segments', () {
-      final result = annotateTranscript(
-        <Stroke>[],
-        <Segment>[
-          segment('a', 'alpha', 100, 200),
-          segment('b', 'beta', 100, 200),
-        ],
-      );
+      final result = annotateTranscript(<Stroke>[], <Segment>[
+        segment('a', 'alpha', 100, 200),
+        segment('b', 'beta', 100, 200),
+      ]);
       expect(result.text, 'alpha beta');
     });
 
@@ -146,32 +132,35 @@ void main() {
       expect(result.text, 'hello world ⟦stroke 8⟧');
     });
 
-    test('unspoken order is input stroke order and blanks cannot claim ink', () {
-      final result = annotateTranscript(
-        <Stroke>[
-          stroke(9, 9000),
-          stroke(1, 50),
-          stroke(4, 10000),
-          stroke(6, 250),
-        ],
-        <Segment>[
-          segment('spoken', 'hello', 0, 100),
-          segment('blank', '  ', 200, 300),
-        ],
-      );
-      expect(result.text, 'hello ⟦stroke 1⟧ ⟦stroke 6⟧');
-      expect(result.unspoken, <int>[9, 4]);
-    });
+    test(
+      'unspoken order is input stroke order and blanks cannot claim ink',
+      () {
+        final result = annotateTranscript(
+          <Stroke>[
+            stroke(9, 9000),
+            stroke(1, 50),
+            stroke(4, 10000),
+            stroke(6, 250),
+          ],
+          <Segment>[
+            segment('spoken', 'hello', 0, 100),
+            segment('blank', '  ', 200, 300),
+          ],
+        );
+        expect(result.text, 'hello ⟦stroke 1⟧ ⟦stroke 6⟧');
+        expect(result.unspoken, <int>[9, 4]);
+      },
+    );
 
     test('empty inputs and strokes without speech', () {
       final empty = annotateTranscript(<Stroke>[], <Segment>[]);
       expect(empty.text, '');
       expect(empty.unspoken, isEmpty);
 
-      final noSpeech = annotateTranscript(
-        <Stroke>[stroke(3, 0), stroke(1, 20)],
-        <Segment>[],
-      );
+      final noSpeech = annotateTranscript(<Stroke>[
+        stroke(3, 0),
+        stroke(1, 20),
+      ], <Segment>[]);
       expect(noSpeech.text, '');
       expect(noSpeech.unspoken, <int>[3, 1]);
     });

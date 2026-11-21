@@ -9917,6 +9917,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Routed through vLLM Semantic Router'**
   String get turbo_description_other;
+
+  /// No description provided for @annotation_mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Annotate screen'**
+  String get annotation_mode;
+
+  /// No description provided for @annotation_undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo annotation'**
+  String get annotation_undo;
+
+  /// No description provided for @annotation_clear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear markings'**
+  String get annotation_clear;
+
+  /// No description provided for @annotation_snapshot.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach annotated screenshot'**
+  String get annotation_snapshot;
+
+  /// No description provided for @annotation_exit.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit annotation mode'**
+  String get annotation_exit;
 }
 
 class _AppLocalizationsDelegate

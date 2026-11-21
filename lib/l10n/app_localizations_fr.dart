@@ -5936,4 +5936,19 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get turbo_description_other => 'Routed through vLLM Semantic Router';
+
+  @override
+  String get annotation_mode => 'Annoter l’écran';
+
+  @override
+  String get annotation_undo => 'Annuler l’annotation';
+
+  @override
+  String get annotation_clear => 'Effacer les marques';
+
+  @override
+  String get annotation_snapshot => 'Joindre la capture annotée';
+
+  @override
+  String get annotation_exit => 'Quitter le mode annotation';
 }

@@ -1612,5 +1612,10 @@
   "openui_board_unavailable": "이 보드를 표시할 수 없습니다. 원본 소스는 아래에 있습니다.",
   "openui_board_incomplete": "이 보드는 완성되지 않았습니다. 원본 소스는 아래에 있습니다.",
   "openui_board_unsupported": "이 보드에는 Android에서 아직 지원하지 않는 패널이 있습니다. 원본 소스는 아래에 있습니다.",
-  "openui_read_only": "읽기 전용 · 탭 선택은 기기에만 적용됩니다"
+  "openui_read_only": "읽기 전용 · 탭 선택은 기기에만 적용됩니다",
+  "annotation_mode": "화면에 주석 달기",
+  "annotation_undo": "주석 실행 취소",
+  "annotation_clear": "표시 지우기",
+  "annotation_snapshot": "주석이 있는 스크린샷 첨부",
+  "annotation_exit": "주석 모드 종료"
 }
