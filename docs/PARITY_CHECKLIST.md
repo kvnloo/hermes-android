@@ -7,7 +7,7 @@ An item is checked only if a screenshot shows it working. Evidence is one of two
 - `parity/<name>.jpg`: committed in this folder, downscaled.
 - `local <path> <sha256 prefix>`: kept off this public repo because it shows private data (hostnames, emails, profile, session or task names). The path is under the parity workspace `hermes-uiux/shots/`. The hash is the first 12 hex digits of the full PNG's sha256.
 
-Device: **S25** is Kevin's Galaxy S25 Ultra running the signed CI build of `11f4436`, then `10ce448`, on a hidden display. **emu** is the Pixel 8-sized emulator from PR #16.
+Device: **S25** is Kevin's Galaxy S25 Ultra running the signed CI build of `11f4436`, then `10ce448`, on a hidden display. **emu** is the Pixel 8-sized emulator from PR #16. **emu-s** is the same emulator on `staging`: the debug build of `c2c81fa`, and for Glass the CI APK of `2d860bb` (PR #28). The S25 refused adb on 2026-11-21, so this round has no S25 shots.
 
 ## Hosts and sign-in
 
@@ -17,14 +17,14 @@ Device: **S25** is Kevin's Galaxy S25 Ultra running the signed CI build of `11f4
 - [x] **Studio round trip.** Sent "Reply with exactly A0262-PONG-S25 and nothing else" and got `A0262-PONG-S25` back: `parity/s25-010-studio-roundtrip.jpg` (S25). Studio's `state.db` has both turns in session `20261120_212958_380baa`.
 - [x] Browser (Google OIDC) sign-in to groot, on the build of `10ce448`. Google account step: local `fork-s25/s25-033-groot-oidc.png` `e7e83997d00a`. The app's loopback answers "Signed in": `parity/s25-044-groot-returned.jpg`. Home lists groot's bots: local `fork-s25/s25-045-groot-after-close.png` `26c3441ecd3f`. groot logged `native_token_success`. On the build of `11f4436` the app froze behind the tab and the redirect never landed (local `fork-s25/s25-036-groot-wait.png` `59c564ad98bb`); `60a487a` fixed that.
 - [x] **groot round trip.** Sent "Reply with exactly A0262-PONG-GROOT and nothing else" and got `A0262-PONG-GROOT` back: `parity/s25-050-groot-roundtrip.jpg` (S25). groot's `state.db` has both turns in session `20261120_215716_0db3ab`.
-- [ ] After a browser sign-in the tab stays open on "Signed in" until the user closes it. Not compared with the official app.
+- [ ] After a browser sign-in the tab stays open on "Signed in" until the user closes it. Not compared with the official app. Reason: the comparison needs a browser sign-in in the official app against an OIDC host. The emulator has no saved OIDC credentials, and the S25 refused adb this round.
 
 ## Home
 
 - [x] Bot list with last message and time: local `fork-s25/s25-004-signedin.png` `87f3c5852dab` (S25).
 - [x] Filters (view, sort, recent, show, agents, include groups): local `fork/r2-011-filters.png` `67828b1275c9` (emu).
 - [x] New session sheet with every bot and New group: local `fork-s25/s25-005-newsession.png` `1edbc30607c7` (S25).
-- [ ] Search. Built, no screenshot yet.
+- [x] Search filters the bot list as you type: local `fork/a3-search-typed.png` `0228256db894` (emu-s).
 
 ## Chat
 
@@ -35,15 +35,15 @@ Device: **S25** is Kevin's Galaxy S25 Ultra running the signed CI build of `11f4
 - [x] More → Artifacts: `parity/r2-03-Artifacts.jpg` (emu).
 - [x] More → Execution: `parity/r2-03-Execution.jpg` (emu).
 - [x] More → Terminal: `parity/r2-03-Terminal.jpg` (emu).
-- [ ] "Worked for %s" after a turn. Not built.
-- [ ] Reactions with skin tone (`message.react`). Not built.
-- [ ] "Load earlier messages". Not built.
-- [ ] "Memory updated" row. Not built.
+- [x] "Worked for %s" after a turn ("Worked for 5s"): `parity/a3-chat-turn.jpg` (emu-s, disposable host). PR #26.
+- [x] Reactions with skin tone (`message.react`). Picker with SKIN TONE row: `parity/a3-reaction-picker.jpg`. The host-confirmed 👍🏼 under the reply: `parity/a3-reaction-sent.jpg` (emu-s, disposable host). PR #26.
+- [x] "Load earlier messages" at the top of a long chat: local `fork/a3-load-earlier.png` `4cb2c20471c9`. After the tap, the earlier turns are shown: local `fork/a3-load-earlier-after.png` `bf568317bcf3` (emu-s). PR #26.
+- [ ] "Memory updated" row. Built in PR #26, with a widget test for the row. No screenshot. Reason: on the disposable host a background review wrote memory (`agent.log`: `Background review complete … result=memory`, 02:38:42), but no `review.summary` reached the open chat, so the row never rendered. Not yet traced whether the host or the app drops it.
 
 ## Live Mode and avatars
 
 - [x] Live Mode call surface (bot pill, orb, prompt, mic, close): `parity/r3-010-live.jpg` (emu).
-- [ ] GPT-Live over WebRTC on a real device. Built, never run against a host that offers it.
+- [ ] GPT-Live over WebRTC on a real device. Built, never run against a host that offers it. Reason: no host Kevin runs is known to offer GPT-Live, and the S25 was unreachable this round.
 - [x] Avatar styles a user picks: faces, voice orb (Persona looks), thinking orb: `parity/053-picker-persona.jpg`, `parity/055-picker-orbs.jpg`, `parity/054-persona-rest.jpg` (emu).
 
 ## Groups
@@ -61,7 +61,7 @@ Device: **S25** is Kevin's Galaxy S25 Ultra running the signed CI build of `11f4
 - [x] Projects: `parity/r2-08-Projects.jpg` (emu).
 - [x] Kanban with the real board: local `fork/r2-08-Kanban.png` `3dc0768c776c` (emu).
 - [x] Artifacts for all of a bot's chats: local `fork/r2-08-Artifacts-poteto2.png` `3ec9424d0cb8` (emu).
-- [ ] Routines and New Agent. Built, no screenshot yet.
+- [x] Routines (the bot's scheduled jobs): local `fork/a3-routines.png` `b4bfab145f24` (emu-s). New Agent form: `parity/a3-newagent.jpg` (emu-s).
 
 ## Settings
 
@@ -69,19 +69,19 @@ Device: **S25** is Kevin's Galaxy S25 Ultra running the signed CI build of `11f4
 - [x] Security (screen lock toggle): `parity/r2-130-security.jpg` (emu). The lock prompt itself is a secure window and captures as black.
 - [x] Caching: `parity/r2-09-Caching.jpg` (emu).
 - [x] Terminal Connection over SSH: `parity/r2-111-termconn.jpg` (emu). Trust prompt: local `fork/r3-040-trust.png` `a5cf826b5b7a`. Live shell printing `parity-42`: local `fork/r3-032-terminal-shell.png` `5e3ad0b02f05`.
-- [ ] Look & Feel (the fork's theme engine) and ephemeral-ui cards. Kept, no screenshot this round.
+- [x] Look & Feel: theme mode, the new Solid/Glass surface, the theme engine's looks, and Import / Copy theme JSON: `parity/a3-lookfeel-surface.jpg`. Glass over the wallpaper: `parity/a3-glass-settings.jpg` (emu-s, PRs #25 and #28). Ephemeral-ui (OpenUI) boards render natively since PR #18, covered by widget tests; no screenshot.
 
 ## System surfaces in the official manifest
 
-None of these are in the fork yet unless noted.
+Built in PR #27 unless a reason is given.
 
-- [ ] Quick Settings tiles: New Chat and Live Voice.
-- [ ] Home screen widget "Hermes Agent Actions".
-- [ ] Launcher shortcuts New Chat, Live Voice, Sessions. The fork has its own `shortcuts.xml`; not compared.
-- [ ] Share target. The fork accepts SEND and SEND_MULTIPLE; not compared.
-- [ ] System assistant: VoiceInteractionService, assist overlay, screen share.
-- [ ] Device access: Health Connect, calendar, contacts, location, exact alarms.
-- [ ] App Functions ("Ask your Hermes bots, run their routines…").
-- [ ] Bot directory import (`application/vnd.ai.nousresearch.hermes.mobile.bot+json`).
-- [ ] Document scanner.
-- [ ] Push notifications with actions. The fork has `MobilePushService`; not compared.
+- [x] Quick Settings tiles New Chat and Live Voice: `parity/a3-qs-tiles.jpg`. New Chat opens a new NextGen chat (`parity/a3-qs-newchat-opened.jpg`) and Live Voice opens Live Mode (`parity/a3-qs-livevoice-opened.jpg`) (emu-s).
+- [x] Home screen widget "Hermes Agent Actions" with New Chat and Live Voice: `parity/a3-widget-home.jpg`. New Chat opened a new chat (emu-s).
+- [x] Launcher shortcuts New Chat, Start Live Voice, Open Sessions, the same set as the official app: `parity/a3-shortcuts.jpg` (emu-s).
+- [x] Share target: shared text lands as a NextGen new-chat draft: `parity/a3-share-text.jpg` (emu-s).
+- [ ] System assistant: VoiceInteractionService, assist overlay, screen share. Reason: not built. It needs a VoiceInteractionService, a session service, an assist overlay activity and a screen-share foreground service, which is its own feature. Follow-up card.
+- [ ] Device access: Health Connect, calendar, contacts, location, exact alarms. Reason: not built. Each source needs a permission flow on the phone and a tool contract with the host. Follow-up card.
+- [ ] App Functions ("Ask your Hermes bots, run their routines…"). Reason: not built. It needs the AndroidX AppFunctions service and its generated schema, which no installed agent on Kevin's devices calls yet. Follow-up card.
+- [x] Bot directory import (`application/vnd.ai.nousresearch.hermes.mobile.bot+json`): opening a bot file shows Import bot with name, title and description: local `fork/a3-bot-import.png` `5a5afe92d2c5` (emu-s). Fields beyond `name`, `title` and `description` aren't confirmed from the official app.
+- [ ] Document scanner. Reason: not built. The official app uses the ML Kit document scanner, which adds a Google Play services dependency. Follow-up card.
+- [ ] Push notifications with actions. The fork has `MobilePushService`; not compared. Reason: the official app pushes through Firebase and the fork through UnifiedPush. Comparing actions needs both apps registered for push on one host, which this round didn't set up.
