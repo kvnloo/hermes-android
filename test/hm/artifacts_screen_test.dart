@@ -202,7 +202,7 @@ void main() {
     await tester.tap(find.text('data'));
     await tester.pump();
     expect(
-      find.text('Couldn’t open the selected destination.'),
+      find.text("Couldn't open the selected destination."),
       findsOneWidget,
     );
   });

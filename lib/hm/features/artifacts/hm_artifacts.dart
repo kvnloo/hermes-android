@@ -290,7 +290,7 @@ class _HmArtifactsScreenState extends State<HmArtifactsScreen> {
         ok = false;
       }
     }
-    if (!ok && mounted) _say('Couldn’t open the selected destination.');
+    if (!ok && mounted) _say("Couldn't open the selected destination.");
   }
 
   Future<void> _open(HmArtifact a) async {

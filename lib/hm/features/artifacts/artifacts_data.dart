@@ -57,7 +57,7 @@ String _title(Map<String, dynamic> s) {
   final title = (s['title'] ?? '').toString().trim();
   if (title.isNotEmpty) return title;
   final preview = (s['preview'] ?? '').toString().trim();
-  return preview.isNotEmpty ? preview : 'Untitled session';
+  return preview.isNotEmpty ? preview : 'Untitled';
 }
 
 double _lastActive(Map<String, dynamic> s) {
