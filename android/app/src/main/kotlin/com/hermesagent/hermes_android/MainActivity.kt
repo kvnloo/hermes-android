@@ -83,6 +83,14 @@ class MainActivity : FlutterFragmentActivity() {
         }
         attachmentFileSaver?.close()
         attachmentFileSaver = AttachmentFileSaver(this, flutterEngine.dartExecutor.binaryMessenger)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "com.hermesagent.hermes_android/device_access").setMethodCallHandler { call, result ->
+            if (call.method == "openSettings") {
+                result.success(runCatching { startActivity(Intent(this, DeviceAccessActivity::class.java)) }.isSuccess)
+            } else {
+                result.notImplemented()
+            }
+        }
         BackgroundWorkPlatform.install(this, flutterEngine.dartExecutor.binaryMessenger)
         MobilePushPlugin.install(flutterEngine)
         handsFreeVoice = HandsFreeVoicePlugin.install(flutterEngine)
