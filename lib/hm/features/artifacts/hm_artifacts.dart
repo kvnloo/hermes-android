@@ -19,13 +19,11 @@ import '../../../core/widgets/media_artifact_card.dart';
 import '../../../nextgen/data/chat_controller.dart';
 import '../../../nextgen/theme/nextgen_theme.dart';
 import '../../../nextgen/ui/nextgen_scope.dart';
-import '../../../nextgen/ui/scheduled_page.dart';
 import '../../hm_bots.dart';
 import '../../hm_ui.dart';
 import '../../screens/hm_chat_screen.dart';
-import '../live/hm_live.dart';
-import '../terminal/hm_terminal.dart';
-import '../work/hm_execution.dart';
+import '../../screens/hm_home.dart' show hmOpenChat;
+import '../settings/cache_store.dart';
 import 'artifact_scan.dart';
 import 'artifacts_data.dart';
 
@@ -45,7 +43,15 @@ Future<void> openHmArtifacts(
   await Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (context) => HmArtifactsScreen(
-        loader: HmArtifactsLoader(source),
+        loader: HmArtifactsLoader(
+          source,
+          // Settings → Caching → Files & Links keeps what each chat holds.
+          onScanned: (sessionId, items) => HmCacheStore.instance
+              .putFiles(bots.gateway.connection.id, sessionId, [
+                for (final a in items) a.toJson(),
+              ])
+              .catchError((Object _) {}),
+        ),
         // A chat that was never sent has no transcript yet.
         draftChat: chat != null && chat.storedId == null,
         showSession: chat == null,
@@ -60,98 +66,17 @@ Future<void> openHmArtifacts(
             Navigator.of(context).pop();
             return;
           }
-          await _openChat(context, bot, bots, artifact);
+          await hmOpenChat(
+            context,
+            bot: bot,
+            bots: bots,
+            sessionId: artifact.sessionId,
+            title: artifact.sessionTitle,
+          );
         },
       ),
     ),
   );
-}
-
-/// Opens the artifact's chat on top of the Artifacts screen.
-Future<void> _openChat(
-  BuildContext context,
-  HmBot bot,
-  HmBotsModel bots,
-  HmArtifact artifact,
-) async {
-  final chat = NgChatController(
-    bots.gateway,
-    sessionId: artifact.sessionId,
-    title: artifact.sessionTitle,
-    profile: bot.scope,
-  );
-  unawaited(chat.open());
-  await Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (context) => HmChatScreen(
-        bot: bot,
-        chat: chat,
-        onNewChat: () => Navigator.of(context).pop(),
-        onAction: (a) => _chatAction(context, bot, bots, chat, a),
-      ),
-    ),
-  );
-  chat.dispose();
-}
-
-Future<void> _chatAction(
-  BuildContext context,
-  HmBot bot,
-  HmBotsModel bots,
-  NgChatController chat,
-  HmChatAction a,
-) async {
-  switch (a) {
-    case HmChatAction.chatSettings:
-      await showHmChatSettings(context, chat);
-    case HmChatAction.liveMode:
-      await openHmLive(context, bot: bot, bots: bots, chat: chat);
-    case HmChatAction.terminal:
-      await openHmTerminal(context, bot: bot, bots: bots, chat: chat);
-    case HmChatAction.execution:
-      await openHmExecution(context, bot: bot, bots: bots, chat: chat);
-    case HmChatAction.routines:
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (context) => NgScheduledPage(
-            onOpenSession: (_) => Navigator.of(context).pop(),
-          ),
-        ),
-      );
-    case HmChatAction.artifacts:
-      await openHmArtifacts(context, bot: bot, bots: bots, chat: chat);
-    case HmChatAction.archive:
-      final id = chat.storedId;
-      if (id == null) return;
-      await bots
-          .apiFor(bot)
-          .setSessionArchived(sessionId: id, archived: true)
-          .catchError((_) => false);
-      if (context.mounted) Navigator.of(context).pop();
-    case HmChatAction.delete:
-      final id = chat.storedId;
-      if (id == null) return;
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Delete this chat?'),
-          content: const Text('It is removed from the host for every device.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete'),
-            ),
-          ],
-        ),
-      );
-      if (ok != true) return;
-      await bots.apiFor(bot).deleteSession(id).catchError((_) {});
-      if (context.mounted) Navigator.of(context).pop();
-  }
 }
 
 enum _Filter { all, image, file, link }

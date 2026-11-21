@@ -23,6 +23,7 @@ import '../../core/services/android_voice_composer_adapter.dart';
 import '../../core/services/attachment_controller.dart' show attachmentMimeType;
 import '../../core/services/attachment_draft_service.dart';
 import '../../core/services/voice_composer_adapter.dart';
+import '../../hm/features/settings/settings_prefs.dart';
 import '../data/chat_controller.dart';
 import '../data/nextgen_gateway.dart';
 import '../data/read_aloud.dart';
@@ -349,6 +350,7 @@ class _NgChatViewState extends State<NgChatView> {
     if (text.isEmpty && _drafts.isEmpty) return;
     NgHaptics.tap();
     _settleDictation();
+    if (ngChatDisplay().dismissKeyboard) FocusScope.of(context).unfocus();
     if (_drafts.isNotEmpty && !chat.running) {
       final drafts = List.of(_drafts);
       _input.clear();
@@ -1170,14 +1172,51 @@ class _SystemCardState extends State<_SystemCard> {
   }
 }
 
+/// The chat display options from Settings → Chat. Until the app has loaded
+/// them (the classic shell, widget tests) the transcript shows as it always
+/// has: thinking and tools present, finished turns folded, standard style.
+@visibleForTesting
+({
+  bool thinking,
+  bool tools,
+  bool foldFinished,
+  bool bubbles,
+  bool dismissKeyboard,
+})
+ngChatDisplay() {
+  final p = HmSettingsPrefs.instance;
+  if (!p.isLoaded) {
+    return (
+      thinking: true,
+      tools: true,
+      foldFinished: true,
+      bubbles: false,
+      dismissKeyboard: false,
+    );
+  }
+  return (
+    thinking: p.showThinking,
+    tools: p.showToolCalls,
+    foldFinished: p.foldFinishedTurns,
+    bubbles: p.chatStyle == HmChatStyle.bubbles,
+    dismissKeyboard: p.dismissKeyboardAfterSend,
+  );
+}
+
 class _UserBubble extends StatelessWidget {
   const _UserBubble({required this.item, this.onRetry});
   final NgUserItem item;
   final VoidCallback? onRetry;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: HmSettingsPrefs.instance,
+    builder: (context, _) => _build(context),
+  );
+
+  Widget _build(BuildContext context) {
     final c = NgColors.of(context);
+    final bubbles = ngChatDisplay().bubbles;
     return Padding(
       padding: const EdgeInsets.only(top: 14, bottom: 4, left: 48),
       child: Column(
@@ -1203,13 +1242,13 @@ class _UserBubble extends StatelessWidget {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: c.userBubble,
+                  color: bubbles ? c.accentSoft : c.userBubble,
                   borderRadius: BorderRadius.circular(NgRadii.lg),
                 ),
                 child: SelectableText(
                   ngCapShown(item.text),
                   style: NgType.body.copyWith(
-                    color: c.onUserBubble.withValues(
+                    color: (bubbles ? c.accentText : c.onUserBubble).withValues(
                       alpha: item.pending ? 0.6 : 1,
                     ),
                   ),
@@ -1430,6 +1469,16 @@ class _AssistantBlockState extends State<_AssistantBlock> {
   bool _showThinking = false;
   bool _showTools = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // "Fold finished turns" off: a finished reply opens with its thinking
+    // and tool calls shown.
+    if (!widget.item.open && !ngChatDisplay().foldFinished) {
+      _showThinking = _showTools = true;
+    }
+  }
+
   /// Rendered content by source text. Returning the same widget lets Flutter
   /// skip it, so typing, the turn timer and streamed tokens re-parse only
   /// the block that changed instead of the whole transcript.
@@ -1588,7 +1637,13 @@ class _AssistantBlockState extends State<_AssistantBlock> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: HmSettingsPrefs.instance,
+    builder: (context, _) => _build(context),
+  );
+
+  Widget _build(BuildContext context) {
+    final display = ngChatDisplay();
     final c = NgColors.of(context);
     final item = widget.item;
     final tools = item.tools;
@@ -1599,7 +1654,7 @@ class _AssistantBlockState extends State<_AssistantBlock> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (item.reasoning.trim().isNotEmpty)
+          if (display.thinking && item.reasoning.trim().isNotEmpty)
             _Disclosure(
               icon: Icons.psychology_outlined,
               label: item.open && item.text.isEmpty
@@ -1612,7 +1667,7 @@ class _AssistantBlockState extends State<_AssistantBlock> {
                 style: NgType.bodySmall.copyWith(color: c.text3),
               ),
             ),
-          if (tools.isNotEmpty)
+          if (display.tools && tools.isNotEmpty)
             _Disclosure(
               icon: Icons.build_outlined,
               label: runningTool != null
@@ -1632,10 +1687,14 @@ class _AssistantBlockState extends State<_AssistantBlock> {
             // select across paragraphs, lists and code fences — as much of
             // the response as the user wants, not just one block.
             SelectionArea(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: _content(c, item),
+              child: _bubble(
+                c,
+                display.bubbles,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: _content(c, item),
+                ),
               ),
             ),
           if (!item.open && item.text.isNotEmpty)
@@ -1701,6 +1760,20 @@ class _AssistantBlockState extends State<_AssistantBlock> {
     );
   }
 }
+
+/// Bubbles style: the reply sits in a rounded card, like the user's message.
+Widget _bubble(NgColors c, bool on, Widget child) => !on
+    ? child
+    : Container(
+        key: const ValueKey('ng-reply-bubble'),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        margin: const EdgeInsets.only(right: 48),
+        decoration: BoxDecoration(
+          color: c.surface2,
+          borderRadius: BorderRadius.circular(NgRadii.lg),
+        ),
+        child: child,
+      );
 
 class _ActionIcon extends StatelessWidget {
   const _ActionIcon({

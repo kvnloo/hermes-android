@@ -44,6 +44,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'package:hermes_android/core/l10n/l10n.dart';
 
+import 'hm/features/settings/app_lock.dart';
+import 'hm/features/settings/cache_store.dart';
+import 'hm/features/settings/settings_prefs.dart';
+import 'nextgen/data/chat_controller.dart' show NgChatController, NgMessageCache;
 import 'nextgen/nextgen_home.dart';
 import 'nextgen/ui/connect_screen.dart';
 import 'nextgen/nextgen_l10n.dart';
@@ -103,6 +107,8 @@ class _StartupAppState extends State<StartupApp> {
       () async {
         prefs = await SharedPreferences.getInstance();
         NextGenPreferences.load(prefs);
+        HmSettingsPrefs.instance.load(prefs);
+        NgChatController.messageCache = const _HmMessageCache();
         try {
           // Browser sign-ins and Cloudflare Access tokens, shared by both
           // interfaces; a Keystore fault only costs those sign-ins.
@@ -1256,7 +1262,14 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
             data: systemMediaQuery.copyWith(
               textScaler: preference.applyTo(systemMediaQuery.textScaler),
             ),
-            child: nextGen ? NgLocalizationScope(child: child!) : child!,
+            child: nextGen
+                ? NgLocalizationScope(
+                    child: HmLockGate(
+                      prefs: widget.connManager.prefs,
+                      child: child!,
+                    ),
+                  )
+                : child!,
           ),
         );
       },
@@ -3527,4 +3540,21 @@ class _LanDiscoverySheetState extends State<LanDiscoverySheet> {
       ),
     );
   }
+}
+
+/// Settings → Caching → Messages: NextGen chats keep their newest page on
+/// the device and read it back when the host can't be reached.
+class _HmMessageCache implements NgMessageCache {
+  const _HmMessageCache();
+
+  @override
+  Future<void> put(
+    String host,
+    String sessionId,
+    List<Map<String, dynamic>> rows,
+  ) => HmCacheStore.instance.putMessages(host, sessionId, rows);
+
+  @override
+  Future<List<Map<String, dynamic>>?> read(String host, String sessionId) =>
+      HmCacheStore.instance.readMessages(host, sessionId);
 }

@@ -1,6 +1,7 @@
 // Where artifacts come from: the bot's recent sessions (or one chat), each
 // transcript scanned once and kept in a small on-device index that is
 // reused until the session's last activity changes.
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -226,11 +227,19 @@ class HmArtifactsLoaded extends HmArtifactsState {
 
 /// Loads artifacts for one owner, reusing the index for unchanged sessions.
 class HmArtifactsLoader {
-  HmArtifactsLoader(this.source, {HmArtifactIndexStore? store})
-    : store = store ?? const PrefsArtifactIndexStore();
+  HmArtifactsLoader(
+    this.source, {
+    HmArtifactIndexStore? store,
+    this.onScanned,
+  }) : store = store ?? const PrefsArtifactIndexStore();
 
   final HmArtifactsSource source;
   final HmArtifactIndexStore store;
+
+  /// Called with each chat's artifacts after a fresh scan of it (the device
+  /// Files & Links cache keeps them).
+  final Future<void> Function(String sessionId, List<HmArtifact> items)?
+  onScanned;
 
   /// Set when the index could not be saved this time.
   String? indexProblem;
@@ -266,6 +275,8 @@ class HmArtifactsLoader {
       try {
         final items = await _scan(s);
         out.addAll(items);
+        final kept = onScanned?.call(s.id, items);
+        if (kept != null) unawaited(kept.catchError((Object _) {}));
         next[s.id] = {
           'la': s.lastActive,
           't': s.title,

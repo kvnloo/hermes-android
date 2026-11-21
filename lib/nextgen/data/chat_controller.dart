@@ -505,7 +505,22 @@ class NgUsage {
   }
 }
 
+/// Keeps a chat's newest page on the device so it can be read offline.
+/// [host] is the connection id; the app sets [NgChatController.messageCache]
+/// at start-up (Settings → Caching decides what is actually kept).
+abstract interface class NgMessageCache {
+  Future<void> put(
+    String host,
+    String sessionId,
+    List<Map<String, dynamic>> rows,
+  );
+  Future<List<Map<String, dynamic>>?> read(String host, String sessionId);
+}
+
 class NgChatController extends ChangeNotifier {
+  /// The device message cache; null keeps nothing (tests, classic shell).
+  static NgMessageCache? messageCache;
+
   NgChatController(
     this.gateway, {
     String? sessionId,
@@ -592,6 +607,10 @@ class NgChatController extends ChangeNotifier {
     await _api.getMessagesBytes(id, limit: limit, offset: offset, latest: true),
   );
   String? historyError;
+
+  /// The session's working folder as the gateway reports it
+  /// (`SessionInfo.cwd`), known even before the chat is stored.
+  String? cwd;
   String? status;
   String? thinkingFrame;
   String? error;
@@ -683,6 +702,14 @@ class NgChatController extends ChangeNotifier {
       final messages = await _fetchRows(id, limit: ngHistoryPage);
       if (_disposed) return;
       _setRows(messages, ngHistoryPage);
+      final cache = messageCache;
+      if (cache != null) {
+        unawaited(
+          cache
+              .put(gateway.connection.id, id, messages)
+              .catchError((Object _) {}),
+        );
+      }
       // A page of hidden or tool-only rows shows nothing: reach back a few
       // pages for something to show rather than an empty chat.
       for (var i = 0; i < 4 && items.isEmpty && hasOlder && !_disposed; i++) {
@@ -691,12 +718,29 @@ class NgChatController extends ChangeNotifier {
         loadingHistory = true;
       }
     } catch (e) {
-      historyError = ngL.ng_couldn_t_load_this_chat(e);
+      // Offline: show the copy kept on this device, if there is one.
+      final kept = await _keptRows(id);
+      if (_disposed) return;
+      if (kept != null && kept.isNotEmpty) {
+        _setRows(kept, ngHistoryPage);
+      } else {
+        historyError = ngL.ng_couldn_t_load_this_chat(e);
+      }
     } finally {
       loadingHistory = false;
       _changed();
     }
     await _attach();
+  }
+
+  Future<List<Map<String, dynamic>>?> _keptRows(String id) async {
+    final cache = messageCache;
+    if (cache == null) return null;
+    try {
+      return await cache.read(gateway.connection.id, id);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _ensureInfo() async {
@@ -816,6 +860,8 @@ class NgChatController extends ChangeNotifier {
     }
     final t = raw['title']?.toString();
     if (t != null && t.trim().isNotEmpty) title = t;
+    final dir = raw['cwd']?.toString();
+    if (dir != null && dir.trim().isNotEmpty) cwd = dir;
     usage = NgUsage.parse(raw['usage']) ?? usage;
   }
 
