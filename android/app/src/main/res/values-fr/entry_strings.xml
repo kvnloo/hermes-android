@@ -4,4 +4,11 @@
     <string name="tile_live_voice">Voix en direct</string>
     <string name="widget_label">Actions Hermes Agent</string>
     <string name="widget_description">Démarrez une discussion ou une conversation mains libres dans Hermes Agent.</string>
+    <string name="shortcut_new_chat_short">Nouvelle discussion</string>
+    <string name="shortcut_new_chat_long">Nouvelle discussion</string>
+    <string name="shortcut_live_voice_short">Voix en direct</string>
+    <string name="shortcut_live_voice_long">Démarrer la voix en direct</string>
+    <string name="shortcut_sessions_short">Sessions</string>
+    <string name="shortcut_sessions_long">Ouvrir les sessions</string>
+    <string name="shortcut_disabled">Ouvrez Hermes Agent pour continuer.</string>
 </resources>

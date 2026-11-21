@@ -4,4 +4,11 @@
     <string name="tile_live_voice">实时语音</string>
     <string name="widget_label">Hermes Agent 操作</string>
     <string name="widget_description">在 Hermes Agent 中开始新聊天或免提对话。</string>
+    <string name="shortcut_new_chat_short">新建聊天</string>
+    <string name="shortcut_new_chat_long">新建聊天</string>
+    <string name="shortcut_live_voice_short">实时语音</string>
+    <string name="shortcut_live_voice_long">开始实时语音</string>
+    <string name="shortcut_sessions_short">会话</string>
+    <string name="shortcut_sessions_long">打开会话</string>
+    <string name="shortcut_disabled">打开 Hermes Agent 以继续。</string>
 </resources>

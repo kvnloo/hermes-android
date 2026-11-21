@@ -4,4 +4,11 @@
     <string name="tile_live_voice">Живой голос</string>
     <string name="widget_label">Действия Hermes Agent</string>
     <string name="widget_description">Начните новый чат или голосовой разговор без помощи рук в Hermes Agent.</string>
+    <string name="shortcut_new_chat_short">Новый чат</string>
+    <string name="shortcut_new_chat_long">Новый чат</string>
+    <string name="shortcut_live_voice_short">Живой голос</string>
+    <string name="shortcut_live_voice_long">Начать голосовой разговор</string>
+    <string name="shortcut_sessions_short">Сеансы</string>
+    <string name="shortcut_sessions_long">Открыть сеансы</string>
+    <string name="shortcut_disabled">Откройте Hermes Agent, чтобы продолжить.</string>
 </resources>

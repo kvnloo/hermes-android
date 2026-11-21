@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_quick_chat"
+        android:enabled="true"
+        android:icon="@drawable/ic_entry_chat"
+        android:shortcutShortLabel="@string/shortcut_new_chat_short"
+        android:shortcutLongLabel="@string/shortcut_new_chat_long"
+        android:shortcutDisabledMessage="@string/shortcut_disabled">
+        <intent
+            android:action="com.hermesagent.hermes_android.action.QUICK_CHAT"
+            android:targetPackage="io.github.kvnloo.z0agent.dev"
+            android:targetClass="com.hermesagent.hermes_android.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="live_voice"
+        android:enabled="true"
+        android:icon="@drawable/ic_entry_voice"
+        android:shortcutShortLabel="@string/shortcut_live_voice_short"
+        android:shortcutLongLabel="@string/shortcut_live_voice_long"
+        android:shortcutDisabledMessage="@string/shortcut_disabled">
+        <intent
+            android:action="com.hermesagent.hermes_android.action.LIVE_VOICE"
+            android:targetPackage="io.github.kvnloo.z0agent.dev"
+            android:targetClass="com.hermesagent.hermes_android.entry.LiveVoiceShortcut" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="sessions"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_sessions_short"
+        android:shortcutLongLabel="@string/shortcut_sessions_long"
+        android:shortcutDisabledMessage="@string/shortcut_disabled">
+        <intent
+            android:action="com.hermesagent.hermes_android.action.SESSIONS"
+            android:targetPackage="io.github.kvnloo.z0agent.dev"
+            android:targetClass="com.hermesagent.hermes_android.MainActivity" />
+    </shortcut>
+</shortcuts>

@@ -4,4 +4,11 @@
     <string name="tile_live_voice">Live Voice</string>
     <string name="widget_label">Hermes Agent Actions</string>
     <string name="widget_description">Start a new chat or a hands-free conversation in Hermes Agent.</string>
+    <string name="shortcut_new_chat_short">New Chat</string>
+    <string name="shortcut_new_chat_long">New Chat</string>
+    <string name="shortcut_live_voice_short">Live Voice</string>
+    <string name="shortcut_live_voice_long">Start Live Voice</string>
+    <string name="shortcut_sessions_short">Sessions</string>
+    <string name="shortcut_sessions_long">Open Sessions</string>
+    <string name="shortcut_disabled">Open Hermes Agent to continue.</string>
 </resources>

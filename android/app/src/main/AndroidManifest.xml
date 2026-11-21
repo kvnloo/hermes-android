@@ -70,6 +70,10 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
+        <activity-alias
+            android:name=".entry.LiveVoiceShortcut"
+            android:exported="false"
+            android:targetActivity=".MainActivity" />
         <service
             android:name=".entry.NewChatTileService"
             android:exported="true"
