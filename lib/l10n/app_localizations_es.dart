@@ -5879,4 +5879,26 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get ng_apply => 'Apply';
+
+  @override
+  String get openui_show_source => 'Mostrar código fuente';
+
+  @override
+  String get openui_hide_source => 'Ocultar código fuente';
+
+  @override
+  String get openui_board_unavailable =>
+      'No se pudo mostrar este panel. El código fuente aparece abajo.';
+
+  @override
+  String get openui_board_incomplete =>
+      'Este panel está incompleto. El código fuente aparece abajo.';
+
+  @override
+  String get openui_board_unsupported =>
+      'Este panel contiene un elemento que Android aún no admite. El código fuente aparece abajo.';
+
+  @override
+  String get openui_read_only =>
+      'Solo lectura · los toques consultan valores locales';
 }

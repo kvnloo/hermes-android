@@ -5878,4 +5878,25 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get ng_apply => 'Apply';
+
+  @override
+  String get openui_show_source => 'Show source';
+
+  @override
+  String get openui_hide_source => 'Hide source';
+
+  @override
+  String get openui_board_unavailable =>
+      'This board could not be displayed. Original source is below.';
+
+  @override
+  String get openui_board_incomplete =>
+      'This board is incomplete. Original source is below.';
+
+  @override
+  String get openui_board_unsupported =>
+      'This board includes a panel not yet supported on Android. Original source is below.';
+
+  @override
+  String get openui_read_only => 'Read-only · taps inspect values locally';
 }

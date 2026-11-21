@@ -5890,4 +5890,26 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get ng_apply => 'Apply';
+
+  @override
+  String get openui_show_source => 'Afficher la source';
+
+  @override
+  String get openui_hide_source => 'Masquer la source';
+
+  @override
+  String get openui_board_unavailable =>
+      'Impossible d’afficher ce tableau. Le code source est ci-dessous.';
+
+  @override
+  String get openui_board_incomplete =>
+      'Ce tableau est incomplet. Le code source est ci-dessous.';
+
+  @override
+  String get openui_board_unsupported =>
+      'Ce tableau contient un élément non encore pris en charge sur Android. Le code source est ci-dessous.';
+
+  @override
+  String get openui_read_only =>
+      'Lecture seule · les sélections restent locales';
 }

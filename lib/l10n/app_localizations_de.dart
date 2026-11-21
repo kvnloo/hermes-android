@@ -5883,4 +5883,26 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get ng_apply => 'Apply';
+
+  @override
+  String get openui_show_source => 'Quelltext anzeigen';
+
+  @override
+  String get openui_hide_source => 'Quelltext ausblenden';
+
+  @override
+  String get openui_board_unavailable =>
+      'Dieses Board konnte nicht angezeigt werden. Der Quelltext steht unten.';
+
+  @override
+  String get openui_board_incomplete =>
+      'Dieses Board ist unvollständig. Der Quelltext steht unten.';
+
+  @override
+  String get openui_board_unsupported =>
+      'Dieses Board enthält ein unter Android noch nicht unterstütztes Element. Der Quelltext steht unten.';
+
+  @override
+  String get openui_read_only =>
+      'Schreibgeschützt · Tippen zeigt Werte nur lokal';
 }

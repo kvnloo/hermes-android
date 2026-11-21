@@ -1606,5 +1606,11 @@
   "ng_notify_permission_granted": "Permissão concedida",
   "ng_notify_permission_denied": "Permissão negada",
   "ng_notify_master_on": "Notificações ativadas",
-  "ng_notify_master_off": "Notificações desativadas"
+  "ng_notify_master_off": "Notificações desativadas",
+  "openui_show_source": "Mostrar código-fonte",
+  "openui_hide_source": "Ocultar código-fonte",
+  "openui_board_unavailable": "Não foi possível exibir este painel. O código-fonte original está abaixo.",
+  "openui_board_incomplete": "Este painel está incompleto. O código-fonte original está abaixo.",
+  "openui_board_unsupported": "Este painel contém um componente ainda não compatível com Android. O código-fonte está abaixo.",
+  "openui_read_only": "Somente leitura · os toques selecionam valores localmente"
 }
