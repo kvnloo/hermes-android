@@ -1,5 +1,6 @@
-// Home: the host's bots, most recently active first. A bot opens its latest
-// chat; the compose button starts a new session with any bot.
+// Home: the host's bots and group chats, most recently active first (or as
+// the Filters menu orders them). A bot opens its latest chat, a group opens
+// its room; the compose button starts a new session or a new group.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -11,6 +12,8 @@ import '../../nextgen/theme/nextgen_theme.dart';
 import '../../nextgen/ui/nextgen_scope.dart';
 import '../../nextgen/ui/scheduled_page.dart';
 import '../features/artifacts/hm_artifacts.dart';
+import '../features/groups/hm_groups.dart';
+import '../features/groups/home_filters.dart';
 import '../features/live/hm_live.dart';
 import '../features/terminal/hm_terminal.dart';
 import '../features/work/hm_execution.dart';
@@ -31,9 +34,13 @@ class HmHome extends StatefulWidget {
 
 class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
   HmBotsModel? _bots;
+  HmGroupsDirectory? _groups;
+  final _filters = HmHomeFilterStore();
+  final _groupChanges = StreamController<List<String>?>.broadcast();
   NextGenGateway? _gateway;
   StreamSubscription<dynamic>? _changes;
   Timer? _debounce;
+  Timer? _groupDebounce;
   String _query = '';
   bool _searching = false;
 
@@ -41,6 +48,7 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(_filters.load());
   }
 
   @override
@@ -51,8 +59,20 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
       _gateway = gateway;
       _bots?.dispose();
       _bots = HmBotsModel(gateway)..refresh();
+      _groups?.dispose();
+      _groups = HmGroupsDirectory(hmGroupsApiFor(gateway))..refresh();
       _changes?.cancel();
       _changes = gateway.events.listen((e) {
+        if (e.type == 'groups.changed') {
+          final ids = e.data['room_ids'];
+          _groupChanges.add(ids is List ? [for (final i in ids) '$i'] : null);
+          _groupDebounce?.cancel();
+          _groupDebounce = Timer(
+            const Duration(seconds: 1),
+            () => _groups?.refresh(),
+          );
+          return;
+        }
         if (e.type != 'sessions.changed' && e.type != 'session.title') return;
         _debounce?.cancel();
         _debounce = Timer(const Duration(seconds: 2), () => _bots?.refresh());
@@ -62,7 +82,10 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_bots?.refresh());
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_bots?.refresh());
+      unawaited(_groups?.refresh());
+    }
   }
 
   @override
@@ -70,7 +93,11 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _changes?.cancel();
     _debounce?.cancel();
+    _groupDebounce?.cancel();
+    _groupChanges.close();
     _bots?.dispose();
+    _groups?.dispose();
+    _filters.dispose();
     super.dispose();
   }
 
@@ -174,15 +201,42 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
 
   Future<void> _newSession() async {
     final bots = _bots;
-    if (bots == null) return;
-    final bot = await showHmNewSessionSheet(context, bots.bots);
-    if (bot != null && mounted) await _openChat(bot);
+    final groups = _groups;
+    if (bots == null || groups == null) return;
+    final picked = await showHmNewSessionSheet(
+      context,
+      bots.bots,
+      groups: groups,
+    );
+    if (!mounted) return;
+    switch (picked) {
+      case HmNewBotChat(:final bot):
+        await _openChat(bot);
+      case HmNewGroupChat(:final room):
+        await _openGroup(room);
+      case null:
+        break;
+    }
+  }
+
+  Future<void> _openGroup(HmGroupRoom room) async {
+    final groups = _groups;
+    if (groups == null) return;
+    await openHmGroup(
+      context,
+      room: room,
+      api: groups.api,
+      bots: _bots,
+      changes: _groupChanges.stream,
+      directory: groups,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final c = NgColors.of(context);
     final bots = _bots!;
+    final groups = _groups!;
     return Scaffold(
       backgroundColor: c.background,
       floatingActionButton: SizedBox.square(
@@ -213,10 +267,16 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
             center: _searching ? _searchField(c) : null,
             trailing: [
               if (!_searching)
-                HmRoundButton(
-                  icon: Icons.filter_list,
-                  label: 'Filters',
-                  onPressed: () {},
+                Builder(
+                  builder: (anchor) => HmRoundButton(
+                    icon: Icons.filter_list,
+                    label: 'Filters',
+                    onPressed: () => showHmFilterMenu(
+                      anchor,
+                      store: _filters,
+                      bots: bots.bots,
+                    ),
+                  ),
                 ),
               HmRoundButton(
                 icon: _searching ? Icons.close : Icons.search,
@@ -230,47 +290,62 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
           ),
           Expanded(
             child: ListenableBuilder(
-              listenable: Listenable.merge([bots, NgScope.of(context).gateway]),
+              listenable: Listenable.merge([
+                bots,
+                groups,
+                _filters,
+                NgScope.of(context).gateway,
+              ]),
               builder: (context, _) {
-                final rows = bots.summaries
-                    .where(
-                      (s) =>
-                          _query.isEmpty ||
-                          s.bot.displayName.toLowerCase().contains(
-                            _query.toLowerCase(),
-                          ) ||
-                          (s.latest?.title.toLowerCase().contains(
-                                _query.toLowerCase(),
-                              ) ??
-                              false),
-                    )
-                    .toList();
-                if (bots.loading && rows.isEmpty) {
+                final view = applyHmHomeFilters(
+                  _filters.value,
+                  bots: bots.summaries,
+                  rooms: groups.rooms,
+                  now: DateTime.now(),
+                  query: _query,
+                  unreadActivity: hmUnreadActivity(bots),
+                );
+                final rows = view.items;
+                if (bots.loading && bots.bots.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (bots.error != null && rows.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Text(
-                        bots.error!,
-                        textAlign: TextAlign.center,
-                        style: HmType.body.copyWith(color: c.text3),
-                      ),
-                    ),
+                if (bots.error != null && bots.bots.isEmpty) {
+                  return _message(c, bots.error!);
+                }
+                if (rows.isEmpty && bots.bots.isNotEmpty) {
+                  return _message(
+                    c,
+                    view.allHidden ? hmAllHidden : hmFilterEmpty,
+                    action: _filters.value.isDefault
+                        ? null
+                        : TextButton(
+                            onPressed: () =>
+                                _filters.set(HmHomeFilters.defaults),
+                            child: const Text(hmResetFilters),
+                          ),
                   );
                 }
                 return RefreshIndicator(
-                  onRefresh: bots.refresh,
+                  onRefresh: () =>
+                      Future.wait([bots.refresh(), groups.refresh()]),
                   child: ListView.builder(
                     padding: const EdgeInsets.only(top: 4, bottom: 96),
                     itemCount: rows.length,
-                    itemBuilder: (context, i) => _BotRow(
-                      summary: rows[i],
-                      onTap: () =>
-                          _openChat(rows[i].bot, session: rows[i].latest),
-                      onLongPress: () => _openAgent(rows[i].bot),
-                    ),
+                    itemBuilder: (context, i) => switch (rows[i]) {
+                      HmHomeBotItem(:final summary, :final recent) => _BotRow(
+                        summary: summary,
+                        showLatest: recent,
+                        onTap: () =>
+                            _openChat(summary.bot, session: summary.latest),
+                        onLongPress: () => _openAgent(summary.bot),
+                      ),
+                      HmHomeGroupItem(:final room) => HmGroupRow(
+                        room: room,
+                        bots: bots,
+                        when: _BotRow._when(room.updatedAt),
+                        onTap: () => _openGroup(room),
+                      ),
+                    },
                   ),
                 );
               },
@@ -280,6 +355,23 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
       ),
     );
   }
+
+  Widget _message(NgColors c, String text, {Widget? action}) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: HmType.body.copyWith(color: c.text3),
+          ),
+          if (action != null) ...[const SizedBox(height: 8), action],
+        ],
+      ),
+    ),
+  );
 
   Widget _searchField(NgColors c) => Padding(
     padding: const EdgeInsets.only(left: 64, right: 56),
@@ -306,16 +398,24 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
 }
 
 class _BotRow extends StatelessWidget {
-  const _BotRow({required this.summary, required this.onTap, this.onLongPress});
+  const _BotRow({
+    required this.summary,
+    required this.onTap,
+    this.onLongPress,
+    this.showLatest = true,
+  });
 
   final HmBotSummary summary;
+
+  /// The latest chat is inside the Recent sessions window.
+  final bool showLatest;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final c = NgColors.of(context);
-    final latest = summary.latest;
+    final latest = showLatest ? summary.latest : null;
     final preview = latest == null
         ? ''
         : (latest.title.trim().isNotEmpty
@@ -393,89 +493,10 @@ class _BotRow extends StatelessWidget {
       final h = t.hour % 12 == 0 ? 12 : t.hour % 12;
       return '$h:${t.minute.toString().padLeft(2, '0')} ${t.hour < 12 ? 'AM' : 'PM'}';
     }
-    if (d.inDays < 7)
+    if (d.inDays < 7) {
       return const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][t.weekday -
           1];
+    }
     return '${t.month}/${t.day}/${t.year % 100}';
   }
-}
-
-/// "Start a new session": pick a bot (or start a group).
-Future<HmBot?> showHmNewSessionSheet(BuildContext context, List<HmBot> bots) {
-  final c = NgColors.of(context);
-  return showModalBottomSheet<HmBot>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    showDragHandle: true,
-    backgroundColor: c.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
-    builder: (context) => FractionallySizedBox(
-      heightFactor: 0.92,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              HmMetrics.edge,
-              8,
-              HmMetrics.edge,
-              8,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Start a new session',
-                    style: HmType.screenTitle.copyWith(
-                      color: c.text,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                HmRoundButton(
-                  icon: Icons.group_outlined,
-                  label: 'New group',
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Groups are coming next')),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              children: [
-                for (final b in bots)
-                  InkWell(
-                    onTap: () => Navigator.of(context).pop(b),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: HmMetrics.edge,
-                        vertical: 10,
-                      ),
-                      child: Row(
-                        children: [
-                          HmAvatar(spec: b.character, size: 52),
-                          const SizedBox(width: 16),
-                          Text(
-                            b.displayName,
-                            style: HmType.row.copyWith(
-                              color: c.text,
-                              fontSize: 19,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
 }
