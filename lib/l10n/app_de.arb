@@ -1617,5 +1617,12 @@
   "annotation_undo": "Anmerkung rückgängig",
   "annotation_clear": "Markierungen löschen",
   "annotation_snapshot": "Markierten Screenshot anhängen",
-  "annotation_exit": "Anmerkungsmodus beenden"
+  "annotation_exit": "Anmerkungsmodus beenden",
+  "theme_surface": "Oberfläche",
+  "theme_surface_solid": "Massiv",
+  "theme_surface_glass": "Glas",
+  "theme_surface_glass_hint": "Dein Hintergrund scheint durch Hermes, unscharf und getönt, damit Text lesbar bleibt.",
+  "theme_surface_reload_title": "Fenster neu zeichnen?",
+  "theme_surface_reload_body": "Hermes startet sein Fenster neu, um die Oberfläche zu wechseln. Chats und Entwürfe bleiben erhalten.",
+  "theme_surface_reload_action": "Neu zeichnen"
 }

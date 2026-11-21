@@ -5780,4 +5780,27 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get annotation_exit => '주석 모드 종료';
+
+  @override
+  String get theme_surface => '표면';
+
+  @override
+  String get theme_surface_solid => '솔리드';
+
+  @override
+  String get theme_surface_glass => '글래스';
+
+  @override
+  String get theme_surface_glass_hint =>
+      '배경화면이 Hermes 뒤로 비쳐 보입니다. 글자가 잘 읽히도록 흐림과 색조를 더합니다.';
+
+  @override
+  String get theme_surface_reload_title => '창을 다시 그릴까요?';
+
+  @override
+  String get theme_surface_reload_body =>
+      '표면을 바꾸기 위해 Hermes 창을 다시 시작합니다. 채팅과 초안은 유지됩니다.';
+
+  @override
+  String get theme_surface_reload_action => '다시 그리기';
 }

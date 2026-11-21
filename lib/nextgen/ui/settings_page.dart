@@ -16,6 +16,7 @@ import '../../core/services/hermes_sign_in.dart';
 import '../../core/services/legal_links.dart';
 import '../data/connection_check.dart';
 import '../nextgen_preferences.dart';
+import '../theme/glass_window_service.dart';
 import '../theme/nextgen_theme.dart';
 import '../theme/ng_theme_spec.dart';
 import '../haptics.dart';
@@ -31,6 +32,46 @@ class NgSettingsPage extends StatefulWidget {
 }
 
 class _NgSettingsPageState extends State<NgSettingsPage> {
+  bool _switchingSurface = false;
+
+  Future<void> _changeSurface(NgScope scope, NgSurface surface) async {
+    final window = GlassWindowService.shared;
+    if (_switchingSurface ||
+        (surface == NextGenLook.instance.surface &&
+            (surface == NgSurface.glass) == window.transparent)) {
+      return;
+    }
+    _switchingSurface = true;
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(ngL.theme_surface_reload_title),
+          content: Text(ngL.theme_surface_reload_body),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(ngL.ng_cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(ngL.theme_surface_reload_action),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      if (!await NextGenPreferences.setSurface(scope.prefs, surface) &&
+          mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(ngL.ng_try_again)));
+      }
+    } finally {
+      _switchingSurface = false;
+    }
+  }
+
   Future<void> _importTheme(NgScope scope) async {
     final field = TextEditingController();
     String? error;
@@ -294,6 +335,29 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                         NextGenPreferences.setThemeMode(scope.prefs, m),
                   ),
                   const SizedBox(height: 18),
+                  if (GlassWindowService.shared.available) ...[
+                    Text(
+                      ngL.theme_surface,
+                      style: NgType.label.copyWith(color: c.text2),
+                    ),
+                    const SizedBox(height: 8),
+                    NgSegmented<NgSurface>(
+                      key: const ValueKey('ng-theme-surface'),
+                      values: NgSurface.values,
+                      selected: look.surface,
+                      labelOf: (surface) => switch (surface) {
+                        NgSurface.solid => ngL.theme_surface_solid,
+                        NgSurface.glass => ngL.theme_surface_glass,
+                      },
+                      onChanged: (surface) => _changeSurface(scope, surface),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      ngL.theme_surface_glass_hint,
+                      style: NgType.caption.copyWith(color: c.text3),
+                    ),
+                    const SizedBox(height: 18),
+                  ],
                   Text(
                     ngL.ng_look,
                     style: NgType.label.copyWith(color: c.text2),

@@ -5897,4 +5897,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get annotation_exit => 'Exit annotation mode';
+
+  @override
+  String get theme_surface => 'Surface';
+
+  @override
+  String get theme_surface_solid => 'Solid';
+
+  @override
+  String get theme_surface_glass => 'Glass';
+
+  @override
+  String get theme_surface_glass_hint =>
+      'Your wallpaper shows through Hermes, blurred and tinted so text stays readable.';
+
+  @override
+  String get theme_surface_reload_title => 'Redraw the window?';
+
+  @override
+  String get theme_surface_reload_body =>
+      'Hermes restarts its window to switch surfaces. Chats and drafts are kept.';
+
+  @override
+  String get theme_surface_reload_action => 'Redraw';
 }

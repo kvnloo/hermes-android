@@ -5692,6 +5692,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get annotation_exit => '退出标注模式';
+
+  @override
+  String get theme_surface => '表面';
+
+  @override
+  String get theme_surface_solid => '实色';
+
+  @override
+  String get theme_surface_glass => '玻璃';
+
+  @override
+  String get theme_surface_glass_hint => '壁纸会透过 Hermes 显示，并加上模糊和色调，让文字保持清晰。';
+
+  @override
+  String get theme_surface_reload_title => '重绘窗口？';
+
+  @override
+  String get theme_surface_reload_body => 'Hermes 将重启窗口以切换表面。聊天和草稿会保留。';
+
+  @override
+  String get theme_surface_reload_action => '重绘';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -11148,4 +11169,25 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get annotation_exit => '退出标注模式';
+
+  @override
+  String get theme_surface => '表面';
+
+  @override
+  String get theme_surface_solid => '实色';
+
+  @override
+  String get theme_surface_glass => '玻璃';
+
+  @override
+  String get theme_surface_glass_hint => '壁纸会透过 Hermes 显示，并加上模糊和色调，让文字保持清晰。';
+
+  @override
+  String get theme_surface_reload_title => '重绘窗口？';
+
+  @override
+  String get theme_surface_reload_body => 'Hermes 将重启窗口以切换表面。聊天和草稿会保留。';
+
+  @override
+  String get theme_surface_reload_action => '重绘';
 }

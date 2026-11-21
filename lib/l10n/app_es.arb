@@ -1617,5 +1617,12 @@
   "annotation_undo": "Deshacer anotación",
   "annotation_clear": "Borrar marcas",
   "annotation_snapshot": "Adjuntar captura anotada",
-  "annotation_exit": "Salir del modo de anotación"
+  "annotation_exit": "Salir del modo de anotación",
+  "theme_surface": "Superficie",
+  "theme_surface_solid": "Sólida",
+  "theme_surface_glass": "Cristal",
+  "theme_surface_glass_hint": "Tu fondo de pantalla se ve a través de Hermes, desenfocado y teñido para que el texto siga legible.",
+  "theme_surface_reload_title": "¿Redibujar la ventana?",
+  "theme_surface_reload_body": "Hermes reinicia su ventana para cambiar de superficie. Se conservan los chats y borradores.",
+  "theme_surface_reload_action": "Redibujar"
 }

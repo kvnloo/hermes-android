@@ -5951,4 +5951,27 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get annotation_exit => 'Quitter le mode annotation';
+
+  @override
+  String get theme_surface => 'Surface';
+
+  @override
+  String get theme_surface_solid => 'Opaque';
+
+  @override
+  String get theme_surface_glass => 'Verre';
+
+  @override
+  String get theme_surface_glass_hint =>
+      'Votre fond d\'écran transparaît derrière Hermes, flouté et teinté pour garder le texte lisible.';
+
+  @override
+  String get theme_surface_reload_title => 'Redessiner la fenêtre ?';
+
+  @override
+  String get theme_surface_reload_body =>
+      'Hermes redémarre sa fenêtre pour changer de surface. Les discussions et brouillons sont conservés.';
+
+  @override
+  String get theme_surface_reload_action => 'Redessiner';
 }

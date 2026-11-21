@@ -53,12 +53,14 @@ import 'nextgen/nextgen_home.dart';
 import 'nextgen/ui/connect_screen.dart';
 import 'nextgen/nextgen_l10n.dart';
 import 'nextgen/nextgen_preferences.dart';
+import 'nextgen/theme/glass_window_service.dart';
 import 'nextgen/theme/nextgen_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   // Remove any private key left behind by a cancelled connection import.
   unawaited(ClientCertificateService().cleanupStaging());
+  unawaited(GlassWindowService.shared.init());
   runApp(const StartupApp());
 }
 
@@ -1224,7 +1226,11 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([nextGenEnabled, NextGenLook.instance]),
+      listenable: Listenable.merge([
+        nextGenEnabled,
+        NextGenLook.instance,
+        GlassWindowService.shared,
+      ]),
       builder: (context, _) => _buildApp(context),
     );
   }
@@ -1232,7 +1238,19 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
   Widget _buildApp(BuildContext context) {
     final nextGen = nextGenEnabled.value;
     final look = NextGenLook.instance;
+    final window = GlassWindowService.shared;
+    ThemeData ngTheme(Brightness brightness) => nextGenTheme(
+      brightness,
+      look,
+      transparentWindow: window.transparent,
+      blurredWindow: window.blurred,
+    );
     return MaterialApp(
+      // Avoid interpolating colours across tints with different contrast floors.
+      themeAnimationDuration:
+          nextGen && look.surface == NgSurface.glass && window.transparent
+          ? Duration.zero
+          : kThemeAnimationDuration,
       // Switching interfaces swaps the whole route stack.
       key: ValueKey(nextGen),
       navigatorKey: _navigatorKey,
@@ -1246,13 +1264,13 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
           ? look.themeMode
           : HermesApp.getThemeMode(widget.connManager.prefs),
       theme: nextGen
-          ? nextGenTheme(Brightness.light, look)
+          ? ngTheme(Brightness.light)
           : hermesTheme(
               Brightness.light,
               palette: HermesApp.getThemePalette(widget.connManager.prefs),
             ),
       darkTheme: nextGen
-          ? nextGenTheme(Brightness.dark, look)
+          ? ngTheme(Brightness.dark)
           : hermesTheme(
               Brightness.dark,
               palette: HermesApp.getThemePalette(widget.connManager.prefs),
@@ -1262,7 +1280,8 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
         final preference = HermesApp.getTextSizePreference(
           widget.connManager.prefs,
         );
-        return HermesSystemUi(
+        final scene = nextGen ? NgColors.of(context).glassScene : null;
+        final app = HermesSystemUi(
           child: MediaQuery(
             data: systemMediaQuery.copyWith(
               textScaler: preference.applyTo(systemMediaQuery.textScaler),
@@ -1277,6 +1296,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
                 : child!,
           ),
         );
+        return scene == null ? app : ColoredBox(color: scene, child: app);
       },
       home: nextGen
           ? NextGenHome(connManager: widget.connManager)

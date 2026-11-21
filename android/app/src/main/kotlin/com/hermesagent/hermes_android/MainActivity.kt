@@ -8,6 +8,7 @@ import android.provider.OpenableColumns
 import android.provider.Settings
 import android.view.WindowManager
 // local_auth (the app lock) needs a FragmentActivity host.
+import io.flutter.embedding.android.FlutterActivityLaunchConfigs.BackgroundMode
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -33,15 +34,24 @@ class MainActivity : FlutterFragmentActivity() {
     private var attachmentFileSaver: AttachmentFileSaver? = null
     private var handsFreeVoice: HandsFreeVoicePlugin? = null
 
+    private val glassWindow by lazy { GlassWindowPlugin(this) }
+
+    override fun getBackgroundMode(): BackgroundMode =
+        if (glassWindow.glass) BackgroundMode.transparent else BackgroundMode.opaque
+
     override fun onCreate(savedInstanceState: Bundle?) {
         initialShareIntent = intent.takeIf(::isShareIntent)
         initialLaunchAction = launchActionFor(intent)
+        glassWindow.configureWindow()
         super.onCreate(savedInstanceState)
+        // The embedding can change the window background during onCreate.
+        glassWindow.configureWindow()
         runCatching { MobilePushBridge.captureTap(this, intent) }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        glassWindow.attach(flutterEngine)
         VoiceDraftMedia.install(this, flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
             "com.hermesagent.hermes_android/recording_screen").setMethodCallHandler { call, result ->
@@ -138,6 +148,7 @@ class MainActivity : FlutterFragmentActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         handsFreeVoice?.setForeground(false)
         handsFreeVoice = null
+        glassWindow.detach()
         super.cleanUpFlutterEngine(flutterEngine)
     }
 

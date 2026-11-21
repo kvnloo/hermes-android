@@ -1617,5 +1617,12 @@
   "annotation_undo": "注釈を元に戻す",
   "annotation_clear": "書き込みを消去",
   "annotation_snapshot": "注釈付きスクリーンショットを添付",
-  "annotation_exit": "注釈モードを終了"
+  "annotation_exit": "注釈モードを終了",
+  "theme_surface": "サーフェス",
+  "theme_surface_solid": "ソリッド",
+  "theme_surface_glass": "ガラス",
+  "theme_surface_glass_hint": "壁紙が Hermes の背後に透けて見えます。文字が読めるようにぼかしと色調を加えます。",
+  "theme_surface_reload_title": "ウィンドウを再描画しますか？",
+  "theme_surface_reload_body": "サーフェスを切り替えるため Hermes のウィンドウを再起動します。チャットと下書きは保持されます。",
+  "theme_surface_reload_action": "再描画"
 }

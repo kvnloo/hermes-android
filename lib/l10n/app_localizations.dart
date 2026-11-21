@@ -9947,6 +9947,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exit annotation mode'**
   String get annotation_exit;
+
+  /// No description provided for @theme_surface.
+  ///
+  /// In en, this message translates to:
+  /// **'Surface'**
+  String get theme_surface;
+
+  /// No description provided for @theme_surface_solid.
+  ///
+  /// In en, this message translates to:
+  /// **'Solid'**
+  String get theme_surface_solid;
+
+  /// No description provided for @theme_surface_glass.
+  ///
+  /// In en, this message translates to:
+  /// **'Glass'**
+  String get theme_surface_glass;
+
+  /// No description provided for @theme_surface_glass_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your wallpaper shows through Hermes, blurred and tinted so text stays readable.'**
+  String get theme_surface_glass_hint;
+
+  /// No description provided for @theme_surface_reload_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Redraw the window?'**
+  String get theme_surface_reload_title;
+
+  /// No description provided for @theme_surface_reload_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes restarts its window to switch surfaces. Chats and drafts are kept.'**
+  String get theme_surface_reload_body;
+
+  /// No description provided for @theme_surface_reload_action.
+  ///
+  /// In en, this message translates to:
+  /// **'Redraw'**
+  String get theme_surface_reload_action;
 }
 
 class _AppLocalizationsDelegate

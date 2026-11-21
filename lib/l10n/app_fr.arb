@@ -1617,5 +1617,12 @@
   "annotation_undo": "Annuler l’annotation",
   "annotation_clear": "Effacer les marques",
   "annotation_snapshot": "Joindre la capture annotée",
-  "annotation_exit": "Quitter le mode annotation"
+  "annotation_exit": "Quitter le mode annotation",
+  "theme_surface": "Surface",
+  "theme_surface_solid": "Opaque",
+  "theme_surface_glass": "Verre",
+  "theme_surface_glass_hint": "Votre fond d'écran transparaît derrière Hermes, flouté et teinté pour garder le texte lisible.",
+  "theme_surface_reload_title": "Redessiner la fenêtre ?",
+  "theme_surface_reload_body": "Hermes redémarre sa fenêtre pour changer de surface. Les discussions et brouillons sont conservés.",
+  "theme_surface_reload_action": "Redessiner"
 }

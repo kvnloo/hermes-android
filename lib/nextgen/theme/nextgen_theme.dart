@@ -1,6 +1,8 @@
 // NextGen design tokens: graphite surfaces that step up in lightness instead
 // of casting shadows, one accent, generous radii and Geist-sized type.
 // Colour values follow Kyllene's "modern" palette (MIT).
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/hermes_theme.dart';
@@ -62,10 +64,57 @@ _AccentColors _accentColors(NgAccent accent, Brightness brightness) {
 Color ngAccentSwatch(NgAccent accent, Brightness brightness) =>
     _accentColors(accent, brightness).accent;
 
+/// Tests the wallpaper's midtone and both luminance extremes using the same
+/// source-over sRGB blend as the Android compositor. A veil with the same RGB
+/// only moves the composite closer to the opaque tint.
+double _glassTint(Color tint, Iterable<Color> text, {required bool blurred}) {
+  const probes = [Color(0xFF808080), Colors.black, Colors.white];
+  for (var step = 55; step <= 100; step++) {
+    final alpha = step / 100;
+    if (probes.every((wallpaper) {
+      final composite = Color.alphaBlend(
+        tint.withValues(alpha: alpha),
+        wallpaper,
+      );
+      return text.every((color) => contrastRatio(color, composite) >= 4.5);
+    })) {
+      // Unblurred wallpaper retains more detail (e.g. in battery saver).
+      return math.min(1.0, (step + (blurred ? 0 : 6)) / 100);
+    }
+  }
+  return 1;
+}
+
+/// Give muted roles headroom when their Solid colours already miss AA.
+/// Custom palettes can put light and dark text on the same tint; resolve all
+/// scene text on the same side of the tint's luminance.
+Color _glassText(Color color, Color tint) {
+  final blackRatio = contrastRatio(Colors.black, tint);
+  final whiteRatio = contrastRatio(Colors.white, tint);
+  final endpoint = blackRatio >= whiteRatio ? Colors.black : Colors.white;
+  final target = math.min(5.25, math.max(blackRatio, whiteRatio));
+  final opaque = Color.alphaBlend(color, tint);
+  final tintLuminance = tint.computeLuminance();
+  for (var step = 0; step < 100; step++) {
+    final candidate = Color.lerp(opaque, endpoint, step / 100)!;
+    final luminance = candidate.computeLuminance();
+    if ((endpoint == Colors.black
+            ? luminance < tintLuminance
+            : luminance > tintLuminance) &&
+        contrastRatio(candidate, tint) >= target) {
+      return candidate;
+    }
+  }
+  return endpoint;
+}
+
 /// NextGen colour roles. Widgets read these, never raw literals.
 @immutable
 class NgColors extends ThemeExtension<NgColors> {
   final Color background;
+
+  /// The wallpaper tint, painted once behind the navigator in Glass mode.
+  final Color? glassScene;
   final Color surface;
   final Color surface2;
   final Color surface3;
@@ -98,6 +147,7 @@ class NgColors extends ThemeExtension<NgColors> {
 
   const NgColors({
     required this.background,
+    this.glassScene,
     required this.surface,
     required this.surface2,
     required this.surface3,
@@ -146,38 +196,78 @@ class NgColors extends ThemeExtension<NgColors> {
     return base._withTokens(theme.tokensFor(brightness), theme.glow ?? glow);
   }
 
-  NgColors _withTokens(Map<String, Color> t, bool glow) => NgColors(
-    background: t['background'] ?? background,
-    surface: t['surface'] ?? surface,
-    surface2: t['surface2'] ?? surface2,
-    surface3: t['surface3'] ?? surface3,
-    well: t['well'] ?? well,
-    thumb: t['thumb'] ?? thumb,
-    sheet: t['sheet'] ?? sheet,
-    input: t['input'] ?? input,
-    sidebar: t['sidebar'] ?? sidebar,
-    userBubble: t['userBubble'] ?? userBubble,
-    onUserBubble: t['onUserBubble'] ?? onUserBubble,
-    text: t['text'] ?? text,
-    text2: t['text2'] ?? text2,
-    text3: t['text3'] ?? text3,
-    textMuted: t['textMuted'] ?? textMuted,
-    accent: t['accent'] ?? accent,
-    onAccent: t['onAccent'] ?? onAccent,
-    accentText: t['accentText'] ?? accentText,
-    accentSoft: t['accentSoft'] ?? accentSoft,
-    inverse: t['inverse'] ?? inverse,
-    onInverse: t['onInverse'] ?? onInverse,
-    stroke: t['stroke'] ?? stroke,
-    strokeStrong: t['strokeStrong'] ?? strokeStrong,
-    danger: t['danger'] ?? danger,
-    success: t['success'] ?? success,
-    warning: t['warning'] ?? warning,
-    dangerSoft: t['dangerSoft'] ?? dangerSoft,
-    successSoft: t['successSoft'] ?? successSoft,
-    warningSoft: t['warningSoft'] ?? warningSoft,
-    glow: glow,
-  );
+  NgColors _withTokens(Map<String, Color> t, bool glow, [Color? glassScene]) =>
+      NgColors(
+        glassScene: glassScene,
+        background: t['background'] ?? background,
+        surface: t['surface'] ?? surface,
+        surface2: t['surface2'] ?? surface2,
+        surface3: t['surface3'] ?? surface3,
+        well: t['well'] ?? well,
+        thumb: t['thumb'] ?? thumb,
+        sheet: t['sheet'] ?? sheet,
+        input: t['input'] ?? input,
+        sidebar: t['sidebar'] ?? sidebar,
+        userBubble: t['userBubble'] ?? userBubble,
+        onUserBubble: t['onUserBubble'] ?? onUserBubble,
+        text: t['text'] ?? text,
+        text2: t['text2'] ?? text2,
+        text3: t['text3'] ?? text3,
+        textMuted: t['textMuted'] ?? textMuted,
+        accent: t['accent'] ?? accent,
+        onAccent: t['onAccent'] ?? onAccent,
+        accentText: t['accentText'] ?? accentText,
+        accentSoft: t['accentSoft'] ?? accentSoft,
+        inverse: t['inverse'] ?? inverse,
+        onInverse: t['onInverse'] ?? onInverse,
+        stroke: t['stroke'] ?? stroke,
+        strokeStrong: t['strokeStrong'] ?? strokeStrong,
+        danger: t['danger'] ?? danger,
+        success: t['success'] ?? success,
+        warning: t['warning'] ?? warning,
+        dangerSoft: t['dangerSoft'] ?? dangerSoft,
+        successSoft: t['successSoft'] ?? successSoft,
+        warningSoft: t['warningSoft'] ?? warningSoft,
+        glow: glow,
+      );
+
+  NgColors _withGlass({required bool blurred}) {
+    final tint = background.withValues(alpha: 1);
+    final body = _glassText(text, tint);
+    final secondary = _glassText(text2, tint);
+    final subtle = _glassText(text3, tint);
+    final muted = _glassText(textMuted, tint);
+    final alpha = _glassTint(tint, [
+      body,
+      secondary,
+      subtle,
+      muted,
+    ], blurred: blurred);
+    final scene = tint.withValues(alpha: alpha);
+    Color veil(double opacity) => tint.withValues(alpha: opacity);
+    final edge = tint.computeLuminance() < 0.5 ? Colors.white : Colors.black;
+    return _withTokens(
+      {
+        'background': veil(0),
+        'surface': veil(0.16),
+        'surface2': veil(0.24),
+        'surface3': veil(0.32),
+        'well': veil(0.20),
+        'thumb': veil(0.40),
+        'input': veil(0.28),
+        'sidebar': veil(0.40),
+        'sheet': veil(alpha > 0.97 ? alpha : 0.97),
+        'text': body,
+        'text2': secondary,
+        'text3': subtle,
+        'textMuted': muted,
+        'stroke': edge.withValues(alpha: 0.12),
+        'strokeStrong': edge.withValues(alpha: 0.22),
+      },
+      false,
+      scene,
+    );
+  }
 
   factory NgColors._base(
     Brightness brightness,
@@ -274,6 +364,7 @@ class NgColors extends ThemeExtension<NgColors> {
     Color l(Color a, Color b) => Color.lerp(a, b, t)!;
     return NgColors(
       background: l(background, other.background),
+      glassScene: Color.lerp(glassScene, other.glassScene, t),
       surface: l(surface, other.surface),
       surface2: l(surface2, other.surface2),
       surface3: l(surface3, other.surface3),
@@ -383,14 +474,22 @@ abstract final class NgType {
 /// Builds the NextGen [ThemeData] for [brightness]. It keeps the classic
 /// [HermesTokens] extension (re-tinted to NextGen's palette) so every classic
 /// screen opened from NextGen still renders correctly.
-ThemeData nextGenTheme(Brightness brightness, NextGenLook look) {
-  final c = NgColors.build(
+ThemeData nextGenTheme(
+  Brightness brightness,
+  NextGenLook look, {
+  bool transparentWindow = false,
+  bool blurredWindow = false,
+}) {
+  final solid = NgColors.build(
     brightness,
     look.accent,
     look.pureBlack,
     look.glow,
     look.theme,
   );
+  final c = look.surface == NgSurface.glass && transparentWindow
+      ? solid._withGlass(blurred: blurredWindow)
+      : solid;
   final base = hermesTheme(brightness);
   final scheme = base.colorScheme.copyWith(
     brightness: brightness,
@@ -555,7 +654,7 @@ ThemeData nextGenTheme(Brightness brightness, NextGenLook look) {
       contentTextStyle: t(NgType.bodySmall, c.text2),
     ),
     drawerTheme: DrawerThemeData(
-      backgroundColor: c.sidebar,
+      backgroundColor: c.glassScene == null ? c.sidebar : c.sheet,
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(),
     ),

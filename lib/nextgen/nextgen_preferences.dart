@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../hm/avatar/hm_avatar_state.dart';
+import 'theme/glass_window_service.dart';
 import 'theme/ng_theme_spec.dart';
 
 /// Whether the app runs the NextGen interface. Toggled from Settings in either
@@ -75,6 +76,8 @@ final ValueNotifier<bool> browserSignInPending = ValueNotifier(false);
 /// The accents NextGen offers (Kyllene's palette: one blue, five others).
 enum NgAccent { blue, violet, green, orange, pink, teal }
 
+enum NgSurface { solid, glass }
+
 /// Look-and-feel settings for NextGen, observed by its theme.
 class NextGenLook extends ChangeNotifier {
   NextGenLook._();
@@ -82,6 +85,7 @@ class NextGenLook extends ChangeNotifier {
 
   ThemeMode themeMode = ThemeMode.system;
   NgAccent accent = NgAccent.blue;
+  NgSurface surface = NgSurface.solid;
   bool pureBlack = false;
 
   /// Soft coloured light behind the top of each screen.
@@ -110,6 +114,7 @@ class NextGenLook extends ChangeNotifier {
 abstract final class NextGenPreferences {
   static const enabledKey = 'nextgen_enabled';
   static const currentConnectionKey = 'nextgen_current_connection';
+  static const surfaceKey = 'nextgen_surface';
   static const themeModeKey = 'nextgen_theme_mode';
   static const accentKey = 'nextgen_accent';
   static const pureBlackKey = 'nextgen_pure_black';
@@ -128,6 +133,9 @@ abstract final class NextGenPreferences {
     // This build ships NextGen as the interface; Classic stays one switch away.
     nextGenEnabled.value = prefs.getBool(enabledKey) ?? true;
     final look = NextGenLook.instance;
+    look.surface = prefs.get(surfaceKey) == NgSurface.glass.name
+        ? NgSurface.glass
+        : NgSurface.solid;
     look.themeMode = switch (prefs.getString(themeModeKey)) {
       'light' => ThemeMode.light,
       'dark' => ThemeMode.dark,
@@ -208,7 +216,14 @@ abstract final class NextGenPreferences {
 
   static Future<void> setEnabled(SharedPreferences prefs, bool enabled) async {
     nextGenEnabled.value = enabled;
-    await prefs.setBool(enabledKey, enabled);
+    final saved = await prefs.setBool(enabledKey, enabled);
+    final bridge = GlassWindowService.shared;
+    if (saved &&
+        bridge.available &&
+        (enabled && NextGenLook.instance.surface == NgSurface.glass) !=
+            bridge.transparent) {
+      await bridge.recreateWindow();
+    }
   }
 
   static String? currentConnectionId(SharedPreferences prefs) =>
@@ -220,6 +235,25 @@ abstract final class NextGenPreferences {
   ) => id == null
       ? prefs.remove(currentConnectionKey)
       : prefs.setString(currentConnectionKey, id);
+
+  /// The native window reads this preference before attaching Flutter.
+  static Future<bool> setSurface(
+    SharedPreferences prefs,
+    NgSurface surface, {
+    GlassWindowService? window,
+  }) async {
+    final bridge = window ?? GlassWindowService.shared;
+    if (!bridge.available) return false;
+    final previous = NextGenLook.instance.surface;
+    if (!await prefs.setString(surfaceKey, surface.name)) return false;
+    if ((surface == NgSurface.glass) != bridge.transparent &&
+        !await bridge.recreateWindow()) {
+      await prefs.setString(surfaceKey, previous.name);
+      return false;
+    }
+    NextGenLook.instance._apply(() => NextGenLook.instance.surface = surface);
+    return true;
+  }
 
   static Future<void> setThemeMode(
     SharedPreferences prefs,

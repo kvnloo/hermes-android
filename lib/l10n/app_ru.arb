@@ -1617,5 +1617,12 @@
   "annotation_undo": "Отменить аннотацию",
   "annotation_clear": "Очистить пометки",
   "annotation_snapshot": "Прикрепить снимок с пометками",
-  "annotation_exit": "Выйти из режима аннотаций"
+  "annotation_exit": "Выйти из режима аннотаций",
+  "theme_surface": "Поверхность",
+  "theme_surface_solid": "Сплошная",
+  "theme_surface_glass": "Стекло",
+  "theme_surface_glass_hint": "Обои просвечивают сквозь Hermes — размытые и затонированные, чтобы текст оставался читаемым.",
+  "theme_surface_reload_title": "Перерисовать окно?",
+  "theme_surface_reload_body": "Hermes перезапустит окно, чтобы сменить поверхность. Чаты и черновики сохранятся.",
+  "theme_surface_reload_action": "Перерисовать"
 }
