@@ -13,6 +13,8 @@ import '../features/settings/cache_screen.dart';
 import '../features/settings/chat_settings_screen.dart';
 import '../features/settings/security_screen.dart';
 import '../features/settings/settings_prefs.dart';
+import '../features/terminal/hm_terminal.dart' show hmTerminalDefaultHost;
+import '../features/terminal/terminal_connection_page.dart';
 import '../hm_bots.dart';
 import '../hm_ui.dart';
 import 'hm_agent_screen.dart';
@@ -200,6 +202,19 @@ class HmInstancesScreen extends StatelessWidget {
                         Navigator.of(context).popUntil((r) => r.isFirst);
                         await scope.switchTo(conn.id);
                       },
+              ),
+          ],
+        ),
+        HmTerminalSettingsSection(
+          instances: [
+            for (final SavedConnection conn in scope.connections)
+              HmTerminalInstance(
+                id: conn.id,
+                label: conn.label,
+                defaultHost: hmTerminalDefaultHost(
+                  conn.singleLoginUrl,
+                  conn.host,
+                ),
               ),
           ],
         ),
