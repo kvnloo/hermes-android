@@ -70,6 +70,26 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".entry.NewChatTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_entry_chat"
+            android:label="@string/tile_new_chat"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".entry.LiveVoiceTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_entry_voice"
+            android:label="@string/tile_live_voice"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.update_provider"

@@ -1,6 +1,19 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+enum AndroidEntryDestination { newChat, liveVoice, sessions }
+
+AndroidEntryDestination? androidEntryDestination(String? action) =>
+    switch (action) {
+      'com.hermesagent.hermes_android.action.QUICK_CHAT' =>
+        AndroidEntryDestination.newChat,
+      'com.hermesagent.hermes_android.action.LIVE_VOICE' =>
+        AndroidEntryDestination.liveVoice,
+      'com.hermesagent.hermes_android.action.SESSIONS' =>
+        AndroidEntryDestination.sessions,
+      _ => null,
+    };
+
 /// Bridges Android launcher actions into the Flutter navigation lifecycle.
 class AndroidLaunchIntentService {
   static const channelName = 'com.hermesagent.hermes_android/launch';
@@ -8,6 +21,7 @@ class AndroidLaunchIntentService {
 
   final MethodChannel _channel;
   final ValueNotifier<bool> pendingQuickChat = ValueNotifier(false);
+  final pendingDestination = ValueNotifier<AndroidEntryDestination?>(null);
   bool _initialized = false;
 
   AndroidLaunchIntentService({MethodChannel? channel})
@@ -32,7 +46,11 @@ class AndroidLaunchIntentService {
   }
 
   void _publish(String? action) {
-    if (action == _quickChatAction) pendingQuickChat.value = true;
+    if (action == _quickChatAction) {
+      pendingQuickChat.value = true;
+    } else if (androidEntryDestination(action) case final destination?) {
+      pendingDestination.value = destination;
+    }
   }
 
   bool takePendingQuickChat() {
@@ -44,5 +62,6 @@ class AndroidLaunchIntentService {
   void dispose() {
     _channel.setMethodCallHandler(null);
     pendingQuickChat.dispose();
+    pendingDestination.dispose();
   }
 }

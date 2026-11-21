@@ -11,6 +11,32 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
+  for (final (action, destination) in [
+    ('QUICK_CHAT', AndroidEntryDestination.newChat),
+    ('LIVE_VOICE', AndroidEntryDestination.liveVoice),
+    ('SESSIONS', AndroidEntryDestination.sessions),
+    ('UNKNOWN', null),
+  ]) {
+    test('routes Android action $action on cold and warm delivery', () async {
+      final raw = 'com.hermesagent.hermes_android.action.$action';
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(channel, (_) async => raw);
+      final service = AndroidLaunchIntentService();
+      addTearDown(service.dispose);
+      await service.initialize();
+      expect(service.pendingDestination.value, destination);
+
+      service.pendingDestination.value = null;
+      await messenger.handlePlatformMessage(
+        channel.name,
+        channel.codec.encodeMethodCall(MethodCall('launchAction', raw)),
+        (_) {},
+      );
+      expect(service.pendingDestination.value, destination);
+    });
+  }
+
   test('initializes from a cold-start Quick Chat shortcut once', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {

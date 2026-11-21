@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/models/session.dart';
+import '../../core/services/android_launch_intent_service.dart';
 import '../../nextgen/data/chat_controller.dart';
 import '../../nextgen/data/nextgen_gateway.dart';
 import '../../nextgen/theme/nextgen_theme.dart';
@@ -16,6 +17,7 @@ import '../features/groups/hm_groups.dart';
 import '../features/groups/home_filters.dart';
 import '../features/live/hm_live.dart';
 import '../features/settings/cache_sync.dart';
+import '../features/settings/app_lock.dart';
 import '../features/terminal/hm_terminal.dart';
 import '../features/work/hm_execution.dart';
 import '../hm_bots.dart';
@@ -37,6 +39,7 @@ Future<void> hmOpenChat(
   required HmBotsModel bots,
   String? sessionId,
   String title = '',
+  bool live = false,
 }) async {
   final chat = NgChatController(
     bots.gateway,
@@ -46,23 +49,27 @@ Future<void> hmOpenChat(
     onCreated: (_) => bots.refresh(),
   );
   if (sessionId != null) unawaited(chat.open());
-  await Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (route) => HmChatScreen(
-        bot: bot,
-        chat: chat,
-        onNewChat: () {
-          Navigator.of(route).pop();
-          // The caller's context outlives this route.
-          if (context.mounted) {
-            unawaited(hmOpenChat(context, bot: bot, bots: bots));
-          }
-        },
-        onOpenBot: () => hmOpenAgent(route, bot, bots),
-        onAction: (a) => hmChatAction(route, bot, bots, chat, a),
+  if (live) {
+    await openHmLive(context, bot: bot, bots: bots, chat: chat);
+  } else {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (route) => HmChatScreen(
+          bot: bot,
+          chat: chat,
+          onNewChat: () {
+            Navigator.of(route).pop();
+            // The caller's context outlives this route.
+            if (context.mounted) {
+              unawaited(hmOpenChat(context, bot: bot, bots: bots));
+            }
+          },
+          onOpenBot: () => hmOpenAgent(route, bot, bots),
+          onAction: (a) => hmChatAction(route, bot, bots, chat, a),
+        ),
       ),
-    ),
-  );
+    );
+  }
   chat.dispose();
   unawaited(bots.refresh());
 }
@@ -140,7 +147,9 @@ Future<void> hmChatAction(
 }
 
 class HmHome extends StatefulWidget {
-  const HmHome({super.key});
+  const HmHome({super.key, this.launchIntents});
+
+  final AndroidLaunchIntentService? launchIntents;
 
   @override
   State<HmHome> createState() => _HmHomeState();
@@ -164,6 +173,49 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unawaited(_filters.load());
+    widget.launchIntents?.pendingDestination.addListener(_scheduleEntry);
+    widget.launchIntents?.pendingQuickChat.addListener(_scheduleEntry);
+    HmAppLock.instance.addListener(_scheduleEntry);
+    _scheduleEntry();
+  }
+
+  bool _entryScheduled = false;
+
+  void _scheduleEntry() {
+    if (_entryScheduled) return;
+    _entryScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _entryScheduled = false;
+      if (mounted && !HmAppLock.instance.locked) _openEntry();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  void _openEntry() {
+    final intents = widget.launchIntents;
+    final bots = _bots;
+    if (bots == null) return;
+    final destination =
+        intents?.pendingDestination.value ??
+        (intents?.pendingQuickChat.value == true
+            ? AndroidEntryDestination.newChat
+            : null);
+    if (destination == null) return;
+    intents!.pendingDestination.value = null;
+    intents.takePendingQuickChat();
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    if (destination == AndroidEntryDestination.sessions) return;
+
+    final profile = bots.gateway.profile ?? 'default';
+    final bot = bots.byProfile(profile) ?? HmBot.fromJson({'name': profile});
+    unawaited(
+      hmOpenChat(
+        context,
+        bot: bot,
+        bots: bots,
+        live: destination == AndroidEntryDestination.liveVoice,
+      ),
+    );
   }
 
   @override
@@ -210,6 +262,9 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    widget.launchIntents?.pendingDestination.removeListener(_scheduleEntry);
+    widget.launchIntents?.pendingQuickChat.removeListener(_scheduleEntry);
+    HmAppLock.instance.removeListener(_scheduleEntry);
     WidgetsBinding.instance.removeObserver(this);
     _changes?.cancel();
     _debounce?.cancel();

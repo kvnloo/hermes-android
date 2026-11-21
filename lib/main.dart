@@ -414,6 +414,8 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    widget.launchIntents?.pendingDestination.addListener(_onAndroidEntry);
+    _onAndroidEntry();
     WidgetsBinding.instance.addObserver(this);
     _turnApplicationController =
         widget.turnApplicationController ?? GatewayTurnApplicationController();
@@ -1235,6 +1237,13 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
     );
   }
 
+  void _onAndroidEntry() {
+    if (widget.launchIntents?.pendingDestination.value != null) {
+      // An explicit Android entry selects NextGen for this app run.
+      nextGenEnabled.value = true;
+    }
+  }
+
   Widget _buildApp(BuildContext context) {
     final nextGen = nextGenEnabled.value;
     final look = NextGenLook.instance;
@@ -1299,7 +1308,10 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
         return scene == null ? app : ColoredBox(color: scene, child: app);
       },
       home: nextGen
-          ? NextGenHome(connManager: widget.connManager)
+          ? NextGenHome(
+              connManager: widget.connManager,
+              launchIntents: widget.launchIntents,
+            )
           : HomeScreen(
               connManager: widget.connManager,
               turnApplicationController: _turnApplicationController,
@@ -1311,6 +1323,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    widget.launchIntents?.pendingDestination.removeListener(_onAndroidEntry);
     WidgetsBinding.instance.removeObserver(this);
     final token = _keepAliveTurnActivityToken;
     _closingTurnOwner = true;

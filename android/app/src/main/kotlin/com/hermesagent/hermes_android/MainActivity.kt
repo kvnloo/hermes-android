@@ -22,7 +22,6 @@ class MainActivity : FlutterFragmentActivity() {
     private val keepAliveChannelName = "com.hermesagent.hermes_android/keepalive"
     private val securityChannelName = "com.hermesagent.hermes_android/security"
     private val recordingScreenOwners = mutableSetOf<String>()
-    private val quickChatAction = "com.hermesagent.hermes_android.action.QUICK_CHAT"
     private val maxSharedItems = 10
     private val maxSharedBytes = 64L * 1024L * 1024L
     private var shareChannel: MethodChannel? = null
@@ -201,7 +200,9 @@ class MainActivity : FlutterFragmentActivity() {
         WindowViewport.refresh(window.decorView)
         runCatching { MobilePushBridge.captureTap(this, intent) }
         launchActionFor(intent)?.let { action ->
-            launchChannel?.invokeMethod("launchAction", action)
+            val channel = launchChannel
+            if (channel == null) initialLaunchAction = action
+            else channel.invokeMethod("launchAction", action)
             return
         }
         if (!isShareIntent(intent)) return
@@ -212,7 +213,7 @@ class MainActivity : FlutterFragmentActivity() {
 
 
     private fun launchActionFor(intent: Intent?): String? =
-        if (intent?.action == quickChatAction) "quickChat" else null
+        intent?.action?.takeIf(AndroidEntry.actions::contains)
 
     private fun isShareIntent(intent: Intent?): Boolean =
         intent?.action == Intent.ACTION_SEND || intent?.action == Intent.ACTION_SEND_MULTIPLE
