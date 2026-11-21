@@ -484,29 +484,6 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                 ],
               ),
             ),
-            if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
-              const NgSectionLabel('Android assistant'),
-              NgCard(
-                child: Column(
-                  children: [
-                    NgRow(
-                      icon: Icons.assistant_outlined,
-                      title: 'Default digital assistant',
-                      subtitle:
-                          'Select z0 Agent in Android settings, or leave your current assistant selected.',
-                      onTap: () => _openAssistantSurface('assistantSettings'),
-                    ),
-                    NgRow(
-                      icon: Icons.screen_share_outlined,
-                      title: 'Local screen preview',
-                      subtitle:
-                          'Requires Android consent. No screen frames are sent to a host.',
-                      onTap: () => _openAssistantSurface('screenPreview'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
             NgSectionLabel(ngL.ng_notifications),
             const NgNotificationSettings(),
             NgSectionLabel(ngL.ng_interface),
@@ -553,6 +530,29 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                 ],
               ),
             ),
+            if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
+              const NgSectionLabel('Android assistant'),
+              NgCard(
+                child: Column(
+                  children: [
+                    NgRow(
+                      icon: Icons.assistant_outlined,
+                      title: 'Default digital assistant',
+                      subtitle:
+                          'Select z0 Agent in Android settings, or leave your current assistant selected.',
+                      onTap: () => _openAssistantSurface('assistantSettings'),
+                    ),
+                    NgRow(
+                      icon: Icons.screen_share_outlined,
+                      title: 'Share a screen image',
+                      subtitle:
+                          'Android asks permission. Review the capture in a draft before sending.',
+                      onTap: () => _openAssistantSurface('screenPreview'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

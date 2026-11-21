@@ -47,6 +47,12 @@
         </service>
         <activity android:name=".AssistOverlayActivity" android:exported="false"
             android:theme="@android:style/Theme.Material.Dialog.NoActionBar" />
+        <provider android:name=".ScreenShareFileProvider"
+            android:authorities="${applicationId}.screen_share" android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/screen_share_paths" />
+        </provider>
         <activity android:name=".ScreenPreviewActivity" android:exported="false" />
         <service android:name=".ScreenShareService" android:exported="false"
             android:foregroundServiceType="mediaProjection" />
