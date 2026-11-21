@@ -9,6 +9,10 @@ import '../../nextgen/nextgen_preferences.dart';
 import '../../nextgen/ui/nextgen_scope.dart';
 import '../../nextgen/ui/settings_page.dart';
 import '../avatar/hm_avatar.dart';
+import '../features/settings/cache_screen.dart';
+import '../features/settings/chat_settings_screen.dart';
+import '../features/settings/security_screen.dart';
+import '../features/settings/settings_prefs.dart';
 import '../hm_bots.dart';
 import '../hm_ui.dart';
 import 'hm_agent_screen.dart';
@@ -22,11 +26,12 @@ class HmSettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final scope = NgScope.of(context);
     final look = NextGenLook.instance;
+    final settings = HmSettingsPrefs.instance..ensureLoaded(scope.prefs);
     void push(Widget page) => Navigator.of(
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => page));
     return ListenableBuilder(
-      listenable: Listenable.merge([bots, look]),
+      listenable: Listenable.merge([bots, look, settings]),
       builder: (context, _) => HmPage(
         title: 'Settings',
         children: [
@@ -57,14 +62,14 @@ class HmSettingsScreen extends StatelessWidget {
               HmRow(
                 icon: Icons.lock_outline,
                 label: 'Security',
-                value: 'Off',
-                onTap: () {},
+                value: settings.lockEnabled ? 'On' : 'Off',
+                onTap: () => push(const HmSecurityScreen()),
               ),
               HmRow(
                 icon: Icons.storage,
                 label: 'Caching',
-                value: 'On',
-                onTap: () {},
+                value: settings.cachingOn ? 'On' : 'Off',
+                onTap: () => push(const HmCachingScreen()),
               ),
             ],
           ),
@@ -92,8 +97,8 @@ class HmSettingsScreen extends StatelessWidget {
               HmRow(
                 icon: Icons.chat_outlined,
                 label: 'Chat',
-                value: 'Standard',
-                onTap: () {},
+                value: settings.chatStyle.label,
+                onTap: () => push(const HmChatSettingsScreen()),
               ),
             ],
           ),
