@@ -155,7 +155,64 @@ Future<void> _settle() async {
   }
 }
 
+Future<void> _pumpChat(WidgetTester tester, NgChatController chat) async {
+  final gateway = chat.gateway;
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
+  await tester.pumpWidget(
+    MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      theme: nextGenTheme(Brightness.light, NextGenLook.instance),
+      home: NgScope(
+        connManager: ConnectionManager(prefs),
+        gateway: gateway,
+        connections: [gateway.connection],
+        switchTo: (_) async {},
+        addGateway: () async {},
+        signOut: (_) async {},
+        reload: () async {},
+        signInAgain: () async {},
+        child: Scaffold(
+          body: NgChatView(chat: chat, onOpenSidebar: () {}, onNewChat: () {}),
+        ),
+      ),
+    ),
+  );
+}
+
 void main() {
+  testWidgets('completed turns show elapsed time when known', (tester) async {
+    final gateway = NextGenGateway(_conn());
+    final chat = NgChatController(gateway, sessionId: 'stored');
+    addTearDown(chat.dispose);
+    addTearDown(gateway.dispose);
+    chat.debugApplyHistory([
+      {'role': 'assistant', 'content': 'Unknown timing'},
+      {'role': 'user', 'content': 'Try again'},
+      {'role': 'assistant', 'content': 'Done', 'duration_s': 64},
+    ]);
+    await _pumpChat(tester, chat);
+    expect(find.text('Worked for 1m 4s'), findsOneWidget);
+    expect(find.textContaining('Worked for'), findsOneWidget);
+
+    gateway.debugEmit(
+      StreamEvent(type: 'message.start', data: const {}, sessionId: 'stored'),
+    );
+    await tester.pump();
+    expect(find.textContaining('Worked for'), findsOneWidget);
+    gateway.debugEmit(
+      StreamEvent(
+        type: 'message.complete',
+        data: const {'text': 'Live reply'},
+        sessionId: 'stored',
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Worked for 0s'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   group('Markdown chunks', () {
     test('short text stays whole', () {
       expect(ngMarkdownChunks('one\n\ntwo'), ['one\n\ntwo']);
@@ -369,37 +426,12 @@ void main() {
       // Small rows: fake-async widget tests can't wait on an isolate.
       api = _PagedApi(gateway.dashboard, _turns(40, toolChars: 100));
       gateway.api = api;
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
       final rows = api.rows;
       chat.debugApplyHistory(
         rows.sublist(rows.length - ngHistoryPage),
         pageLimit: ngHistoryPage,
       );
-      await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          theme: nextGenTheme(Brightness.light, NextGenLook.instance),
-          home: NgScope(
-            connManager: ConnectionManager(prefs),
-            gateway: gateway,
-            connections: [gateway.connection],
-            switchTo: (_) async {},
-            addGateway: () async {},
-            signOut: (_) async {},
-            reload: () async {},
-            signInAgain: () async {},
-            child: Scaffold(
-              body: NgChatView(
-                chat: chat,
-                onOpenSidebar: () {},
-                onNewChat: () {},
-              ),
-            ),
-          ),
-        ),
-      );
+      await _pumpChat(tester, chat);
       await tester.pump(const Duration(milliseconds: 300));
       final before = api.calls.length;
       await tester.drag(

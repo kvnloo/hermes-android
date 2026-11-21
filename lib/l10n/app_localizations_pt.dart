@@ -5966,6 +5966,11 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get theme_surface_reload_action => 'Redesenhar';
+
+  @override
+  String ng_worked_for(String duration) {
+    return 'Trabalhou durante $duration';
+  }
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -11688,4 +11693,9 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get theme_surface_reload_action => 'Redesenhar';
+
+  @override
+  String ng_worked_for(String duration) {
+    return 'Trabalhou por $duration';
+  }
 }

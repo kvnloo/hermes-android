@@ -5967,4 +5967,9 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get theme_surface_reload_action => 'Neu zeichnen';
+
+  @override
+  String ng_worked_for(String duration) {
+    return '$duration gearbeitet';
+  }
 }

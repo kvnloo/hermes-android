@@ -203,6 +203,9 @@ class NgAssistantItem extends NgItem {
   final List<NgTool> tools = [];
   bool open;
   DateTime? time;
+
+  /// Wall time from a live start to completion, or explicit host timing.
+  Duration? workedFor;
   int? inputTokens;
   int? outputTokens;
 
@@ -620,6 +623,7 @@ class NgChatController extends ChangeNotifier {
   String? reasoningEffort;
   NgUsage? usage;
   DateTime? turnStartedAt;
+  Stopwatch? _observedTurn;
 
   /// The agent's plan, shown above the composer (Kyllene's task list).
   NgTodoList? todos;
@@ -894,6 +898,14 @@ class NgChatController extends ChangeNotifier {
     return '';
   }
 
+  static Duration? _workedFor(Map<String, dynamic> row) {
+    final metadata = row['display_metadata'];
+    final seconds =
+        row['duration_s'] ?? (metadata is Map ? metadata['duration_s'] : null);
+    if (seconds is! num || !seconds.isFinite || seconds < 0) return null;
+    return Duration(milliseconds: (seconds * 1000).round());
+  }
+
   static DateTime? _time(Object? ts) {
     if (ts is num && ts > 0) {
       return DateTime.fromMillisecondsSinceEpoch((ts * 1000).round());
@@ -1096,6 +1108,7 @@ class NgChatController extends ChangeNotifier {
           } else {
             reply = NgAssistantItem(_key('a'), open: false);
             reply.text = split.$2;
+            reply.workedFor = _workedFor(m);
             items.add(reply);
           }
           continue;
@@ -1140,6 +1153,7 @@ class NgChatController extends ChangeNotifier {
           reply.text = reply.text.isEmpty ? text : '${reply.text}\n\n$text';
         }
         reply.time = _time(m['timestamp']) ?? reply.time;
+        reply.workedFor = _workedFor(m) ?? reply.workedFor;
         final calls = m['tool_calls'];
         if (calls is List) {
           for (final call in calls) {
@@ -1386,6 +1400,7 @@ class NgChatController extends ChangeNotifier {
 
     switch (event.type) {
       case 'message.start':
+        _observedTurn ??= Stopwatch()..start();
         // A new turn hasn't planned yet; the last plan is from before.
         todosLive = todosLive && running;
         running = true;
@@ -1556,6 +1571,7 @@ class NgChatController extends ChangeNotifier {
           reply.outputTokens = u.output;
         }
         reply.time = DateTime.now();
+        reply.workedFor = _workedFor(p) ?? _observedTurn?.elapsed;
         final outcome = s('status');
         lastTurnFailed = outcome == 'error';
         lastTurnInterrupted = outcome == 'interrupted';
@@ -1752,6 +1768,7 @@ class NgChatController extends ChangeNotifier {
     status = null;
     thinkingFrame = null;
     turnStartedAt = null;
+    _observedTurn = null;
     request = null;
     onTurnFinished?.call();
     // The goal's judge runs after the turn; pick up its verdict.

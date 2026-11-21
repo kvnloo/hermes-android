@@ -5799,4 +5799,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get theme_surface_reload_action => '再描画';
+
+  @override
+  String ng_worked_for(String duration) {
+    return '作業時間 $duration';
+  }
 }

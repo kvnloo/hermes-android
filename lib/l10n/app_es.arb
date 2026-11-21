@@ -1624,5 +1624,6 @@
   "theme_surface_glass_hint": "Tu fondo de pantalla se ve a través de Hermes, desenfocado y teñido para que el texto siga legible.",
   "theme_surface_reload_title": "¿Redibujar la ventana?",
   "theme_surface_reload_body": "Hermes reinicia su ventana para cambiar de superficie. Se conservan los chats y borradores.",
-  "theme_surface_reload_action": "Redibujar"
+  "theme_surface_reload_action": "Redibujar",
+  "ng_worked_for": "Trabajó durante {duration}"
 }

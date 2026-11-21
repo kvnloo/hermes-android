@@ -5961,4 +5961,9 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get theme_surface_reload_action => 'Перезапустити';
+
+  @override
+  String ng_worked_for(String duration) {
+    return 'Час роботи: $duration';
+  }
 }

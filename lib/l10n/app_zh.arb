@@ -1624,5 +1624,6 @@
   "theme_surface_glass_hint": "壁纸会透过 Hermes 显示，并加上模糊和色调，让文字保持清晰。",
   "theme_surface_reload_title": "重绘窗口？",
   "theme_surface_reload_body": "Hermes 将重启窗口以切换表面。聊天和草稿会保留。",
-  "theme_surface_reload_action": "重绘"
+  "theme_surface_reload_action": "重绘",
+  "ng_worked_for": "處理時間 {duration}"
 }

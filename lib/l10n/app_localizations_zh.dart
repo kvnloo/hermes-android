@@ -5713,6 +5713,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get theme_surface_reload_action => '重绘';
+
+  @override
+  String ng_worked_for(String duration) {
+    return '處理時間 $duration';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -11190,4 +11195,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get theme_surface_reload_action => '重绘';
+
+  @override
+  String ng_worked_for(String duration) {
+    return '处理时间 $duration';
+  }
 }

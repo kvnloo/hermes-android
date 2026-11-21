@@ -1642,6 +1642,13 @@ class _AssistantBlockState extends State<_AssistantBlock> {
     builder: (context, _) => _build(context),
   );
 
+  String _workedDuration(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds.remainder(60);
+    if (minutes == 0) return '${seconds}s';
+    return seconds == 0 ? '${minutes}m' : '${minutes}m ${seconds}s';
+  }
+
   Widget _build(BuildContext context) {
     final display = ngChatDisplay();
     final c = NgColors.of(context);
@@ -1695,6 +1702,14 @@ class _AssistantBlockState extends State<_AssistantBlock> {
                   mainAxisSize: MainAxisSize.min,
                   children: _content(c, item),
                 ),
+              ),
+            ),
+          if (item.workedFor case final Duration duration when !item.open)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                ngL.ng_worked_for(_workedDuration(duration)),
+                style: NgType.caption.copyWith(color: c.textMuted),
               ),
             ),
           if (!item.open && item.text.isNotEmpty)

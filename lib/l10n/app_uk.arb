@@ -1766,5 +1766,6 @@
   "theme_surface_glass_hint": "Крізь Hermes видно шпалери. Розмиття й тонування допомагають читати текст.",
   "theme_surface_reload_title": "Перезапустити вікно?",
   "theme_surface_reload_body": "Hermes перезапустить вікно, щоб змінити поверхню. Чати й чернетки буде збережено.",
-  "theme_surface_reload_action": "Перезапустити"
+  "theme_surface_reload_action": "Перезапустити",
+  "ng_worked_for": "Час роботи: {duration}"
 }

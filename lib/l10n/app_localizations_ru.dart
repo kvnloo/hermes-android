@@ -5962,4 +5962,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get theme_surface_reload_action => 'Перерисовать';
+
+  @override
+  String ng_worked_for(String duration) {
+    return 'Время работы: $duration';
+  }
 }

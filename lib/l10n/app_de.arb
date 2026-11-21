@@ -1624,5 +1624,6 @@
   "theme_surface_glass_hint": "Dein Hintergrund scheint durch Hermes, unscharf und getönt, damit Text lesbar bleibt.",
   "theme_surface_reload_title": "Fenster neu zeichnen?",
   "theme_surface_reload_body": "Hermes startet sein Fenster neu, um die Oberfläche zu wechseln. Chats und Entwürfe bleiben erhalten.",
-  "theme_surface_reload_action": "Neu zeichnen"
+  "theme_surface_reload_action": "Neu zeichnen",
+  "ng_worked_for": "{duration} gearbeitet"
 }

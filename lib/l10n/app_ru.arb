@@ -1624,5 +1624,6 @@
   "theme_surface_glass_hint": "Обои просвечивают сквозь Hermes — размытые и затонированные, чтобы текст оставался читаемым.",
   "theme_surface_reload_title": "Перерисовать окно?",
   "theme_surface_reload_body": "Hermes перезапустит окно, чтобы сменить поверхность. Чаты и черновики сохранятся.",
-  "theme_surface_reload_action": "Перерисовать"
+  "theme_surface_reload_action": "Перерисовать",
+  "ng_worked_for": "Время работы: {duration}"
 }

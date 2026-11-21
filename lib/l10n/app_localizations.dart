@@ -9989,6 +9989,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Redraw'**
   String get theme_surface_reload_action;
+
+  /// No description provided for @ng_worked_for.
+  ///
+  /// In en, this message translates to:
+  /// **'Worked for {duration}'**
+  String ng_worked_for(String duration);
 }
 
 class _AppLocalizationsDelegate

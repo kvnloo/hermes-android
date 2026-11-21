@@ -5803,4 +5803,9 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get theme_surface_reload_action => '다시 그리기';
+
+  @override
+  String ng_worked_for(String duration) {
+    return '$duration 동안 작업함';
+  }
 }

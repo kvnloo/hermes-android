@@ -5974,4 +5974,9 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get theme_surface_reload_action => 'Redessiner';
+
+  @override
+  String ng_worked_for(String duration) {
+    return 'A travaillé pendant $duration';
+  }
 }
