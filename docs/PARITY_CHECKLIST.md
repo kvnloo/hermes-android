@@ -89,3 +89,7 @@ Built in PR #27 unless a reason is given.
 - [x] Bot directory import (`application/vnd.ai.nousresearch.hermes.mobile.bot+json`): opening a bot file shows Import bot with name, title and description: local `fork/a3-bot-import.png` `5a5afe92d2c5` (emu-s). Fields beyond `name`, `title` and `description` aren't confirmed from the official app.
 - [ ] Document scanner. Reason: not built. The official app uses the ML Kit document scanner, which adds a Google Play services dependency. Follow-up card.
 - [ ] Push notifications with actions. The fork has `MobilePushService`; not compared. Reason: the official app pushes through Firebase and the fork through UnifiedPush. Comparing actions needs both apps registered for push on one host, which this round didn't set up.
+
+## Boat validation
+
+- [ ] Refresh store goldens with Nunito: three Flutter goldens regenerated and matched on rerun; needs emulator/S25 screenshot.
