@@ -6000,6 +6000,19 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get ng_reactions_description =>
       'O Hermes vê as suas reações e pode reagir às suas mensagens com um emoji.';
+
+  @override
+  String get ng_bot_import_title => 'Importar bot';
+
+  @override
+  String get ng_bot_import_invalid =>
+      'Não foi possível ler este ficheiro de bot ou o formato não é suportado.';
+
+  @override
+  String get ng_bot_import_open_chat => 'Abrir conversa';
+
+  @override
+  String get ng_bot_import_add => 'Adicionar bot';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -11756,4 +11769,17 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   @override
   String get ng_reactions_description =>
       'O Hermes vê suas reações e pode reagir às suas mensagens com um emoji.';
+
+  @override
+  String get ng_bot_import_title => 'Importar bot';
+
+  @override
+  String get ng_bot_import_invalid =>
+      'Não foi possível ler este arquivo de bot ou o formato não é compatível.';
+
+  @override
+  String get ng_bot_import_open_chat => 'Abrir conversa';
+
+  @override
+  String get ng_bot_import_add => 'Adicionar bot';
 }

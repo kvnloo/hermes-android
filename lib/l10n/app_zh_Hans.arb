@@ -1634,5 +1634,9 @@
   "ng_reconnect_before_reacting": "请重新连接此对话后再添加回应。",
   "ng_remove_reaction": "移除回应",
   "ng_react_to_messages": "回应消息",
-  "ng_reactions_description": "Hermes 能看到你的回应，也可以用表情符号回应你的消息。"
+  "ng_reactions_description": "Hermes 能看到你的回应，也可以用表情符号回应你的消息。",
+  "ng_bot_import_title": "导入机器人",
+  "ng_bot_import_invalid": "无法读取此机器人文件，或其格式不受支持。",
+  "ng_bot_import_open_chat": "打开聊天",
+  "ng_bot_import_add": "添加机器人"
 }

@@ -1634,5 +1634,9 @@
   "ng_reconnect_before_reacting": "Reconnectez cette conversation avant de réagir.",
   "ng_remove_reaction": "Retirer la réaction",
   "ng_react_to_messages": "Réagir aux messages",
-  "ng_reactions_description": "Hermes voit vos réactions et peut réagir à vos messages avec un emoji."
+  "ng_reactions_description": "Hermes voit vos réactions et peut réagir à vos messages avec un emoji.",
+  "ng_bot_import_title": "Importer un bot",
+  "ng_bot_import_invalid": "Ce fichier de bot est illisible ou utilise un format non pris en charge.",
+  "ng_bot_import_open_chat": "Ouvrir la discussion",
+  "ng_bot_import_add": "Ajouter le bot"
 }

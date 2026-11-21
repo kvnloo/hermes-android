@@ -12,6 +12,7 @@ import io.flutter.embedding.android.FlutterActivityLaunchConfigs.BackgroundMode
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -28,6 +29,7 @@ class MainActivity : FlutterFragmentActivity() {
     private var launchChannel: MethodChannel? = null
     private var initialShareIntent: Intent? = null
     private var initialLaunchAction: String? = null
+    private var initialBotDirectory: Intent? = null
     private var attachmentPdfPreview: AttachmentPdfPreview? = null
     private var apkUpdateInstaller: ApkUpdateInstaller? = null
     private var attachmentFileSaver: AttachmentFileSaver? = null
@@ -41,6 +43,7 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         initialShareIntent = intent.takeIf(::isShareIntent)
         initialLaunchAction = launchActionFor(intent)
+        initialBotDirectory = intent.takeIf(::isBotDirectoryIntent)
         glassWindow.configureWindow()
         super.onCreate(savedInstanceState)
         // The embedding can change the window background during onCreate.
@@ -101,7 +104,10 @@ class MainActivity : FlutterFragmentActivity() {
                     "getInitialLaunchAction" -> {
                         val pending = initialLaunchAction
                         initialLaunchAction = null
-                        result.success(pending)
+                        val botDirectory = initialBotDirectory
+                        initialBotDirectory = null
+                        if (botDirectory == null) result.success(pending)
+                        else readBotDirectory(botDirectory) { result.success(it) }
                     }
                     else -> result.notImplemented()
                 }
@@ -205,6 +211,12 @@ class MainActivity : FlutterFragmentActivity() {
             else channel.invokeMethod("launchAction", action)
             return
         }
+        if (isBotDirectoryIntent(intent)) {
+            val channel = launchChannel
+            if (channel == null) initialBotDirectory = intent
+            else readBotDirectory(intent) { channel.invokeMethod("launchAction", it) }
+            return
+        }
         if (!isShareIntent(intent)) return
         processShareIntent(intent) { payload ->
             if (payload != null) shareChannel?.invokeMethod("sharePayload", payload)
@@ -214,6 +226,31 @@ class MainActivity : FlutterFragmentActivity() {
 
     private fun launchActionFor(intent: Intent?): String? =
         intent?.action?.takeIf(AndroidEntry.actions::contains)
+
+    private fun isBotDirectoryIntent(intent: Intent?): Boolean =
+        intent?.action == Intent.ACTION_VIEW &&
+            intent.type == "application/vnd.ai.nousresearch.hermes.mobile.bot+json" &&
+            intent.data?.scheme in listOf("content", "file")
+
+    private fun readBotDirectory(intent: Intent, done: (Map<String, String?>) -> Unit) {
+        Thread {
+            val document = runCatching {
+                contentResolver.openInputStream(requireNotNull(intent.data))?.use { input ->
+                    val output = ByteArrayOutputStream()
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        require(output.size() + count <= 256 * 1024)
+                        output.write(buffer, 0, count)
+                    }
+                    Charsets.UTF_8.newDecoder()
+                        .decode(java.nio.ByteBuffer.wrap(output.toByteArray())).toString()
+                }
+            }.getOrNull()
+            runOnUiThread { done(mapOf("action" to "botDirectory", "document" to document)) }
+        }.start()
+    }
 
     private fun isShareIntent(intent: Intent?): Boolean =
         intent?.action == Intent.ACTION_SEND || intent?.action == Intent.ACTION_SEND_MULTIPLE

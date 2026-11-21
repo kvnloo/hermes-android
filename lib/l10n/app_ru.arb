@@ -1634,5 +1634,9 @@
   "ng_reconnect_before_reacting": "Подключите этот разговор заново, прежде чем реагировать.",
   "ng_remove_reaction": "Удалить реакцию",
   "ng_react_to_messages": "Реагировать на сообщения",
-  "ng_reactions_description": "Hermes видит ваши реакции и может реагировать на ваши сообщения с помощью эмодзи."
+  "ng_reactions_description": "Hermes видит ваши реакции и может реагировать на ваши сообщения с помощью эмодзи.",
+  "ng_bot_import_title": "Импорт бота",
+  "ng_bot_import_invalid": "Не удалось прочитать файл бота или его формат не поддерживается.",
+  "ng_bot_import_open_chat": "Открыть чат",
+  "ng_bot_import_add": "Добавить бота"
 }

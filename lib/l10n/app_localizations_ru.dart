@@ -5996,4 +5996,17 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get ng_reactions_description =>
       'Hermes видит ваши реакции и может реагировать на ваши сообщения с помощью эмодзи.';
+
+  @override
+  String get ng_bot_import_title => 'Импорт бота';
+
+  @override
+  String get ng_bot_import_invalid =>
+      'Не удалось прочитать файл бота или его формат не поддерживается.';
+
+  @override
+  String get ng_bot_import_open_chat => 'Открыть чат';
+
+  @override
+  String get ng_bot_import_add => 'Добавить бота';
 }

@@ -5745,6 +5745,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get ng_reactions_description => 'Hermes 看得到你的反應，也可以用表情符號回應你的訊息。';
+
+  @override
+  String get ng_bot_import_title => '导入机器人';
+
+  @override
+  String get ng_bot_import_invalid => '无法读取此机器人文件，或其格式不受支持。';
+
+  @override
+  String get ng_bot_import_open_chat => '打开聊天';
+
+  @override
+  String get ng_bot_import_add => '添加机器人';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -11254,4 +11266,16 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get ng_reactions_description => 'Hermes 能看到你的回应，也可以用表情符号回应你的消息。';
+
+  @override
+  String get ng_bot_import_title => '导入机器人';
+
+  @override
+  String get ng_bot_import_invalid => '无法读取此机器人文件，或其格式不受支持。';
+
+  @override
+  String get ng_bot_import_open_chat => '打开聊天';
+
+  @override
+  String get ng_bot_import_add => '添加机器人';
 }

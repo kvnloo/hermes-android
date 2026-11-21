@@ -1634,5 +1634,9 @@
   "ng_reconnect_before_reacting": "請重新連線至這段對話，再加入反應。",
   "ng_remove_reaction": "移除反應",
   "ng_react_to_messages": "對訊息加入反應",
-  "ng_reactions_description": "Hermes 看得到你的反應，也可以用表情符號回應你的訊息。"
+  "ng_reactions_description": "Hermes 看得到你的反應，也可以用表情符號回應你的訊息。",
+  "ng_bot_import_title": "导入机器人",
+  "ng_bot_import_invalid": "无法读取此机器人文件，或其格式不受支持。",
+  "ng_bot_import_open_chat": "打开聊天",
+  "ng_bot_import_add": "添加机器人"
 }

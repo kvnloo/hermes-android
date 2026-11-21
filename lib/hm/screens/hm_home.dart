@@ -26,6 +26,7 @@ import '../avatar/hm_avatar_state.dart';
 import '../hm_ui.dart';
 import 'hm_agent_screen.dart';
 import 'hm_chat_screen.dart';
+import 'hm_bot_import.dart';
 import 'hm_settings_screen.dart';
 
 /// Opens one of [bot]'s chats as Home does: the stored chat [sessionId]
@@ -201,10 +202,24 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
             ? AndroidEntryDestination.newChat
             : null);
     if (destination == null) return;
-    intents!.pendingDestination.value = null;
+    final document = intents!.pendingBotDocument;
+    intents.pendingBotDocument = null;
+    intents.pendingDestination.value = null;
     intents.takePendingQuickChat();
     Navigator.of(context).popUntil((route) => route.isFirst);
     if (destination == AndroidEntryDestination.sessions) return;
+    if (destination == AndroidEntryDestination.botImport) {
+      unawaited(() async {
+        final bot = await Navigator.of(context).push<HmBot>(
+          MaterialPageRoute(
+            builder: (_) => HmBotImport(document: document, bots: bots),
+          ),
+        );
+        if (bot != null && mounted)
+          await hmOpenChat(context, bot: bot, bots: bots);
+      }());
+      return;
+    }
 
     final profile = bots.gateway.profile ?? 'default';
     final bot = bots.byProfile(profile) ?? HmBot.fromJson({'name': profile});

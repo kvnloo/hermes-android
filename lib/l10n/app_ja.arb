@@ -1634,5 +1634,9 @@
   "ng_reconnect_before_reacting": "リアクションする前にこの会話を再接続してください。",
   "ng_remove_reaction": "リアクションを削除",
   "ng_react_to_messages": "メッセージにリアクションする",
-  "ng_reactions_description": "Hermes はあなたのリアクションを確認し、メッセージに絵文字で反応できます。"
+  "ng_reactions_description": "Hermes はあなたのリアクションを確認し、メッセージに絵文字で反応できます。",
+  "ng_bot_import_title": "ボットをインポート",
+  "ng_bot_import_invalid": "このボットファイルを読み込めないか、対応していない形式です。",
+  "ng_bot_import_open_chat": "チャットを開く",
+  "ng_bot_import_add": "ボットを追加"
 }

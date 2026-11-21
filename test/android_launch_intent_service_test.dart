@@ -37,6 +37,34 @@ void main() {
     });
   }
 
+  test('routes a cold bot file and a warm unreadable file to import', () async {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(
+      channel,
+      (_) async => {'action': 'botDirectory', 'document': '{"name":"writer"}'},
+    );
+    final service = AndroidLaunchIntentService();
+    addTearDown(service.dispose);
+    await service.initialize();
+    expect(service.pendingDestination.value, AndroidEntryDestination.botImport);
+    expect(service.pendingBotDocument?.name, 'writer');
+
+    service.pendingDestination.value = null;
+    await messenger.handlePlatformMessage(
+      channel.name,
+      channel.codec.encodeMethodCall(
+        const MethodCall('launchAction', {
+          'action': 'botDirectory',
+          'document': null,
+        }),
+      ),
+      (_) {},
+    );
+    expect(service.pendingDestination.value, AndroidEntryDestination.botImport);
+    expect(service.pendingBotDocument, isNull);
+  });
+
   test('initializes from a cold-start Quick Chat shortcut once', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
