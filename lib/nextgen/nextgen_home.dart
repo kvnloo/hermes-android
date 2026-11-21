@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../core/services/connection_manager.dart';
 import '../core/services/android_launch_intent_service.dart';
+import '../core/services/android_share_intent_service.dart';
 import '../core/services/hermes_sign_in.dart';
 import 'data/nextgen_gateway.dart';
 import 'nextgen_preferences.dart';
@@ -17,8 +18,14 @@ import 'ui/nextgen_scope.dart';
 import 'nextgen_l10n.dart';
 
 class NextGenHome extends StatefulWidget {
-  const NextGenHome({super.key, required this.connManager, this.launchIntents});
+  const NextGenHome({
+    super.key,
+    required this.connManager,
+    this.launchIntents,
+    this.shareIntents,
+  });
   final AndroidLaunchIntentService? launchIntents;
+  final AndroidShareIntentService? shareIntents;
   final ConnectionManager connManager;
 
   @override
@@ -218,7 +225,10 @@ class _NextGenHomeState extends State<NextGenHome> {
           key: _navigator,
           onGenerateInitialRoutes: (_, _) => [
             MaterialPageRoute<void>(
-              builder: (_) => HmHome(launchIntents: widget.launchIntents),
+              builder: (_) => HmHome(
+                launchIntents: widget.launchIntents,
+                shareIntents: widget.shareIntents,
+              ),
             ),
           ],
         ),

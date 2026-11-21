@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/session.dart';
 import '../../core/services/android_launch_intent_service.dart';
+import '../../core/services/android_share_intent_service.dart';
 import '../../nextgen/data/chat_controller.dart';
 import '../../nextgen/data/nextgen_gateway.dart';
 import '../../nextgen/theme/nextgen_theme.dart';
@@ -41,6 +42,7 @@ Future<void> hmOpenChat(
   String? sessionId,
   String title = '',
   bool live = false,
+  AndroidSharePayload? sharedDraft,
 }) async {
   final chat = NgChatController(
     bots.gateway,
@@ -58,6 +60,7 @@ Future<void> hmOpenChat(
         builder: (route) => HmChatScreen(
           bot: bot,
           chat: chat,
+          sharedDraft: sharedDraft,
           onNewChat: () {
             Navigator.of(route).pop();
             // The caller's context outlives this route.
@@ -148,9 +151,10 @@ Future<void> hmChatAction(
 }
 
 class HmHome extends StatefulWidget {
-  const HmHome({super.key, this.launchIntents});
+  const HmHome({super.key, this.launchIntents, this.shareIntents});
 
   final AndroidLaunchIntentService? launchIntents;
+  final AndroidShareIntentService? shareIntents;
 
   @override
   State<HmHome> createState() => _HmHomeState();
@@ -176,6 +180,7 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
     unawaited(_filters.load());
     widget.launchIntents?.pendingDestination.addListener(_scheduleEntry);
     widget.launchIntents?.pendingQuickChat.addListener(_scheduleEntry);
+    widget.shareIntents?.pendingShare.addListener(_scheduleEntry);
     HmAppLock.instance.addListener(_scheduleEntry);
     _scheduleEntry();
   }
@@ -201,22 +206,28 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
         (intents?.pendingQuickChat.value == true
             ? AndroidEntryDestination.newChat
             : null);
-    if (destination == null) return;
-    final document = intents!.pendingBotDocument;
-    intents.pendingBotDocument = null;
-    intents.pendingDestination.value = null;
-    intents.takePendingQuickChat();
+    final shared = widget.shareIntents?.takePendingShare();
+    if (destination == null && shared == null) return;
+    final document = intents?.pendingBotDocument;
+    if (intents != null) {
+      intents.pendingBotDocument = null;
+      intents.pendingDestination.value = null;
+      intents.takePendingQuickChat();
+    }
     Navigator.of(context).popUntil((route) => route.isFirst);
-    if (destination == AndroidEntryDestination.sessions) return;
-    if (destination == AndroidEntryDestination.botImport) {
+    if (shared == null && destination == AndroidEntryDestination.sessions) {
+      return;
+    }
+    if (shared == null && destination == AndroidEntryDestination.botImport) {
       unawaited(() async {
         final bot = await Navigator.of(context).push<HmBot>(
           MaterialPageRoute(
             builder: (_) => HmBotImport(document: document, bots: bots),
           ),
         );
-        if (bot != null && mounted)
+        if (bot != null && mounted) {
           await hmOpenChat(context, bot: bot, bots: bots);
+        }
       }());
       return;
     }
@@ -228,7 +239,9 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
         context,
         bot: bot,
         bots: bots,
-        live: destination == AndroidEntryDestination.liveVoice,
+        live:
+            shared == null && destination == AndroidEntryDestination.liveVoice,
+        sharedDraft: shared,
       ),
     );
   }
@@ -279,6 +292,7 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
   void dispose() {
     widget.launchIntents?.pendingDestination.removeListener(_scheduleEntry);
     widget.launchIntents?.pendingQuickChat.removeListener(_scheduleEntry);
+    widget.shareIntents?.pendingShare.removeListener(_scheduleEntry);
     HmAppLock.instance.removeListener(_scheduleEntry);
     WidgetsBinding.instance.removeObserver(this);
     _changes?.cancel();

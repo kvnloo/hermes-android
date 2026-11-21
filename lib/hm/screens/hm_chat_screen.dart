@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
 import '../../core/services/voice_composer_adapter.dart';
+import '../../core/services/android_share_intent_service.dart';
 import '../../nextgen/data/chat_controller.dart';
 import '../../nextgen/theme/nextgen_theme.dart';
 import '../../nextgen/ui/chat_view.dart';
@@ -34,8 +35,10 @@ class HmChatScreen extends StatefulWidget {
     required this.onNewChat,
     this.onOpenBot,
     this.voiceFactory,
+    this.sharedDraft,
   });
 
+  final AndroidSharePayload? sharedDraft;
   final HmBot bot;
   final NgChatController chat;
   final Future<void> Function(HmChatAction action) onAction;
@@ -64,6 +67,7 @@ class _HmChatScreenState extends State<HmChatScreen> {
   Widget build(BuildContext context) {
     return NgChatView(
       chat: widget.chat,
+      sharedDraft: widget.sharedDraft,
       onOpenSidebar: () => Navigator.of(context).maybePop(),
       onNewChat: widget.onNewChat,
       botName: widget.bot.displayName,
