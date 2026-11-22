@@ -22,6 +22,7 @@ enum HmChatAction {
   execution,
   routines,
   artifacts,
+  council,
   archive,
   delete,
 }
@@ -228,6 +229,11 @@ class _HmMoreButton extends StatelessWidget {
                 HmChatAction.artifacts,
                 Icons.inventory_2_outlined,
                 'Artifacts',
+              ),
+              HmMenuItem(
+                HmChatAction.council,
+                Icons.groups_2_outlined,
+                'Council',
               ),
             ],
             [
