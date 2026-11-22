@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -128,6 +129,129 @@ class ReleaseCandidateMaterialsTest(unittest.TestCase):
             "475baf431b16d050c8f658ac838783b273f7c10bba06ed1d16bb0a4239f592fb'",
             release,
         )
+
+
+WORKFLOWS = ROOT / ".github/workflows"
+
+
+def _step(workflow: str, name: str) -> str:
+    """Return one step's YAML (6-space step indent) from a workflow file."""
+    return workflow.split(f"      - name: {name}\n", 1)[1].split("      - ", 1)[0]
+
+
+def _run_script(step: str) -> str:
+    """Return a step's `run: |` body with its 10-space indent removed."""
+    body = step.split("        run: |\n", 1)[1]
+    return "\n".join(line[10:] for line in body.splitlines()) + "\n"
+
+
+class ApkTestBuildNumberTest(unittest.TestCase):
+    """apk.yml's build_number input is a test-install override only."""
+
+    def setUp(self):
+        self.apk = (WORKFLOWS / "apk.yml").read_text()
+
+    def _build(self, build_number):
+        """Run apk.yml's Build APK script against a stub flutter; return argv."""
+        script = _run_script(_step(self.apk, "Build APK"))
+        with tempfile.TemporaryDirectory() as temp:
+            stub = Path(temp) / "flutter"
+            argv = Path(temp) / "argv"
+            stub.write_text(f'#!/bin/sh\nprintf "%s\\n" "$@" > "{argv}"\n')
+            stub.chmod(0o755)
+            env = {
+                "PATH": f"{temp}:{os.environ.get('PATH', '')}",
+                "GITHUB_SHA": "0" * 40,
+                "TEST_BUILD_NUMBER": build_number,
+            }
+            result = subprocess.run(
+                ["bash", "-e", "-c", script], env=env, cwd=temp,
+                capture_output=True, text=True, check=False,
+            )
+            args = argv.read_text().splitlines() if argv.exists() else None
+        return result, args
+
+    def test_input_is_optional_dispatch_string(self):
+        on = self.apk.split("\non:\n", 1)[1].split("\njobs:\n", 1)[0]
+        block = on.split("      build_number:\n", 1)[1].split("  push:", 1)[0]
+        self.assertIn("required: false", block)
+        self.assertIn("default: ''", block)
+        self.assertIn("type: string", block)
+        # The input reaches the shell only through env, never inline.
+        for line in self.apk.splitlines():
+            if "inputs.build_number" in line and "TEST_BUILD_NUMBER:" not in line:
+                self.assertNotIn("run:", line)
+                self.assertTrue(
+                    line.strip().startswith(("if:", "name:")), line
+                )
+
+    def test_unset_keeps_the_default_build(self):
+        result, args = self._build("")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(args[:2], ["build", "apk"])
+        self.assertNotIn("--build-number", args)
+        self.assertEqual(
+            args[2:7],
+            ["--release", "--split-per-abi", "--target-platform", "android-arm64",
+             "--dart-define=ARES_PLAY_BUILD=true"],
+        )
+        self.assertIn("--split-debug-info=symbols-apk", args)
+        self.assertIn("--dart-define=HERMES_BUILD_SHA=" + "0" * 40, args)
+
+    def test_set_passes_build_number(self):
+        result, args = self._build("3087")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        index = args.index("--build-number")
+        self.assertEqual(args[index + 1], "3087")
+        self.assertIn("versionCode 30872", result.stdout)
+
+    def test_bad_build_numbers_fail_before_flutter(self):
+        for value in ("abc", "31 0", "3087;id", "-5", "0", "03087", "2127",
+                      "210000000", "99999999999999999999"):
+            with self.subTest(build_number=value):
+                result, args = self._build(value)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIsNone(args)
+                self.assertIn("build_number must", result.stderr)
+
+    def test_artifact_name_and_versioncode_check(self):
+        upload = self.apk.split("actions/upload-artifact@v4", 1)[1]
+        self.assertIn(
+            "name: ${{ inputs.build_number != '' && "
+            "format('z0-agent-test-{0}', inputs.build_number) || 'z0-agent-apk' }}",
+            upload,
+        )
+        check = _step(self.apk, "Check test build versionCode")
+        self.assertIn("if: ${{ inputs.build_number != '' }}", check)
+        self.assertIn("TEST_BUILD_NUMBER * 10 + 2", check)
+
+    def test_test_build_cannot_reach_the_play_path(self):
+        # apk.yml builds and uploads an APK artifact only: no AAB, no store
+        # upload, no pubspec edit, and it never runs on the staging/Play push.
+        for forbidden in ("appbundle", "upload-google-play", "fastlane",
+                          "supply", "pubspec.yaml", "sed -i"):
+            self.assertNotIn(forbidden, self.apk)
+        push = self.apk.split("  push:\n", 1)[1].split("\njobs:", 1)[0]
+        self.assertNotIn("staging", push)
+        self.assertNotIn("z0/play-release", push)
+        # Play and release workflows declare no dispatch inputs, so GitHub
+        # rejects a dispatch carrying build_number (HTTP 422), and none of
+        # them reads the test override.
+        for filename in ("play.yml", "release.yml", "pr-quality.yml"):
+            with self.subTest(workflow=filename):
+                workflow = (WORKFLOWS / filename).read_text()
+                self.assertNotIn("build_number", workflow)
+                self.assertNotIn("TEST_BUILD_NUMBER", workflow)
+                self.assertNotIn("inputs", workflow)
+                self.assertNotIn("z0-agent-test-", workflow)
+        # play.yml's sideload code comes from pubspec + run number only, and
+        # its AAB keeps the pubspec code (no --build-number at all).
+        play = (WORKFLOWS / "play.yml").read_text()
+        aab = _step(play, "Build AAB")
+        self.assertNotIn("--build-number", aab)
+        sideload = _step(play, "Build sideload APK (arm64, upload key)")
+        self.assertIn("--build-number=$((base + GITHUB_RUN_NUMBER))", sideload)
+        self.assertNotIn("--build-number", (WORKFLOWS / "release.yml").read_text())
 
 
 if __name__ == "__main__":
