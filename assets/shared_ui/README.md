@@ -4,9 +4,10 @@
 `theme/glide.json`, `theme/tokens.schema.json` and `catalog/catalog.json`
 from `kvnloo/ephemeral-ui`. Copy these files byte-for-byte at the new
 revision and update the pin when upstream changes. Flutter builds and tests
-use local assets only. `python3 scripts/check_shared_ui_pin.py` checks the
-committed bytes against the recorded revision and detects newer upstream data;
-it never downloads assets into the app at runtime.
+use local assets only. `python3 scripts/check_shared_ui_pin.py` (the PR gate)
+checks the committed bytes against the recorded revision; `--upstream main`
+detects newer upstream data and runs only on schedule/dispatch, so upstream
+merges never fail PRs. Nothing downloads assets into the app at runtime.
 
 Classic and NextGen use the shared default palette, Material type scale and
 radii, with existing explicit palette/preset choices preserved. CSS font

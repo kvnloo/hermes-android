@@ -1,9 +1,21 @@
 #!/usr/bin/env python3
-"""Verify vendored ephemeral-ui sources and check for newer published data."""
+"""Verify vendored ephemeral-ui sources and check for newer published data.
 
+  python3 scripts/check_shared_ui_pin.py                  # PR gate
+  python3 scripts/check_shared_ui_pin.py --upstream main  # scheduled freshness
+
+The PR gate compares vendored bytes with the immutable pinned commit and checks
+versions and brand names, so its result depends only on the PR's own tree.
+--upstream reports files whose pinned copy differs from the ref (drift); it
+runs on schedule/dispatch so an ephemeral-ui merge never turns PRs red.
+"""
+
+import argparse
 import json
+import os
 import plistlib
 import re
+import sys
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -18,20 +30,48 @@ def fetch(ref, source):
         return response.read()
 
 
-def main():
+def stale(revision, ref, fetch=fetch):
+    """Files whose content at the pinned revision differs from ref."""
+    return [
+        f"{source}: pin {revision[:7]} is stale against {ref}; re-vendor from "
+        "ephemeral-ui upstream"
+        for source in FILES
+        if fetch(revision, source) != fetch(ref, source)
+    ]
+
+
+def pinned_errors(revision, fetch=fetch, vendor=VENDOR):
+    """Vendored files that are not byte-identical to the pinned revision."""
+    return [
+        f"{source}: vendored bytes differ from {revision}"
+        for source in FILES
+        if (vendor / Path(source).name).read_bytes() != fetch(revision, source)
+    ]
+
+
+def main(argv=None, fetch=fetch):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--upstream", metavar="REF", help="scheduled freshness check")
+    args = parser.parse_args(argv)
+
     pin = json.loads((VENDOR / "PIN.json").read_text())
     revision = pin["revision"]
     if not re.fullmatch(r"[a-f0-9]{40}", revision):
         raise SystemExit("PIN.json must name a full ephemeral-ui commit SHA")
 
-    errors = []
-    for source in FILES:
-        local = (VENDOR / Path(source).name).read_bytes()
-        pinned = fetch(revision, source)
-        if local != pinned:
-            errors.append(f"{source}: vendored bytes differ from {revision}")
-        if pinned != fetch("main", source):
-            errors.append(f"{source}: pin is stale; re-vendor from ephemeral-ui upstream")
+    if args.upstream:
+        errors = stale(revision, args.upstream, fetch)
+        if errors:
+            path = os.environ.get("GITHUB_STEP_SUMMARY")
+            if path:
+                with open(path, "a", encoding="utf-8") as out:
+                    out.write("### Shared UI pin drift\n\n"
+                              + "".join(f"- {e}\n" for e in errors))
+            raise SystemExit("\n".join(errors))
+        print(f"Pin {revision} is current with {args.upstream}.")
+        return
+
+    errors = pinned_errors(revision, fetch)
 
     theme = json.loads((VENDOR / "glide.json").read_text())
     catalog = json.loads((VENDOR / "catalog.json").read_text())
@@ -60,4 +100,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
