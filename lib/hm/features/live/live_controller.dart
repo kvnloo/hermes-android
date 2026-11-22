@@ -28,6 +28,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/widgets/ephemeral_ui_card.dart';
+
 import 'live_strings.dart';
 import 'live_transport.dart';
 import 'live_webrtc.dart';
@@ -172,12 +174,23 @@ class LiveController extends ChangeNotifier {
         turns.length,
       );
       n++;
-      final tools = [
+      final replies = [
         for (final turn in turns.sublist(from, to))
-          if (!turn.fromUser) ...turn.tools,
+          if (!turn.fromUser) turn,
       ];
-      if (tools.isEmpty) continue;
-      out.add(LiveLine(key: line.key, fromUser: false, text: '', tools: tools, work: true));
+      final tools = [for (final r in replies) ...r.tools];
+      final cards = [for (final r in replies) ...r.cards];
+      if (tools.isEmpty && cards.isEmpty) continue;
+      out.add(
+        LiveLine(
+          key: line.key,
+          fromUser: false,
+          text: '',
+          tools: tools,
+          cards: cards,
+          work: true,
+        ),
+      );
     }
     return out;
   }
@@ -301,9 +314,15 @@ class LiveController extends ChangeNotifier {
       _listen();
       return;
     }
+    // A card is for the eyes: the voice says the rest.
+    final spoken = withoutEphemeralUi(reply);
+    if (spoken.isEmpty) {
+      _listen();
+      return;
+    }
     _set(LivePhase.speaking);
     try {
-      await voice.speak(reply);
+      await voice.speak(spoken);
     } catch (_) {
       // The reply is in the transcript; carry on listening.
     }
@@ -537,7 +556,9 @@ class LiveController extends ChangeNotifier {
         return;
       }
       stopProgress();
-      final spoken = reply.trim();
+      // Cards show in the transcript; the voice gets the words around them.
+      final spoken = withoutEphemeralUi(reply);
+      final carded = spoken.isEmpty && ephemeralUiFences(reply).isNotEmpty;
       if (_activeDelegation != d.id) {
         if (spoken.isNotEmpty) {
           _deliver(
@@ -553,7 +574,9 @@ class LiveController extends ChangeNotifier {
         _deliver(
           c,
           d.id,
-          'Hermes finished that request without a spoken result.',
+          carded
+              ? 'Hermes put the answer on screen as a card.'
+              : 'Hermes finished that request without a spoken result.',
           quiet: true,
         );
       } else if (!_deliver(c, d.id, spoken) && !isOver) {

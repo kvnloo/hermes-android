@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:hermes_android/core/widgets/ephemeral_ui_card.dart';
 import 'package:hermes_android/hm/features/live/live_controller.dart';
 import 'package:hermes_android/hm/features/live/live_transport.dart';
 import 'package:hermes_android/hm/features/live/live_webrtc.dart';
@@ -188,7 +189,14 @@ class FakeBrain extends ChangeNotifier implements LiveBrain {
   }
 
   void reply(String text) {
-    shown.add(LiveLine(key: 'a${shown.length}', fromUser: false, text: text));
+    shown.add(
+      LiveLine(
+        key: 'a${shown.length}',
+        fromUser: false,
+        text: text,
+        cards: ephemeralUiFences(text),
+      ),
+    );
     notifyListeners();
     _reply!.complete(text);
   }
