@@ -1,0 +1,36 @@
+name: Ephemeral-ui catalog
+
+# Fails when the vendored card catalog was edited, or when kvnloo/ephemeral-ui
+# main has a newer catalog (e.g. a kind the card gallery does not cover yet).
+# After re-vendoring, the Flutter coverage tests below still require a
+# native layout and chat/gallery goldens for every catalog kind.
+on:
+  pull_request:
+    branches: [main, staging]
+  push:
+    branches: [main, staging]
+  schedule:
+    - cron: '20 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest scripts.test_ephemeral_ui_catalog
+      - run: python3 scripts/ephemeral_ui_catalog.py --verify
+      - run: python3 scripts/ephemeral_ui_catalog.py --check-upstream main
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+      - run: flutter pub get
+      - name: Verify native chat and gallery coverage
+        run: |
+          flutter test --no-pub --reporter=expanded \
+            test/ephemeral_chat_test.dart test/ephemeral_chat_golden_test.dart \
+            test/ephemeral_gallery_test.dart test/ephemeral_gallery_golden_test.dart

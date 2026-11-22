@@ -4,21 +4,30 @@
 // the call's transcript (You in muted italics, the bot in full text) and two
 // dark round mic + close buttons at the bottom. The call runs over GPT-Live
 // (WebRTC) when the host offers it, else the chained loop.
+//
+// With lanes (HA-035) the bot's orb is orbited by one small orb per lane
+// attached to the thread (fast, large, council). Tapping a lane orb sends the
+// next turns to that lane; tapping the bot's orb brings them back.
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import '../../../core/services/android_voice_composer_adapter.dart';
+import '../../../core/ephemeral/ephemeral_fence.dart';
+import '../../../core/widgets/markdown_code_block.dart';
 import '../../../nextgen/data/chat_controller.dart';
 import '../../../nextgen/nextgen_preferences.dart';
 import '../../../nextgen/theme/nextgen_theme.dart';
+import '../../../nextgen/ui/tool_rows.dart';
 import '../../../shared_ui/glide_theme.dart';
 import '../../avatar/hm_avatar.dart';
 import '../../avatar/hm_avatar_state.dart';
 import '../../hm_bots.dart';
 import '../../hm_ui.dart';
 import 'live_controller.dart';
+import 'live_lanes.dart';
 import 'live_strings.dart';
 import 'live_transport.dart';
 import 'live_webrtc.dart';
@@ -41,6 +50,8 @@ Future<void> openHmLive(
           brain: ChatLiveBrain(chat),
           voice: HostLiveVoice(host),
           call: () => LiveCall(host: host, peer: FlutterWebRtcPeer.new),
+          // No gateway RPC drives lanes yet: only fixture builds offer them.
+          lanes: kLiveLanesFixture ? FixtureLiveLanes() : null,
         ),
       ),
     ),
@@ -144,7 +155,40 @@ class _HmLiveScreenState extends State<HmLiveScreen>
     );
   }
 
+  /// Read inside the builder: lanes change between frames.
+  List<LiveLane> get _attached => live.lanes?.lanes ?? const [];
+
+  void _tapOrb() {
+    if (live.phase == LivePhase.speaking && !live.webRtc) {
+      unawaited(live.interrupt());
+    } else if (live.target != null) {
+      live.route(null);
+    }
+  }
+
+  Future<void> _openLanes(BuildContext context) => showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (_) => _LanesSheet(lanes: live.lanes!),
+  );
+
+  Widget _orb(double orb) => Semantics(
+    key: const ValueKey('live-orb'),
+    button:
+        (live.phase == LivePhase.speaking && !live.webRtc) ||
+        live.target != null,
+    selected: live.lanes != null && live.target == null,
+    label: widget.bot.displayName,
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _tapOrb,
+      child: _GlowOrb(bot: widget.bot, state: _avatar, size: orb),
+    ),
+  );
+
   Widget _call(BuildContext context, NgColors c, double orb) {
+    final lanes = live.lanes;
+    final gap = lanes == null ? orb * 0.45 : 8.0;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -159,18 +203,17 @@ class _HmLiveScreenState extends State<HmLiveScreen>
               children: [
                 const SizedBox(height: HmMetrics.headerTop + 20),
                 _BotPill(bot: widget.bot),
-                SizedBox(height: orb * 0.45),
-                Semantics(
-                  key: const ValueKey('live-orb'),
-                  button: live.phase == LivePhase.speaking && !live.webRtc,
-                  label: widget.bot.displayName,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: live.interrupt,
-                    child: _GlowOrb(bot: widget.bot, state: _avatar, size: orb),
+                SizedBox(height: gap),
+                if (lanes == null)
+                  _orb(orb)
+                else
+                  _LaneOrbit(
+                    live: live,
+                    lanes: _attached,
+                    size: orb,
+                    center: _orb(orb),
                   ),
-                ),
-                SizedBox(height: orb * 0.45),
+                SizedBox(height: gap),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Text(
@@ -194,6 +237,31 @@ class _HmLiveScreenState extends State<HmLiveScreen>
                       style: HmType.caption.copyWith(color: c.textMuted),
                     ),
                   ),
+                if (live.target != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                    child: Text(
+                      LiveText.toLane(live.laneName(live.target!)),
+                      key: const ValueKey('live-route'),
+                      textAlign: TextAlign.center,
+                      style: HmType.caption.copyWith(
+                        color: c.accentText,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                if (_attached.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 4, 24, 0),
+                    child: Text(
+                      liveLaneSummary(_attached),
+                      key: const ValueKey('live-lanes-summary'),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: HmType.caption.copyWith(color: c.textMuted),
+                    ),
+                  ),
                 const SizedBox(height: 4),
                 Expanded(
                   child: _Transcript(live: live, bot: widget.bot),
@@ -203,6 +271,18 @@ class _HmLiveScreenState extends State<HmLiveScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      if (lanes != null) ...[
+                        HmRoundButton(
+                          key: const ValueKey('live-lanes-button'),
+                          icon: Icons.hub_rounded,
+                          label: LiveText.lanes,
+                          size: 56,
+                          onPressed: live.isOver
+                              ? null
+                              : () => unawaited(_openLanes(context)),
+                        ),
+                        const SizedBox(width: 16),
+                      ],
                       HmRoundButton(
                         icon: live.muted
                             ? Icons.mic_off_rounded
@@ -307,12 +387,27 @@ class _Transcript extends StatelessWidget {
     final c = NgColors.of(context);
     final rows = <Widget>[
       for (final line in live.lines)
-        _Line(
-          key: ValueKey(line.key),
-          speaker: line.fromUser ? LiveText.you : bot.displayName,
-          text: line.text,
-          fromUser: line.fromUser,
-        ),
+        if (line.work)
+          LiveWork(
+            key: ValueKey(line.key),
+            tools: line.tools,
+            cards: line.cards,
+          )
+        else
+          _Line(
+            key: ValueKey(line.key),
+            speaker: line.lane != null
+                ? (line.fromUser
+                      ? LiveText.youToLane(live.laneName(line.lane!))
+                      : LiveText.laneSpeaker(live.laneName(line.lane!)))
+                : line.fromUser
+                ? LiveText.you
+                : bot.displayName,
+            text: line.text,
+            fromUser: line.fromUser,
+            tools: line.tools,
+            cards: line.cards,
+          ),
       if (live.partial.trim().isNotEmpty)
         _Line(
           key: const ValueKey('live-partial'),
@@ -345,19 +440,26 @@ class _Line extends StatelessWidget {
     required this.speaker,
     required this.text,
     required this.fromUser,
+    this.tools = const [],
+    this.cards = const [],
   });
   final String speaker;
   final String text;
   final bool fromUser;
+  final List<NgTool> tools;
+  final List<String> cards;
 
   @override
   Widget build(BuildContext context) {
     final c = NgColors.of(context);
+    final words = cards.isEmpty ? text : withoutEphemeralUi(text);
+    if (words.isEmpty) return LiveWork(tools: tools, cards: cards);
     return Padding(
       padding: const EdgeInsets.only(bottom: 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (tools.isNotEmpty) LiveWork(tools: tools, bottom: 6),
           Text(
             speaker,
             style: HmType.caption.copyWith(
@@ -368,7 +470,7 @@ class _Line extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            text,
+            words,
             style: HmType.body.copyWith(
               color: fromUser ? c.text3 : c.text,
               fontStyle: fromUser ? FontStyle.italic : FontStyle.normal,
@@ -376,7 +478,310 @@ class _Line extends StatelessWidget {
               height: 1.35,
             ),
           ),
+          for (final card in cards) LiveCard(source: card),
         ],
+      ),
+    );
+  }
+}
+
+/// The bot's orb with one small orb per attached lane on a slow orbit
+/// around it (still when the system turns animations off).
+class _LaneOrbit extends StatefulWidget {
+  const _LaneOrbit({
+    required this.live,
+    required this.lanes,
+    required this.size,
+    required this.center,
+  });
+  final LiveController live;
+  final List<LiveLane> lanes;
+  final double size;
+  final Widget center;
+
+  @override
+  State<_LaneOrbit> createState() => _LaneOrbitState();
+}
+
+class _LaneOrbitState extends State<_LaneOrbit>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _spin = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 40),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (still || widget.lanes.isEmpty) {
+      _spin.stop();
+    } else if (!_spin.isAnimating) {
+      unawaited(_spin.repeat());
+    }
+  }
+
+  @override
+  void didUpdateWidget(_LaneOrbit old) {
+    super.didUpdateWidget(old);
+    didChangeDependencies();
+  }
+
+  @override
+  void dispose() {
+    _spin.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lane = (widget.size * 0.34).clamp(30.0, 40.0);
+    const gap = 14.0;
+    final radius = widget.size / 2 + gap + lane / 2;
+    final box = 2 * (radius + lane / 2);
+    final label = lane + 28;
+    return SizedBox.square(
+      key: const ValueKey('live-orbit'),
+      dimension: box,
+      child: AnimatedBuilder(
+        animation: _spin,
+        builder: (context, _) {
+          final n = widget.lanes.length;
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Center(child: widget.center),
+              for (var i = 0; i < n; i++)
+                () {
+                  final a = -math.pi / 2 + 2 * math.pi * (i / n + _spin.value);
+                  return Positioned(
+                    left: box / 2 + radius * math.cos(a) - label / 2,
+                    top: box / 2 + radius * math.sin(a) - lane / 2,
+                    width: label,
+                    child: _LaneOrb(
+                      lane: widget.lanes[i],
+                      size: lane,
+                      selected: widget.live.target == widget.lanes[i].id,
+                      onTap: () => widget.live.route(
+                        widget.live.target == widget.lanes[i].id
+                            ? null
+                            : widget.lanes[i].id,
+                      ),
+                    ),
+                  );
+                }(),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// The agent's tool calls while it works on a request, as progress rows in
+/// the call's transcript: the chat's own tool header and rows, folded by
+/// default (spinner and the running tool while it runs, then "Used …");
+/// tap to see each call, tap a call for its input and output.
+class LiveWork extends StatefulWidget {
+  const LiveWork({
+    super.key,
+    required this.tools,
+    this.cards = const [],
+    this.bottom = 16,
+  });
+  final List<NgTool> tools;
+
+  /// Ephemeral-ui cards the work produced, shown open under the rows.
+  final List<String> cards;
+  final double bottom;
+
+  @override
+  State<LiveWork> createState() => _LiveWorkState();
+}
+
+class _LiveWorkState extends State<LiveWork> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tools = widget.tools;
+    final cards = widget.cards;
+    if (tools.isEmpty && cards.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: EdgeInsets.only(bottom: widget.bottom),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (tools.isNotEmpty)
+            NgDisclosure(
+              key: const ValueKey('live-work'),
+              icon: Icons.build_outlined,
+              label: ngToolsLabel(tools),
+              busy: tools.any((t) => t.running),
+              open: _open,
+              onTap: () => setState(() => _open = !_open),
+              child: Column(
+                children: [for (final t in tools) NgToolRow(tool: t)],
+              ),
+            ),
+          for (final card in cards) LiveCard(source: card),
+        ],
+      ),
+    );
+  }
+}
+
+/// One ephemeral-ui card in the call's transcript, through the chat's own
+/// fenced-block renderer, including the same source and error states.
+class LiveCard extends StatelessWidget {
+  const LiveCard({super.key, required this.source});
+  final String source;
+
+  @override
+  Widget build(BuildContext context) => MarkdownCodeBlock(
+    key: const ValueKey('live-card'),
+    code: source,
+    language: ephemeralFenceLanguage,
+    selectable: false,
+  );
+}
+
+class _LaneOrb extends StatelessWidget {
+  const _LaneOrb({
+    required this.lane,
+    required this.size,
+    required this.selected,
+    required this.onTap,
+  });
+  final LiveLane lane;
+  final double size;
+  final bool selected;
+  final VoidCallback onTap;
+
+  IconData get _icon => switch (lane.id) {
+    'fast' => Icons.bolt_rounded,
+    'large' => Icons.psychology_rounded,
+    'council' => Icons.groups_rounded,
+    _ => Icons.blur_on_rounded,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final c = NgColors.of(context);
+    final ring = switch (lane.status) {
+      LiveLaneStatus.working => c.accent,
+      LiveLaneStatus.error => c.danger,
+      LiveLaneStatus.idle => selected ? c.accent : c.strokeStrong,
+    };
+    return Semantics(
+      key: ValueKey('live-lane-${lane.id}'),
+      button: true,
+      selected: selected,
+      label: '${LiveText.laneSpeaker(lane.name)}, ${liveLaneNow(lane)}',
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox.square(
+              dimension: size,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: selected ? c.accentSoft : c.surface3,
+                      border: Border.all(color: ring, width: 2),
+                      boxShadow: [
+                        if (selected || lane.status == LiveLaneStatus.working)
+                          BoxShadow(
+                            color: ring.withValues(alpha: 0.5),
+                            blurRadius: size * 0.4,
+                          ),
+                      ],
+                    ),
+                    child: Icon(
+                      _icon,
+                      size: size * 0.52,
+                      color: lane.status == LiveLaneStatus.error
+                          ? c.danger
+                          : c.text,
+                    ),
+                  ),
+                  if (lane.status == LiveLaneStatus.working)
+                    CircularProgressIndicator(strokeWidth: 2, color: c.accent),
+                ],
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              lane.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HmType.caption.copyWith(
+                color: selected ? c.accentText : c.textMuted,
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Attach and detach the thread's lanes.
+class _LanesSheet extends StatelessWidget {
+  const _LanesSheet({required this.lanes});
+  final LiveLanes lanes;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = NgColors.of(context);
+    return SafeArea(
+      child: ListenableBuilder(
+        listenable: lanes,
+        builder: (context, _) => Column(
+          key: const ValueKey('live-lanes-sheet'),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
+              child: Text(
+                LiveText.lanesTitle,
+                style: HmType.row.copyWith(
+                  color: c.text,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              child: Text(
+                lanes is FixtureLiveLanes
+                    ? '${LiveText.lanesHint} ${LiveText.lanesFixture}'
+                    : LiveText.lanesHint,
+                style: HmType.caption.copyWith(color: c.textMuted),
+              ),
+            ),
+            for (final o in lanes.options)
+              SwitchListTile(
+                key: ValueKey('live-lane-toggle-${o.id}'),
+                title: Text(o.name),
+                subtitle: o.model == null ? null : Text(o.model!),
+                value: lanes.lanes.any((l) => l.id == o.id),
+                onChanged: (on) =>
+                    unawaited(on ? lanes.attach(o.id) : lanes.detach(o.id)),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }

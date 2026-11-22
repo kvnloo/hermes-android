@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/services/connection_manager.dart';
 import '../../../core/services/dashboard_api_client.dart';
 import '../../../core/services/voice_composer_adapter.dart';
+import '../../../core/ephemeral/ephemeral_fence.dart';
 import '../../../nextgen/data/chat_controller.dart';
 import '../../../nextgen/data/read_aloud.dart';
 import 'live_strings.dart';
@@ -92,10 +93,28 @@ class LiveLine {
     required this.key,
     required this.fromUser,
     required this.text,
+    this.tools = const [],
+    this.cards = const [],
+    this.work = false,
+    this.lane,
   });
   final String key;
   final bool fromUser;
   final String text;
+
+  /// The agent's tool calls in this reply, as the chat holds them (live
+  /// objects: running, then done with a result).
+  final List<NgTool> tools;
+
+  /// The sources of the ephemeral-ui cards in this reply, drawn with the
+  /// chat's renderer.
+  final List<String> cards;
+
+  /// The agent's work on a delegated request (its tool rows), not speech.
+  final bool work;
+
+  /// The lane this turn went to; null for the bot's own chat.
+  final String? lane;
 }
 
 /// The host has no voice routes (older Hermes): 404 on `/api/audio/*`.
@@ -340,8 +359,15 @@ class ChatLiveBrain extends ChangeNotifier implements LiveBrain {
     for (final item in chat.items.skip(_from))
       if (item is NgUserItem && item.text.trim().isNotEmpty)
         LiveLine(key: item.key, fromUser: true, text: item.text.trim())
-      else if (item is NgAssistantItem && item.text.trim().isNotEmpty)
-        LiveLine(key: item.key, fromUser: false, text: item.text.trim()),
+      else if (item is NgAssistantItem &&
+          (item.text.trim().isNotEmpty || item.tools.isNotEmpty))
+        LiveLine(
+          key: item.key,
+          fromUser: false,
+          text: item.text.trim(),
+          tools: List.of(item.tools),
+          cards: ephemeralUiFences(item.text),
+        ),
   ];
 
   @override

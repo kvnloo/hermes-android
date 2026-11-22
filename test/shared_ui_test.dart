@@ -12,7 +12,6 @@ import 'package:hermes_android/core/theme/hermes_theme.dart';
 import 'package:hermes_android/main.dart';
 import 'package:hermes_android/nextgen/nextgen_preferences.dart';
 import 'package:hermes_android/nextgen/theme/nextgen_theme.dart';
-import 'package:hermes_android/shared_ui/card_gallery.dart';
 import 'package:hermes_android/shared_ui/glide_theme.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -134,73 +133,7 @@ void main() {
     );
   });
 
-  test('rejects unsupported theme and catalog formats', () {
+  test('rejects unsupported theme formats', () {
     expect(() => GlideTheme.parse('{"v":1}'), throwsFormatException);
-    expect(() => CardCatalog.parse('{"v":1}'), throwsFormatException);
-  });
-
-  testWidgets('gallery mounts exactly the pinned kinds and fixtures', (
-    tester,
-  ) async {
-    final source = (await tester.runAsync(
-      () => rootBundle.loadString(CardCatalog.asset),
-    ))!;
-    final json = jsonDecode(source) as Map<String, dynamic>;
-    final kinds = json['kinds'] as List;
-    final fixtures = {
-      for (final kind in kinds)
-        for (final fixture in kind['fixtures'] as List)
-          fixture['id'] as String: fixture,
-    };
-    await tester.pumpWidget(const MaterialApp(home: CardGallery()));
-    await tester.runAsync(() async => rootBundle.loadString(CardCatalog.asset));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('v${json['version']}'), findsOneWidget);
-    final mounted = <String>{};
-    final seenKinds = <String>{};
-    final position = tester
-        .state<ScrollableState>(find.byType(Scrollable))
-        .position;
-    while (true) {
-      final cells = find.byType(CatalogFixtureCell);
-      expect(cells, findsWidgets);
-      for (final cell in tester.widgetList<CatalogFixtureCell>(cells)) {
-        final fixture = cell.fixture;
-        mounted.add(fixture.id);
-        seenKinds.add(fixture.kind);
-        expect(cell.key, ValueKey(fixture.id));
-        expect(fixture.card, fixtures[fixture.id]['card']);
-        final expectedState = fixtures[fixture.id]['state'];
-        final texts = tester
-            .widgetList<Text>(
-              find.descendant(
-                of: find.byKey(cell.key!),
-                matching: find.byType(Text),
-                skipOffstage: false,
-              ),
-            )
-            .map((text) => text.data!);
-        final rendered = texts.join(' ');
-        expect(rendered, isNotEmpty);
-        expect(rendered, isNot(contains(RegExp(r'\b(undefined|NaN)\b'))));
-        if (expectedState == 'unavailable') {
-          expect(rendered, contains('Unavailable (no data)'));
-        } else {
-          expect(rendered, contains('not supported'));
-          expect(rendered, isNot(contains('Unavailable')));
-        }
-        if (expectedState == 'example') expect(rendered, contains('Example'));
-        if (expectedState == 'input') expect(rendered, contains('Input'));
-      }
-      expect(tester.takeException(), isNull);
-      if (position.extentAfter == 0) break;
-      final pixels = position.pixels;
-      position.jumpTo((pixels + 350).clamp(0.0, position.maxScrollExtent));
-      await tester.pumpAndSettle();
-      expect(position.pixels, greaterThan(pixels));
-    }
-
-    expect(seenKinds, {for (final kind in kinds) kind['kind']});
-    expect(mounted, fixtures.keys.toSet());
   });
 }

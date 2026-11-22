@@ -24,10 +24,18 @@
 // transport drops redials with backoff ([reconnectDelays]) and resumes from
 // the transcript so far; a turn still running in the chat carries on, and
 // its result is said on the new call (or queued until one is up).
+//
+// Lanes (HA-035): with [lanes] set, fast / large / council lanes can be
+// attached to the call's thread. [route] picks where the next turn goes: the
+// bot's own chat (null) or one attached lane. Lane turns show in the
+// transcript tagged with their lane, placed where they were asked.
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/ephemeral/ephemeral_fence.dart';
+
+import 'live_lanes.dart';
 import 'live_strings.dart';
 import 'live_transport.dart';
 import 'live_webrtc.dart';
@@ -49,6 +57,7 @@ class LiveController extends ChangeNotifier {
     required this.brain,
     required this.voice,
     this.call,
+    this.lanes,
     this.setupLimit = const Duration(seconds: 35),
     this.callLimit = const Duration(minutes: 30),
     this.speakingHold = const Duration(milliseconds: 1500),
@@ -62,6 +71,7 @@ class LiveController extends ChangeNotifier {
     ],
   }) {
     brain.addListener(_changed);
+    lanes?.addListener(_lanesChanged);
   }
 
   final LiveHost host;
@@ -72,6 +82,9 @@ class LiveController extends ChangeNotifier {
   /// Builds the GPT-Live call when the host offers it; null keeps the call
   /// on the chained loop.
   final LiveCall Function()? call;
+
+  /// The lanes this call can attach to its thread; null offers none.
+  final LiveLanes? lanes;
 
   /// A GPT-Live call not up by then falls back to the chained loop.
   final Duration setupLimit;
@@ -145,7 +158,131 @@ class LiveController extends ChangeNotifier {
   /// A dropped call is being redialled.
   bool get reconnecting => _reconnecting;
 
-  List<LiveLine> get lines => webRtc ? List.of(_callLines) : brain.lines;
+  /// Where each delegation's turn started in [brain]'s lines, so its tool
+  /// rows can sit in the call's transcript at the point it was asked.
+  final Map<String, int> _workFrom = {};
+
+  List<LiveLine> get lines => webRtc ? _withWork() : _merge(brain.lines);
+
+  /// The call's transcript with each work marker filled in from the chat:
+  /// the tool calls of the replies its turn produced.
+  List<LiveLine> _withWork() {
+    final turns = brain.lines;
+    final starts = [
+      for (final line in _callLines)
+        if (line.work) _workFrom[line.key.substring(5)] ?? turns.length,
+    ];
+    final out = <LiveLine>[];
+    var n = 0;
+    for (final line in _merge(_callLines)) {
+      if (!line.work) {
+        out.add(line);
+        continue;
+      }
+      final from = starts[n].clamp(0, turns.length);
+      final to = (n + 1 < starts.length ? starts[n + 1] : turns.length).clamp(
+        from,
+        turns.length,
+      );
+      n++;
+      final replies = [
+        for (final turn in turns.sublist(from, to))
+          if (!turn.fromUser) turn,
+      ];
+      final tools = [for (final r in replies) ...r.tools];
+      final cards = [for (final r in replies) ...r.cards];
+      if (tools.isEmpty && cards.isEmpty) continue;
+      out.add(
+        LiveLine(
+          key: line.key,
+          fromUser: false,
+          text: '',
+          tools: tools,
+          cards: cards,
+          work: true,
+        ),
+      );
+    }
+    return out;
+  }
+
+  // ── Lanes ──
+  String? _target;
+
+  /// The lane the next turn goes to; null is the bot's own chat.
+  String? get target => _target;
+
+  /// Lane turns, each placed after the first `at` lines of the main
+  /// transcript.
+  final List<({int at, LiveLine line})> _routed = [];
+  int _routedSeq = 0;
+
+  int get _mainCount => webRtc ? _callLines.length : brain.lines.length;
+
+  List<LiveLine> _merge(List<LiveLine> main) {
+    if (_routed.isEmpty) return main;
+    final out = <LiveLine>[];
+    var r = 0;
+    for (var i = 0; i <= main.length; i++) {
+      while (r < _routed.length && _routed[r].at <= i) {
+        out.add(_routed[r++].line);
+      }
+      if (i < main.length) out.add(main[i]);
+    }
+    return out;
+  }
+
+  /// Name of attached lane [id], else [id].
+  String laneName(String id) =>
+      lanes?.lanes.where((l) => l.id == id).firstOrNull?.name ?? id;
+
+  /// Sends the next turns to lane [id] (attached), or back to the bot (null).
+  void route(String? id) {
+    final next = id != null && lanes!.lanes.any((l) => l.id == id) ? id : null;
+    if (next == _target) return;
+    _target = next;
+    _changed();
+  }
+
+  void _lanesChanged() {
+    final t = _target;
+    if (t != null && !lanes!.lanes.any((l) => l.id == t)) _target = null;
+    _changed();
+  }
+
+  /// One turn to wherever [target] points. [echo] adds the asked text to the
+  /// transcript (the chained loop; GPT-Live already shows what was said).
+  Future<String> _ask(String text, {bool echo = true}) async {
+    final lane = _target;
+    if (lane == null) return brain.ask(text);
+    if (echo) {
+      _routed.add((
+        at: _mainCount,
+        line: LiveLine(
+          key: 'lane-${_routedSeq++}',
+          fromUser: true,
+          text: text,
+          lane: lane,
+        ),
+      ));
+      _changed();
+    }
+    final reply = await lanes!.ask(lane, text);
+    if (reply.trim().isNotEmpty) {
+      _routed.add((
+        at: _mainCount,
+        line: LiveLine(
+          key: 'lane-${_routedSeq++}',
+          fromUser: false,
+          text: reply.trim(),
+          cards: ephemeralUiFences(reply),
+          lane: lane,
+        ),
+      ));
+      _changed();
+    }
+    return reply;
+  }
 
   bool get isOver => _phase == LivePhase.ended || _phase == LivePhase.failed;
 
@@ -254,7 +391,7 @@ class LiveController extends ChangeNotifier {
     _set(LivePhase.thinking);
     String reply;
     try {
-      reply = await brain.ask(said);
+      reply = await _ask(said);
     } catch (e) {
       if (epoch != _epoch) return;
       notice = '$e';
@@ -266,9 +403,15 @@ class LiveController extends ChangeNotifier {
       _listen();
       return;
     }
+    // A card is for the eyes: the voice says the rest.
+    final spoken = withoutEphemeralUi(reply);
+    if (spoken.isEmpty) {
+      _listen();
+      return;
+    }
     _set(LivePhase.speaking);
     try {
-      await voice.speak(reply);
+      await voice.speak(spoken);
     } catch (_) {
       // The reply is in the transcript; carry on listening.
     }
@@ -453,7 +596,7 @@ class LiveController extends ChangeNotifier {
 
   void _addTranscript(bool fromUser, String delta) {
     final last = _callLines.lastOrNull;
-    if (last != null && last.fromUser == fromUser) {
+    if (last != null && !last.work && last.fromUser == fromUser) {
       _callLines[_callLines.length - 1] = LiveLine(
         key: last.key,
         fromUser: fromUser,
@@ -463,7 +606,11 @@ class LiveController extends ChangeNotifier {
       final text = delta.trimLeft();
       if (text.isEmpty) return;
       _callLines.add(
-        LiveLine(key: 'live-${_callLines.length}', fromUser: fromUser, text: text),
+        LiveLine(
+          key: 'live-${_callLines.length}',
+          fromUser: fromUser,
+          text: text,
+        ),
       );
     }
   }
@@ -484,10 +631,15 @@ class LiveController extends ChangeNotifier {
         _settle(d.id);
         return;
       }
+      _workFrom[d.id] = brain.lines.length;
+      _callLines.add(
+        LiveLine(key: 'work-${d.id}', fromUser: false, text: '', work: true),
+      );
+      _changed();
       final stopProgress = _progress(c, d.id);
       final String reply;
       try {
-        reply = await brain.ask(d.prompt);
+        reply = await _ask(d.prompt, echo: false);
       } catch (e) {
         stopProgress();
         if (_activeDelegation != d.id) return;
@@ -497,7 +649,9 @@ class LiveController extends ChangeNotifier {
         return;
       }
       stopProgress();
-      final spoken = reply.trim();
+      // Cards show in the transcript; the voice gets the words around them.
+      final spoken = withoutEphemeralUi(reply);
+      final carded = spoken.isEmpty && ephemeralUiFences(reply).isNotEmpty;
       if (_activeDelegation != d.id) {
         if (spoken.isNotEmpty) {
           _deliver(
@@ -513,7 +667,9 @@ class LiveController extends ChangeNotifier {
         _deliver(
           c,
           d.id,
-          'Hermes finished that request without a spoken result.',
+          carded
+              ? 'Hermes put the answer on screen as a card.'
+              : 'Hermes finished that request without a spoken result.',
           quiet: true,
         );
       } else if (!_deliver(c, d.id, spoken) && !isOver) {
@@ -713,6 +869,8 @@ class LiveController extends ChangeNotifier {
     _stopCallTimers();
     unawaited(_call?.close());
     brain.removeListener(_changed);
+    lanes?.removeListener(_lanesChanged);
+    lanes?.dispose();
     ear.dispose();
     voice.dispose();
     brain.dispose();

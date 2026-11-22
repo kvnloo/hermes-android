@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:highlight/highlight.dart' as syntax;
 
+import '../ephemeral/ephemeral_fence.dart';
 import '../theme/hermes_theme.dart';
 import 'openui_board.dart';
 
@@ -106,6 +107,7 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
     final language = widget.language;
     if (language == null ||
         language == 'openui-v2' ||
+        language == ephemeralFenceLanguage ||
         widget.code.length > 60000) {
       return null;
     }
@@ -175,6 +177,9 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
   Widget build(BuildContext context) {
     if (widget.language == 'openui-v2') {
       return OpenUiBoard(source: widget.code);
+    }
+    if (widget.language == ephemeralFenceLanguage) {
+      return EphemeralUiFence(source: widget.code);
     }
     final tokens = HermesTokens.of(context);
     final scheme = Theme.of(context).colorScheme;
