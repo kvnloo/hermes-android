@@ -25,6 +25,7 @@ final class EphemeralCardData {
     this.appName,
     this.appInCatalog = true,
     this.fixtureId,
+    this.footnote,
   });
 
   /// Builds the card for a catalog fixture: props are the fixture's props.
@@ -53,6 +54,9 @@ final class EphemeralCardData {
   final String? appName;
   final bool appInCatalog;
   final String? fixtureId;
+
+  /// Shown under the card in chat: where its data came from.
+  final String? footnote;
 
   /// The kit marks a card with no data by an `unavailable` reason.
   String? get unavailable {
@@ -110,6 +114,14 @@ class EphemeralCardView extends StatelessWidget {
           for (final widget in body) ...[
             const SizedBox(height: HermesSpacing.sm),
             widget,
+          ],
+          if (data.footnote case final footnote?) ...[
+            const SizedBox(height: HermesSpacing.sm),
+            Text(
+              footnote,
+              key: const Key('ephemeral-footnote'),
+              style: tokens.typography.label.copyWith(color: tokens.muted),
+            ),
           ],
         ],
       ),

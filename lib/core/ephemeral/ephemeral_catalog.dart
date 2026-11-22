@@ -8,6 +8,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Asset paths of the vendored catalog and its pin.
@@ -224,11 +225,23 @@ final class EphemeralCatalog {
   }
 
   static Future<EphemeralCatalog>? _loaded;
+  static EphemeralCatalog? _ready;
+
+  /// The vendored catalog once [load] has finished, so a chat card that is
+  /// rebuilt while scrolling draws in the first frame.
+  static EphemeralCatalog? get loaded => _ready;
 
   /// The vendored catalog, loaded once per process.
   static Future<EphemeralCatalog> load([AssetBundle? bundle]) {
     if (bundle != null) return _read(bundle);
-    return _loaded ??= _read(rootBundle);
+    return _loaded ??= _read(rootBundle).then((catalog) => _ready = catalog);
+  }
+
+  /// Makes [catalog] the loaded catalog (tests), or forgets it with null.
+  @visibleForTesting
+  static void debugUse(EphemeralCatalog? catalog) {
+    _ready = catalog;
+    _loaded = catalog == null ? null : Future.value(catalog);
   }
 
   static Future<EphemeralCatalog> _read(AssetBundle bundle) async =>
