@@ -11,6 +11,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.unifiedpush.android.connector.data.PushEndpoint
 import org.unifiedpush.android.connector.data.PushMessage
@@ -63,6 +64,18 @@ class MobilePushReceiverTest {
         deliver() // a new Service object, no cached authority
         assertEquals(1, manager.activeNotifications.size)
         assertEquals(1, MobilePushStore.read(context).getJSONArray("seen").length())
+    }
+    @Test fun openActionUsesTheSameValidatedTapAndDismissesTheNotification() {
+        deliver()
+        val notification = manager.activeNotifications.single().notification
+        val action = notification.actions.single()
+        assertEquals(context.getString(R.string.mobile_push_open), action.title.toString())
+        assertEquals(notification.contentIntent, action.actionIntent)
+        val intent = shadowOf(action.actionIntent).savedIntent
+        MobilePushBridge.captureTap(context, intent)
+        assertEquals("event", MobilePushStore.read(context).getJSONObject("tap").getString("event_id"))
+        assertFalse(intent.hasExtra("mobile_push_tap"))
+        assertEquals(0, manager.activeNotifications.size)
     }
     @Test fun plaintextNeverPostsEvenWhenJsonLooksValid() {
         deliver(decrypted = false)
