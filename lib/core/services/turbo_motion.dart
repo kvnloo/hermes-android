@@ -2,10 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../shared_ui/glide_theme.dart';
+
 /// A device appearance preference, independent of the selected model route.
 abstract final class TurboMotion {
-  static const preferenceKey = 'turbo_motion_enabled';
-  static const durationFactor = 0.55;
+  static const preferenceKey = GlideTheme.turboPreferenceKey;
 
   static final _enabled = ValueNotifier(false);
   static ValueListenable<bool> get enabled => _enabled;
@@ -22,24 +23,31 @@ abstract final class TurboMotion {
   static bool _accelerates(BuildContext context) =>
       enabled.value && !(MediaQuery.maybeDisableAnimationsOf(context) ?? false);
 
-  static Duration _scaled(Duration duration) => duration * durationFactor;
+  static double? _factor(BuildContext context, ThemeData theme) =>
+      _accelerates(context) ? theme.extension<GlideTheme>()?.turboFactor : null;
+
+  static Duration _scaled(Duration duration, double factor) =>
+      Duration(microseconds: (duration.inMicroseconds / factor).round());
 
   static Duration duration(BuildContext context, Duration normal) {
     context.dependOnInheritedWidgetOfExactType<TurboMotionScope>();
-    return _accelerates(context) ? _scaled(normal) : normal;
+    final factor = _factor(context, Theme.of(context));
+    return factor == null ? normal : _scaled(normal, factor);
   }
 
   static AnimationStyle? sheetStyle(BuildContext context) {
-    if (!_accelerates(context)) return null;
+    final factor = _factor(context, Theme.of(context));
+    if (factor == null) return null;
     // Match Flutter's unmodified Material bottom-sheet durations.
     return AnimationStyle(
-      duration: _scaled(const Duration(milliseconds: 250)),
-      reverseDuration: _scaled(const Duration(milliseconds: 200)),
+      duration: _scaled(const Duration(milliseconds: 250), factor),
+      reverseDuration: _scaled(const Duration(milliseconds: 200), factor),
     );
   }
 
   static ThemeData applyToTheme(BuildContext context, ThemeData theme) {
-    if (!_accelerates(context)) return theme;
+    final factor = _factor(context, theme);
+    if (factor == null) return theme;
     final builders = theme.pageTransitionsTheme.builders;
     return theme.copyWith(
       pageTransitionsTheme: PageTransitionsTheme(
@@ -47,6 +55,7 @@ abstract final class TurboMotion {
           for (final platform in TargetPlatform.values)
             platform: _TurboPageTransition(
               builders[platform] ?? const ZoomPageTransitionsBuilder(),
+              factor,
             ),
         },
       ),
@@ -62,24 +71,27 @@ class TurboMotionScope extends InheritedNotifier<ValueNotifier<bool>> {
 
 /// Changes the route clock, not the platform transition or back gesture.
 class _TurboPageTransition extends PageTransitionsBuilder {
-  const _TurboPageTransition(this.base);
+  const _TurboPageTransition(this.base, this.factor);
 
   final PageTransitionsBuilder base;
+  final double factor;
 
   @override
   bool operator ==(Object other) =>
-      other is _TurboPageTransition && other.base == base;
+      other is _TurboPageTransition &&
+      other.base == base &&
+      other.factor == factor;
 
   @override
-  int get hashCode => Object.hash(_TurboPageTransition, base);
+  int get hashCode => Object.hash(_TurboPageTransition, base, factor);
 
   @override
   Duration get transitionDuration =>
-      TurboMotion._scaled(base.transitionDuration);
+      TurboMotion._scaled(base.transitionDuration, factor);
 
   @override
   Duration get reverseTransitionDuration =>
-      TurboMotion._scaled(base.reverseTransitionDuration);
+      TurboMotion._scaled(base.reverseTransitionDuration, factor);
 
   @override
   DelegatedTransitionBuilder? get delegatedTransition =>

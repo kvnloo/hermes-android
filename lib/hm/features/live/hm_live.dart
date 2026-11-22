@@ -13,6 +13,7 @@ import '../../../core/services/android_voice_composer_adapter.dart';
 import '../../../nextgen/data/chat_controller.dart';
 import '../../../nextgen/nextgen_preferences.dart';
 import '../../../nextgen/theme/nextgen_theme.dart';
+import '../../../shared_ui/glide_theme.dart';
 import '../../avatar/hm_avatar.dart';
 import '../../avatar/hm_avatar_state.dart';
 import '../../hm_bots.dart';
@@ -120,7 +121,10 @@ class _HmLiveScreenState extends State<HmLiveScreen>
     return Theme(
       data: theme.brightness == Brightness.dark
           ? theme
-          : liveDarkTheme(NextGenLook.instance),
+          : liveDarkTheme(
+              NextGenLook.instance,
+              glide: theme.extension<GlideTheme>(),
+            ),
       child: Builder(builder: _buildCall),
     );
   }
@@ -380,5 +384,5 @@ class _Line extends StatelessWidget {
 
 /// The Live call's theme under a light app theme: the active look's own dark
 /// scheme (preset, accent and pure-black all apply).
-ThemeData liveDarkTheme(NextGenLook look) =>
-    nextGenTheme(Brightness.dark, look);
+ThemeData liveDarkTheme(NextGenLook look, {GlideTheme? glide}) =>
+    nextGenTheme(Brightness.dark, look, glide: glide);
