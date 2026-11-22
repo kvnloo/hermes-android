@@ -18,6 +18,21 @@ abstract final class AvatarPalette {
   static const error = Color(0xFFE5522D);
   static const inactive = Colors.transparent;
 
+  /// Council seat inks by mineral name: each tints one seat's thinking orb.
+  static const councilMinerals = <String, Color>{
+    'citrine': Color(0xFFDC9A32),
+    'rose': Color(0xFFD99A9C),
+    'smoky': Color(0xFF8B735B),
+    'clear': Color(0xFFC9D2D0),
+    'malachite': Color(0xFF2F8A5C),
+    'labradorite': Color(0xFF4FA8D8),
+    'moonstone': Color(0xFF8FB8FF),
+    'lapis': Color(0xFF3D62C9),
+  };
+
+  /// The council's own orb, which reads the brief and the verdict: brass.
+  static const councilBrass = Color(0xFFD7B986);
+
   static Color? parseBodyTone(Object? value) =>
       value is String && RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(value)
       ? Color(0xFF000000 | int.parse(value.substring(1), radix: 16))

@@ -14,6 +14,7 @@ import '../../nextgen/theme/nextgen_theme.dart';
 import '../../nextgen/ui/nextgen_scope.dart';
 import '../../nextgen/ui/scheduled_page.dart';
 import '../features/artifacts/hm_artifacts.dart';
+import '../features/council/hm_council.dart';
 import '../features/groups/hm_groups.dart';
 import '../features/groups/home_filters.dart';
 import '../features/live/hm_live.dart';
@@ -148,6 +149,8 @@ Future<void> hmChatAction(
       );
     case HmChatAction.artifacts:
       await openHmArtifacts(context, bot: bot, bots: bots, chat: chat);
+    case HmChatAction.council:
+      await openHmCouncil(context);
   }
 }
 
