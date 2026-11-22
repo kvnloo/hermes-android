@@ -13,6 +13,7 @@ import '../../../core/services/android_voice_composer_adapter.dart';
 import '../../../nextgen/data/chat_controller.dart';
 import '../../../nextgen/nextgen_preferences.dart';
 import '../../../nextgen/theme/nextgen_theme.dart';
+import '../../../nextgen/ui/tool_rows.dart';
 import '../../../shared_ui/glide_theme.dart';
 import '../../avatar/hm_avatar.dart';
 import '../../avatar/hm_avatar_state.dart';
@@ -307,12 +308,16 @@ class _Transcript extends StatelessWidget {
     final c = NgColors.of(context);
     final rows = <Widget>[
       for (final line in live.lines)
-        _Line(
-          key: ValueKey(line.key),
-          speaker: line.fromUser ? LiveText.you : bot.displayName,
-          text: line.text,
-          fromUser: line.fromUser,
-        ),
+        if (line.work)
+          LiveWork(key: ValueKey(line.key), tools: line.tools)
+        else
+          _Line(
+            key: ValueKey(line.key),
+            speaker: line.fromUser ? LiveText.you : bot.displayName,
+            text: line.text,
+            fromUser: line.fromUser,
+            tools: line.tools,
+          ),
       if (live.partial.trim().isNotEmpty)
         _Line(
           key: const ValueKey('live-partial'),
@@ -345,19 +350,23 @@ class _Line extends StatelessWidget {
     required this.speaker,
     required this.text,
     required this.fromUser,
+    this.tools = const [],
   });
   final String speaker;
   final String text;
   final bool fromUser;
+  final List<NgTool> tools;
 
   @override
   Widget build(BuildContext context) {
     final c = NgColors.of(context);
+    if (text.isEmpty) return LiveWork(tools: tools);
     return Padding(
       padding: const EdgeInsets.only(bottom: 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (tools.isNotEmpty) LiveWork(tools: tools, bottom: 6),
           Text(
             speaker,
             style: HmType.caption.copyWith(
@@ -377,6 +386,43 @@ class _Line extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The agent's tool calls while it works on a request, as progress rows in
+/// the call's transcript: the chat's own tool header and rows, folded by
+/// default (spinner and the running tool while it runs, then "Used …");
+/// tap to see each call, tap a call for its input and output.
+class LiveWork extends StatefulWidget {
+  const LiveWork({super.key, required this.tools, this.bottom = 16});
+  final List<NgTool> tools;
+  final double bottom;
+
+  @override
+  State<LiveWork> createState() => _LiveWorkState();
+}
+
+class _LiveWorkState extends State<LiveWork> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tools = widget.tools;
+    if (tools.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: EdgeInsets.only(bottom: widget.bottom),
+      child: NgDisclosure(
+        key: const ValueKey('live-work'),
+        icon: Icons.build_outlined,
+        label: ngToolsLabel(tools),
+        busy: tools.any((t) => t.running),
+        open: _open,
+        onTap: () => setState(() => _open = !_open),
+        child: Column(
+          children: [for (final t in tools) NgToolRow(tool: t)],
+        ),
       ),
     );
   }

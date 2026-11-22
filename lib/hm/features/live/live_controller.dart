@@ -145,7 +145,42 @@ class LiveController extends ChangeNotifier {
   /// A dropped call is being redialled.
   bool get reconnecting => _reconnecting;
 
-  List<LiveLine> get lines => webRtc ? List.of(_callLines) : brain.lines;
+  /// Where each delegation's turn started in [brain]'s lines, so its tool
+  /// rows can sit in the call's transcript at the point it was asked.
+  final Map<String, int> _workFrom = {};
+
+  List<LiveLine> get lines => webRtc ? _withWork() : brain.lines;
+
+  /// The call's transcript with each work marker filled in from the chat:
+  /// the tool calls of the replies its turn produced.
+  List<LiveLine> _withWork() {
+    final turns = brain.lines;
+    final starts = [
+      for (final line in _callLines)
+        if (line.work) _workFrom[line.key.substring(5)] ?? turns.length,
+    ];
+    final out = <LiveLine>[];
+    var n = 0;
+    for (final line in _callLines) {
+      if (!line.work) {
+        out.add(line);
+        continue;
+      }
+      final from = starts[n].clamp(0, turns.length);
+      final to = (n + 1 < starts.length ? starts[n + 1] : turns.length).clamp(
+        from,
+        turns.length,
+      );
+      n++;
+      final tools = [
+        for (final turn in turns.sublist(from, to))
+          if (!turn.fromUser) ...turn.tools,
+      ];
+      if (tools.isEmpty) continue;
+      out.add(LiveLine(key: line.key, fromUser: false, text: '', tools: tools, work: true));
+    }
+    return out;
+  }
 
   bool get isOver => _phase == LivePhase.ended || _phase == LivePhase.failed;
 
@@ -453,7 +488,7 @@ class LiveController extends ChangeNotifier {
 
   void _addTranscript(bool fromUser, String delta) {
     final last = _callLines.lastOrNull;
-    if (last != null && last.fromUser == fromUser) {
+    if (last != null && !last.work && last.fromUser == fromUser) {
       _callLines[_callLines.length - 1] = LiveLine(
         key: last.key,
         fromUser: fromUser,
@@ -484,6 +519,11 @@ class LiveController extends ChangeNotifier {
         _settle(d.id);
         return;
       }
+      _workFrom[d.id] = brain.lines.length;
+      _callLines.add(
+        LiveLine(key: 'work-${d.id}', fromUser: false, text: '', work: true),
+      );
+      _changed();
       final stopProgress = _progress(c, d.id);
       final String reply;
       try {
