@@ -274,13 +274,16 @@ class ApkTestInputsTest(unittest.TestCase):
                 self.assertNotIn("TEST_BUILD_NUMBER", workflow)
                 self.assertNotIn("inputs", workflow)
                 self.assertNotIn("z0-agent-test-", workflow)
-        # play.yml's sideload code comes from pubspec + run number only, and
-        # its AAB keeps the pubspec code (no --build-number at all).
+        # play.yml's sideload code comes from pubspec + a fixed sideload
+        # offset + run number only, and its AAB keeps the pubspec code (no
+        # --build-number at all).
         play = (WORKFLOWS / "play.yml").read_text()
         aab = _step(play, "Build AAB")
         self.assertNotIn("--build-number", aab)
         sideload = _step(play, "Build sideload APK (arm64, upload key)")
-        self.assertIn("--build-number=$((base + GITHUB_RUN_NUMBER))", sideload)
+        self.assertIn(
+            "--build-number=$((base + SIDELOAD_OFFSET + GITHUB_RUN_NUMBER))", sideload)
+        self.assertIn("SIDELOAD_OFFSET: '1000'", sideload)
         self.assertNotIn("--build-number", (WORKFLOWS / "release.yml").read_text())
 
 
