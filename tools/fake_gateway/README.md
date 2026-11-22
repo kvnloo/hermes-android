@@ -48,3 +48,11 @@ routes reject non-loopback callers.
 
 The fixture binds to loopback by default. Do not expose it as a real gateway or
 reuse its synthetic credentials for any other service.
+
+## Android sign-in and cron list smoke
+
+From a debug build, add the loopback fixture as a self-hosted instance (use
+`adb reverse` on a tethered test device). Tap **Test**, continue to password
+sign-in, and enter `fixture` for both fields. Open the scheduled jobs list and
+verify **Fixture morning briefing** is shown as active. The fixture only
+supports reading this list; it never schedules or executes jobs.

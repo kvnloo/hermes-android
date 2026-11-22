@@ -255,6 +255,34 @@ async def dashboard_home(request: web.Request) -> web.Response:
     )
 
 
+async def dashboard_status(_request: web.Request) -> web.Response:
+    return web.json_response(
+        {
+            "version": "fixture",
+            "gateway_running": True,
+            "auth_required": True,
+            "auth_providers": ["basic"],
+            "auth_flows": ["cookie"],
+        }
+    )
+
+
+async def list_cron_jobs(request: web.Request) -> web.Response:
+    if not dashboard_authorized(request):
+        return unauthorized(state_from(request), request)
+    return web.json_response(
+        [
+            {
+                "id": "fixture-routine",
+                "name": "Fixture morning briefing",
+                "schedule_display": "0 9 * * *",
+                "enabled": True,
+                "state": "scheduled",
+            }
+        ]
+    )
+
+
 async def password_login(request: web.Request) -> web.Response:
     state = state_from(request)
     try:
@@ -1560,7 +1588,9 @@ def create_app(state: GatewayState) -> web.Application:
         reset_disconnect_ledger,
     )
     app.router.add_get("/", dashboard_home)
+    app.router.add_get("/api/status", dashboard_status)
     app.router.add_post("/auth/password-login", password_login)
+    app.router.add_get("/api/cron/jobs", list_cron_jobs)
     app.router.add_post("/api/auth/ws-ticket", ws_ticket)
     app.router.add_get("/api/model/info", model_info)
     app.router.add_get("/api/model/options", model_options)

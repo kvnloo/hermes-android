@@ -12,7 +12,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from aiohttp import ClientSession, WSMsgType
+from aiohttp import ClientSession, CookieJar, WSMsgType
 
 try:
     from .turn_recovery_contract import (
@@ -585,8 +585,37 @@ async def probe_disconnect_scenario(
         assert history["data"] == []
 
 
+async def probe_password_and_cron_list(base_url: str) -> None:
+    # aiohttp normally rejects cookies for IP literals; this is a local fixture.
+    async with ClientSession(cookie_jar=CookieJar(unsafe=True)) as session:
+        async with session.get(f"{base_url}/api/status") as response:
+            assert response.status == 200
+            status = await response.json()
+            assert status["gateway_running"] is True
+            assert status["auth_required"] is True
+            assert status["auth_providers"] == ["basic"]
+
+        for password, expected in (("wrong", 401), ("fixture", 200)):
+            async with session.get(f"{base_url}/api/cron/jobs") as response:
+                assert response.status == 401
+            async with session.post(
+                f"{base_url}/auth/password-login",
+                json={"provider": "basic", "username": "fixture", "password": password},
+            ) as response:
+                assert response.status == expected
+
+        async with session.get(f"{base_url}/api/cron/jobs") as response:
+            assert response.status == 200
+            jobs = await response.json()
+            assert len(jobs) == 1
+            assert jobs[0]["id"] == "fixture-routine"
+            assert jobs[0]["enabled"] is True
+            assert jobs[0]["schedule_display"] == "0 9 * * *"
+
+
 async def probe(base_url: str) -> None:
     await probe_persistent_recovery_ledger()
+    await probe_password_and_cron_list(base_url)
     dashboard_headers = {
         "X-Hermes-Session-Token": "fixture-dashboard-token"
     }
@@ -1384,6 +1413,8 @@ async def probe(base_url: str) -> None:
                 "status": "ok",
                 "contracts": [
                     "dashboard-token",
+                    "password-sign-in",
+                    "cron-list",
                     "profile-default-model",
                     "ws-ticket",
                     "session.create",
