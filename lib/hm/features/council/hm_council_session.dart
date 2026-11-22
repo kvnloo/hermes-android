@@ -89,7 +89,12 @@ class _HmCouncilSessionScreenState extends State<HmCouncilSessionScreen> {
                           children: [
                             Text(message, textAlign: TextAlign.center),
                             TextButton(
-                              onPressed: () => setState(() => _load = _read()),
+                              onPressed: () {
+                                final next = _read();
+                                setState(() {
+                                  _load = next;
+                                });
+                              },
                               child: const Text('Retry'),
                             ),
                           ],
