@@ -25,7 +25,7 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter gen-l10n
-      - run: flutter test test/ng_theme_spec_test.dart test/nextgen_test.dart
+      - run: flutter test test/ng_theme_spec_test.dart test/nextgen_test.dart test/store_screenshots_test.dart
       - name: Upload key
         env:
           KS: ${{ secrets.Z0_KEYSTORE_BASE64 }}
