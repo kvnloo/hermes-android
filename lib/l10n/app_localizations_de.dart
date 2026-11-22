@@ -5882,22 +5882,22 @@ class AppLocalizationsDe extends AppLocalizations {
   String get ng_notify_master_off => 'Benachrichtigungen deaktiviert';
 
   @override
-  String get ng_look => 'Look';
+  String get ng_look => 'Erscheinungsbild';
 
   @override
-  String get ng_import_theme => 'Import theme';
+  String get ng_import_theme => 'Design importieren';
 
   @override
-  String get ng_copy_theme => 'Copy theme JSON';
+  String get ng_copy_theme => 'Design-JSON kopieren';
 
   @override
-  String get ng_paste_theme_json => 'Paste a theme\'s JSON';
+  String get ng_paste_theme_json => 'Design-JSON einfügen';
 
   @override
-  String get ng_theme_applied => 'Theme applied';
+  String get ng_theme_applied => 'Design angewendet';
 
   @override
-  String get ng_apply => 'Apply';
+  String get ng_apply => 'Anwenden';
 
   @override
   String get openui_show_source => 'Quelltext anzeigen';

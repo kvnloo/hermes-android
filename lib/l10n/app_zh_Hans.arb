@@ -1638,5 +1638,11 @@
   "ng_bot_import_title": "导入机器人",
   "ng_bot_import_invalid": "无法读取此机器人文件，或其格式不受支持。",
   "ng_bot_import_open_chat": "打开聊天",
-  "ng_bot_import_add": "添加机器人"
+  "ng_bot_import_add": "添加机器人",
+  "ng_look": "外观",
+  "ng_import_theme": "导入主题",
+  "ng_copy_theme": "复制主题 JSON",
+  "ng_paste_theme_json": "粘贴主题 JSON",
+  "ng_theme_applied": "已应用主题",
+  "ng_apply": "应用"
 }

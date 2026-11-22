@@ -5634,22 +5634,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ng_notify_master_off => '通知已關閉';
 
   @override
-  String get ng_look => 'Look';
+  String get ng_look => '外观';
 
   @override
-  String get ng_import_theme => 'Import theme';
+  String get ng_import_theme => '导入主题';
 
   @override
-  String get ng_copy_theme => 'Copy theme JSON';
+  String get ng_copy_theme => '复制主题 JSON';
 
   @override
-  String get ng_paste_theme_json => 'Paste a theme\'s JSON';
+  String get ng_paste_theme_json => '粘贴主题 JSON';
 
   @override
-  String get ng_theme_applied => 'Theme applied';
+  String get ng_theme_applied => '已应用主题';
 
   @override
-  String get ng_apply => 'Apply';
+  String get ng_apply => '应用';
 
   @override
   String get openui_show_source => '显示源代码';
@@ -11195,6 +11195,24 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get ng_notify_master_off => '通知已关闭';
+
+  @override
+  String get ng_look => '外观';
+
+  @override
+  String get ng_import_theme => '导入主题';
+
+  @override
+  String get ng_copy_theme => '复制主题 JSON';
+
+  @override
+  String get ng_paste_theme_json => '粘贴主题 JSON';
+
+  @override
+  String get ng_theme_applied => '已应用主题';
+
+  @override
+  String get ng_apply => '应用';
 
   @override
   String get openui_show_source => '显示源代码';
