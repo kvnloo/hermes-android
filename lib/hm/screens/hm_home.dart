@@ -218,6 +218,18 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
     if (shared == null && destination == AndroidEntryDestination.sessions) {
       return;
     }
+    if (shared == null && destination == AndroidEntryDestination.routines) {
+      unawaited(
+        Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (route) => NgScheduledPage(
+              onOpenSession: (_) => Navigator.of(route).pop(),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
     if (shared == null && destination == AndroidEntryDestination.botImport) {
       unawaited(() async {
         final bot = await Navigator.of(context).push<HmBot>(

@@ -244,14 +244,7 @@ class NextGenGateway extends ChangeNotifier {
         client.onStreamEvent = (event) {
           if (!_events.isClosed) _events.add(event);
         };
-        client.onServerRequest = (request) {
-          if (!answerableMethods.contains(request.method)) return false;
-          final wrapped = NgServerRequest(request);
-          openRequests[request.id] = wrapped;
-          if (!_requests.isClosed) _requests.add(wrapped);
-          if (!_disposed) notifyListeners();
-          return true;
-        };
+        client.onServerRequest = acceptServerRequest;
         client.onConnectionClosed = () {
           if (!closed.isCompleted) closed.complete();
         };
@@ -396,6 +389,18 @@ class NextGenGateway extends ChangeNotifier {
   }
 
   void forgetRequest(String id) => resolveRequest(id);
+
+  /// Takes a request the socket delivered (live or replayed); false when this
+  /// client cannot answer its method.
+  @visibleForTesting
+  bool acceptServerRequest(GatewayServerRequest request) {
+    if (!answerableMethods.contains(request.method)) return false;
+    final wrapped = NgServerRequest(request);
+    openRequests[request.id] = wrapped;
+    if (!_requests.isClosed) _requests.add(wrapped);
+    if (!_disposed) notifyListeners();
+    return true;
+  }
 
   /// Sets the connection phase without a socket (screenshots, widget tests).
   @visibleForTesting

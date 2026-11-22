@@ -1,0 +1,13 @@
+<resources>
+    <string name="assistant_open">Open a Hermes chat</string>
+    <string name="screen_preview">Share a screen image</string>
+    <string name="screen_preview_start">Choose a screen or app to capture</string>
+    <string name="screen_preview_stop">Stop</string>
+    <string name="screen_preview_unavailable">Screen capture is unavailable</string>
+    <string name="screen_preview_cancelled">Screen capture was not allowed</string>
+    <string name="screen_preview_help">Choose a screen or app. Then open the screen you want, tap Capture in the notification, and close the notification shade. The image opens as a chat attachment for review, not as a sent message.</string>
+    <string name="screen_preview_notification">Tap Capture, then close the notification shade.</string>
+    <string name="screen_preview_capture">Capture</string>
+    <string name="screen_preview_review">Review image in Hermes</string>
+    <string name="screen_preview_notifications">Allow notifications to control screen capture and review the image.</string>
+</resources>

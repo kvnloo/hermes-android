@@ -12,7 +12,6 @@ import 'package:hermes_android/nextgen/data/chat_controller.dart';
 import 'package:hermes_android/nextgen/data/nextgen_gateway.dart';
 import 'package:hermes_android/nextgen/nextgen_preferences.dart';
 import 'package:hermes_android/nextgen/theme/nextgen_theme.dart';
-import 'package:hermes_android/nextgen/theme/ng_theme_spec.dart';
 import 'package:hermes_android/nextgen/ui/chat_view.dart';
 import 'package:hermes_android/nextgen/ui/nextgen_scope.dart';
 import 'package:hermes_android/nextgen/ui/settings_page.dart';
@@ -43,6 +42,10 @@ void main() {
         .toList();
     await _font('Geist', files('Geist'));
     await _font('GeistMono', files('GeistMono'));
+    await _font('Nunito', [
+      'assets/fonts/nunito/Nunito-VariableFont_wght.ttf',
+      'assets/fonts/nunito/Nunito-Italic-VariableFont_wght.ttf',
+    ]);
   });
 
   for (final themeId in ['onyx', 'dash', 'settings']) {

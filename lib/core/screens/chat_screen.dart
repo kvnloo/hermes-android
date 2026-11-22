@@ -49,6 +49,7 @@ import '../widgets/delegated_task_labels.dart';
 import '../services/connection_manager.dart';
 import '../services/annotation_snapshot.dart';
 import '../services/attachment_draft_service.dart';
+import '../services/document_scanner.dart';
 import '../services/chat_presentation_state.dart';
 import '../services/chat_model_override_store.dart';
 import '../services/turbo_model_catalog.dart';
@@ -882,6 +883,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   int _composerRevision = 0;
   int _clearedComposerRevision = 0;
   bool _preparingPaste = false;
+  bool _scanningDocument = false;
   bool _startingVoiceInput = false;
   late final LargePasteFormatter _largePasteFormatter;
   final Map<String, String> _pastedDraftTexts = {};
@@ -3844,6 +3846,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         (_turnApplicationSession != null && !_legacyTransportFallback);
     if (!remote ||
         _preparingPaste ||
+        _scanningDocument ||
         _annotationSnapshotInProgress ||
         _sending ||
         _streaming ||
@@ -3935,6 +3938,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         !controller.active ||
         _annotationSnapshotInProgress ||
         _preparingPaste ||
+        _scanningDocument ||
         _preparingSend ||
         _sending ||
         _streaming ||
@@ -4028,7 +4032,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _showAttachmentPicker() async {
-    if (_annotationSnapshotInProgress) return;
+    if (_annotationSnapshotInProgress || _scanningDocument) return;
     await _handsFree.stop(reason: HandsFreeStopReason.attachmentAction);
     if (!mounted) return;
     if (_transcriptLoadBlocksComposer ||
@@ -4039,6 +4043,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       return;
     }
 
+    final canScan = await const DocumentScanner().isAvailable();
+    if (!mounted ||
+        _transcriptLoadBlocksComposer ||
+        _scanningDocument ||
+        _preparingPaste ||
+        _annotationSnapshotInProgress ||
+        _streaming ||
+        _sending ||
+        _pendingReattachResync) {
+      return;
+    }
     await showModalBottomSheet<void>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -4074,6 +4089,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 unawaited(_pickServerFile());
               },
             ),
+            if (canScan)
+              ListTile(
+                leading: const Icon(Icons.document_scanner_outlined),
+                title: Text(context.l10n.scan_document),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  unawaited(_scanDocument());
+                },
+              ),
             if (_desktopGateway != null)
               ListTile(
                 leading: const Icon(Icons.description_outlined),
@@ -4090,6 +4114,56 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         ),
       ),
     );
+  }
+
+  Future<void> _scanDocument() async {
+    if (_scanningDocument) return;
+    final remote = _desktopGateway != null;
+    if (remote && _attachmentDrafts.length >= maxRemoteAttachmentDrafts) {
+      _showAttachmentError(
+        context.l10n.you_can_attach_up_to_items(maxRemoteAttachmentDrafts),
+      );
+      return;
+    }
+    setState(() => _scanningDocument = true);
+    try {
+      final scan = await const DocumentScanner().scanIntoDraft(
+        service: _attachmentDraftService,
+        existingDrafts: List.of(_attachmentDrafts),
+        mode: remote
+            ? AttachmentDraftMode.remoteGateway
+            : AttachmentDraftMode.rest,
+      );
+      if (scan == null) return;
+      if (!mounted) {
+        await _attachmentDraftService.removeAll(scan.drafts);
+        return;
+      }
+      final replaced = remote
+          ? const <AttachmentDraft>[]
+          : List.of(_attachmentDrafts);
+      setState(() {
+        if (!remote) _attachmentDrafts.clear();
+        _attachmentDrafts.addAll(scan.drafts);
+      });
+      unawaited(_attachmentDraftService.removeAll(replaced));
+      if (scan.skipped > 0) {
+        _showAttachmentError(context.l10n.files_skipped(scan.skipped));
+      }
+    } on PlatformException catch (error) {
+      if (mounted) {
+        _showAttachmentError(switch (error.code) {
+          'unavailable' => context.l10n.document_scanner_unavailable,
+          'module_unavailable' =>
+            context.l10n.document_scanner_module_unavailable,
+          _ => context.l10n.document_scan_failed,
+        });
+      }
+    } catch (_) {
+      if (mounted) _showAttachmentError(context.l10n.document_scan_failed);
+    } finally {
+      if (mounted) setState(() => _scanningDocument = false);
+    }
   }
 
   Future<void> _pickServerFile() async {
@@ -4715,6 +4789,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         _startingVoiceInput ||
         _annotationSnapshotInProgress ||
         _preparingPaste ||
+        _scanningDocument ||
         _preparingSend ||
         _archiving ||
         _stopResponseInFlight ||
@@ -7641,6 +7716,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         (!_transcriptLoadBlocksComposer &&
             !_annotationSnapshotInProgress &&
             !_preparingPaste &&
+            !_scanningDocument &&
             !_startingVoiceInput &&
             !_archiving &&
             !_preparingSend &&
@@ -7891,9 +7967,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             ),
             if (separateVoiceAction && handsFreeAction != null)
               Align(alignment: Alignment.centerRight, child: handsFreeAction),
-            if (_preparingPaste)
+            if (_preparingPaste || _scanningDocument)
               LinearProgressIndicator(
-                key: const Key('paste-attachment-preparing'),
+                key: _scanningDocument
+                    ? const Key('scan-attachment-preparing')
+                    : const Key('paste-attachment-preparing'),
                 semanticsLabel: context.l10n.preparing_attachments,
               ),
             Container(
@@ -7926,6 +8004,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                     enabled:
                         !_transcriptLoadBlocksComposer &&
                         !_preparingPaste &&
+                        !_scanningDocument &&
                         !_streaming &&
                         !_sending &&
                         !_pendingReattachResync,
@@ -7935,6 +8014,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                       onPressed:
                           (!_transcriptLoadBlocksComposer &&
                               !_preparingPaste &&
+                              !_scanningDocument &&
                               !_streaming &&
                               !_sending &&
                               !_pendingReattachResync)
