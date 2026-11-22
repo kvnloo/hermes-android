@@ -423,7 +423,7 @@ def evaluate(layout, pixels, th: Thresholds, size_issue=None):
             issues.append((5, f"role differs on {m['official']['short']}: {m['role_diff'][0]} vs {m['role_diff'][1]}"))
     if pixels["diff_pct"] >= th.pixel_pct:
         issues.append(
-            (20 + pixels["diff_pct"], f"pixel diff {pixels['diff_pct']:.2f}% of element pixels (limit {th.pixel_pct}%)")
+            (12 + min(pixels["diff_pct"], 15.0), f"pixel diff {pixels['diff_pct']:.2f}% of element pixels (limit {th.pixel_pct}%)")
         )
     issues.sort(key=lambda t: -t[0])
 
