@@ -1,16 +1,21 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hermes_android/core/services/connection_manager.dart';
+import 'package:hermes_android/core/services/dashboard_api_client.dart';
 import 'package:hermes_android/hm/features/council/council_reader.dart';
 import 'package:hermes_android/hm/features/council/council_run.dart';
 import 'package:hermes_android/hm/features/council/hm_council.dart';
+import 'package:hermes_android/hm/features/council/hm_council_session.dart';
 import 'package:hermes_android/hm/hm_bots.dart';
 import 'package:hermes_android/hm/screens/hm_chat_screen.dart';
 import 'package:hermes_android/hm/screens/hm_home.dart';
 import 'package:hermes_android/nextgen/data/chat_controller.dart';
 import 'package:hermes_android/nextgen/data/nextgen_gateway.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 /// Speaks nothing; each sentence waits until the test finishes it.
 class FakeVoice implements CouncilVoice {
@@ -345,6 +350,57 @@ void main() {
       await nav.maybePop();
       await tester.pumpAndSettle();
       expect(find.byType(HmCouncilScreen), findsNothing);
+    });
+
+    testWidgets('a saved council can read an individual report aloud', (
+      tester,
+    ) async {
+      final voice = FakeVoice();
+      var content = 'not JSON';
+      final dashboard = DashboardClient(
+        host: 'gateway.test',
+        proxied: true,
+        httpClient: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'messages': [
+                {'role': 'assistant', 'content': content},
+              ],
+            }),
+            200,
+          ),
+        ),
+      );
+      addTearDown(dashboard.close);
+      await tester.pumpWidget(
+        _app(
+          HmCouncilSessionScreen(
+            api: DashboardApiClient.withDashboard(dashboard),
+            sessionId: 'saved-council',
+            voice: voice,
+          ),
+          reduce: true,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('This council snapshot could not be read.'),
+        findsOneWidget,
+      );
+      expect(voice.spoken, isEmpty);
+      content = jsonEncode(_run());
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip("Read B's report aloud"));
+      await tester.pump();
+      expect(voice.spoken, ['B agrees.']);
+      voice.finish();
+      await tester.pump();
+      expect(find.text('Yes.'), findsOneWidget);
+      expect(voice.spoken, ['B agrees.', 'Yes.']);
+      await tester.tap(find.byKey(const ValueKey('council-speaking')));
+      await tester.pump();
+      expect(find.text('Session: saved-council'), findsOneWidget);
     });
 
     testWidgets('the chat More menu opens the council', (tester) async {

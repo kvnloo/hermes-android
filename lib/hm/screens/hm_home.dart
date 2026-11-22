@@ -14,7 +14,9 @@ import '../../nextgen/theme/nextgen_theme.dart';
 import '../../nextgen/ui/nextgen_scope.dart';
 import '../../nextgen/ui/scheduled_page.dart';
 import '../features/artifacts/hm_artifacts.dart';
+import '../features/council/council_session.dart';
 import '../features/council/hm_council.dart';
+import '../features/council/hm_council_session.dart';
 import '../features/groups/hm_groups.dart';
 import '../features/groups/home_filters.dart';
 import '../features/live/hm_live.dart';
@@ -325,13 +327,30 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  Future<void> _openChat(HmBot bot, {Session? session}) => hmOpenChat(
-    context,
-    bot: bot,
-    bots: _bots!,
-    sessionId: session?.id,
-    title: session?.title ?? '',
-  );
+  Future<void> _openChat(HmBot bot, {Session? session}) =>
+      _openBotSession(context, bot, _bots!, session);
+
+  Future<void> _openBotSession(
+    BuildContext context,
+    HmBot bot,
+    HmBotsModel bots,
+    Session? session,
+  ) {
+    if (session != null && isCouncilSession(session)) {
+      return openHmCouncilSession(
+        context,
+        api: bots.apiFor(bot),
+        sessionId: session.id,
+      );
+    }
+    return hmOpenChat(
+      context,
+      bot: bot,
+      bots: bots,
+      sessionId: session?.id,
+      title: session?.title ?? '',
+    );
+  }
 
   Future<void> _openAgent(HmBot bot) => hmOpenAgent(context, bot, _bots!);
 
@@ -348,13 +367,8 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
         builder: (_) => HmBotSessionsScreen(
           bot: bot,
           api: bots.apiFor(bot),
-          onOpen: (context, session) => hmOpenChat(
-            context,
-            bot: bot,
-            bots: bots,
-            sessionId: session.id,
-            title: session.title,
-          ),
+          onOpen: (context, session) =>
+              _openBotSession(context, bot, bots, session),
           onNewSession: (context) => hmOpenChat(context, bot: bot, bots: bots),
         ),
       ),

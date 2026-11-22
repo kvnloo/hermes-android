@@ -126,9 +126,15 @@ class CouncilRun {
 
 /// A run and where it came from. `live` only when a gateway supplied it.
 class CouncilSource {
-  const CouncilSource({required this.run, required this.live, this.note});
+  const CouncilSource({
+    required this.run,
+    required this.live,
+    this.note,
+    this.sessionId,
+  });
   final CouncilRun run;
   final bool live;
+  final String? sessionId;
 
   /// Why a fixture is shown instead of a live run.
   final String? note;

@@ -17,6 +17,7 @@ import '../../../nextgen/ui/nextgen_scope.dart';
 import '../../../nextgen/ui/sessions_sidebar.dart';
 import '../../hm_bots.dart';
 import '../../hm_ui.dart';
+import '../council/council_session.dart';
 
 /// How many sessions an expanded bot lists before "Show all".
 const hmTreeVisible = 5;
@@ -297,6 +298,10 @@ class HmSessionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = NgColors.of(context);
     final s = session;
+    final council = isCouncilSession(s);
+    final label = council
+        ? 'Council · ${hmSessionLabel(s)}'
+        : hmSessionLabel(s);
     final running = s.isActive;
     final dot = running
         ? c.success
@@ -305,11 +310,7 @@ class HmSessionRow extends StatelessWidget {
         : null;
     final t = hmSessionTime(s);
     return Semantics(
-      label: [
-        hmSessionLabel(s),
-        if (running) 'running',
-        if (s.unread) 'unread',
-      ].join(', '),
+      label: [label, if (running) 'running', if (s.unread) 'unread'].join(', '),
       button: true,
       excludeSemantics: true,
       child: InkWell(
@@ -337,7 +338,7 @@ class HmSessionRow extends StatelessWidget {
               ),
               Expanded(
                 child: Text(
-                  hmSessionLabel(s),
+                  label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: HmType.value.copyWith(

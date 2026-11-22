@@ -6,9 +6,8 @@
 // orb with a one-sentence caption replaces the card; a tap returns to the
 // card and cancels the reading. Reduced motion keeps the orb still.
 //
-// The Hermes gateway has no council RPC, so the chat menu opens the
-// recorded demo run under a visible DEMO tag. [CouncilSource] takes any
-// `glide.council-run/v1` snapshot once one is available.
+// The chat menu opens a labelled demo. Stored council sessions from the
+// bot tree supply their real snapshot to the same reader.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -139,7 +138,11 @@ class _HmCouncilScreenState extends State<HmCouncilScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _Tag(
-                widget.source.live ? 'LIVE' : 'DEMO',
+                widget.source.sessionId != null
+                    ? 'SAVED'
+                    : widget.source.live
+                    ? 'LIVE'
+                    : 'DEMO',
                 color: widget.source.live ? c.success : c.text2,
               ),
               const SizedBox(width: 10),
@@ -153,6 +156,14 @@ class _HmCouncilScreenState extends State<HmCouncilScreen> {
             ],
           ),
         ),
+        if (widget.source.sessionId case final id?)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(32, 4, 32, 0),
+            child: Text(
+              'Session: $id',
+              style: HmType.sub.copyWith(color: c.text3),
+            ),
+          ),
         if (warning != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(32, 12, 32, 0),
