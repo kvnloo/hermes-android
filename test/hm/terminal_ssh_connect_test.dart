@@ -12,7 +12,7 @@ import 'package:hermes_android/hm/features/terminal/terminal_page.dart';
 import 'package:hermes_android/hm/features/terminal/terminal_transport.dart';
 import 'package:xterm/xterm.dart';
 
-import 'terminal-ssh_fakes.dart';
+import 'terminal_ssh_fakes.dart';
 
 const _id = 'conn-1';
 

@@ -125,6 +125,8 @@ class _PersonaOrbState extends State<PersonaOrb> {
     final c = _controller;
     if (c == null) return;
     for (final name in _inputs) {
+      // The bundled Persona artboards expose legacy state-machine inputs.
+      // ignore: deprecated_member_use
       c.stateMachine.boolean(name)?.value = switch (widget.state) {
         HmAvatarState.listening => name == 'listening',
         HmAvatarState.thinking => name == 'thinking',

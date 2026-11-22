@@ -166,8 +166,9 @@ OrbOpts _scaleCounts(OrbOpts opts, double scale) {
   }
   for (final k in _countKeys) {
     final v = out[k];
-    if (v != null && v != 0 && !done.contains(k))
+    if (v != null && v != 0 && !done.contains(k)) {
       out[k] = math.max(1, _jsRound(v * scale));
+    }
   }
   final d = out['iconD'];
   if (d != null) out['iconD'] = math.max(0.02, d * scale);
