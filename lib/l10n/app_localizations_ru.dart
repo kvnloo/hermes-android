@@ -6024,4 +6024,21 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get ng_bot_import_add => 'Добавить бота';
+
+  @override
+  String get preview_channel => 'Канал предварительных сборок';
+
+  @override
+  String get preview_channel_subtitle =>
+      'Следить за последней успешной сборкой staging и показывать, какая сборка запущена.';
+
+  @override
+  String preview_chip_running(String label) {
+    return 'Запущена сборка $label. Нажмите, чтобы скрыть.';
+  }
+
+  @override
+  String preview_chip_newer(String label) {
+    return 'Доступна новая предварительная сборка: $label. Нажмите, чтобы открыть.';
+  }
 }

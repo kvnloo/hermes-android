@@ -10097,6 +10097,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add bot'**
   String get ng_bot_import_add;
+
+  /// No description provided for @preview_channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview channel'**
+  String get preview_channel;
+
+  /// No description provided for @preview_channel_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the newest green staging build and show which build is running.'**
+  String get preview_channel_subtitle;
+
+  /// No description provided for @preview_chip_running.
+  ///
+  /// In en, this message translates to:
+  /// **'Running build {label}. Tap to hide.'**
+  String preview_chip_running(String label);
+
+  /// No description provided for @preview_chip_newer.
+  ///
+  /// In en, this message translates to:
+  /// **'Newer preview build served: {label}. Tap to open it.'**
+  String preview_chip_newer(String label);
 }
 
 class _AppLocalizationsDelegate

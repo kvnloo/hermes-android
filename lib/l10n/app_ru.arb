@@ -1644,5 +1644,9 @@
   "ng_copy_theme": "Скопировать JSON темы",
   "ng_paste_theme_json": "Вставить JSON темы",
   "ng_theme_applied": "Тема применена",
-  "ng_apply": "Применить"
+  "ng_apply": "Применить",
+  "preview_channel": "Канал предварительных сборок",
+  "preview_channel_subtitle": "Следить за последней успешной сборкой staging и показывать, какая сборка запущена.",
+  "preview_chip_running": "Запущена сборка {label}. Нажмите, чтобы скрыть.",
+  "preview_chip_newer": "Доступна новая предварительная сборка: {label}. Нажмите, чтобы открыть."
 }

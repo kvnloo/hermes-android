@@ -1786,5 +1786,9 @@
   "ng_copy_theme": "Копіювати JSON теми",
   "ng_paste_theme_json": "Вставити JSON теми",
   "ng_theme_applied": "Тему застосовано",
-  "ng_apply": "Застосувати"
+  "ng_apply": "Застосувати",
+  "preview_channel": "Канал попередніх збірок",
+  "preview_channel_subtitle": "Стежити за найновішою успішною збіркою staging і показувати, яка збірка запущена.",
+  "preview_chip_running": "Запущена збірка {label}. Натисніть, щоб приховати.",
+  "preview_chip_newer": "Доступна новіша попередня збірка: {label}. Натисніть, щоб відкрити."
 }

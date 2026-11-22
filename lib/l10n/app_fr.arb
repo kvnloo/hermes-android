@@ -1644,5 +1644,9 @@
   "ng_copy_theme": "Copier le JSON du thème",
   "ng_paste_theme_json": "Coller le JSON d’un thème",
   "ng_theme_applied": "Thème appliqué",
-  "ng_apply": "Appliquer"
+  "ng_apply": "Appliquer",
+  "preview_channel": "Canal de préversion",
+  "preview_channel_subtitle": "Suivre le dernier build staging validé et afficher le build en cours d'exécution.",
+  "preview_chip_running": "Build en cours {label}. Touchez pour masquer.",
+  "preview_chip_newer": "Nouveau build de préversion disponible : {label}. Touchez pour l'ouvrir."
 }

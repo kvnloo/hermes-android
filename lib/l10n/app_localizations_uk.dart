@@ -6023,4 +6023,21 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get ng_bot_import_add => 'Додати бота';
+
+  @override
+  String get preview_channel => 'Канал попередніх збірок';
+
+  @override
+  String get preview_channel_subtitle =>
+      'Стежити за найновішою успішною збіркою staging і показувати, яка збірка запущена.';
+
+  @override
+  String preview_chip_running(String label) {
+    return 'Запущена збірка $label. Натисніть, щоб приховати.';
+  }
+
+  @override
+  String preview_chip_newer(String label) {
+    return 'Доступна новіша попередня збірка: $label. Натисніть, щоб відкрити.';
+  }
 }

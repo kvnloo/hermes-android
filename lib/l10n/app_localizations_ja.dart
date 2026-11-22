@@ -5859,4 +5859,21 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get ng_bot_import_add => 'ボットを追加';
+
+  @override
+  String get preview_channel => 'プレビューチャンネル';
+
+  @override
+  String get preview_channel_subtitle =>
+      '最新の成功した staging ビルドを追跡し、実行中のビルドを表示します。';
+
+  @override
+  String preview_chip_running(String label) {
+    return '実行中のビルド $label。タップで非表示。';
+  }
+
+  @override
+  String preview_chip_newer(String label) {
+    return '新しいプレビュービルドがあります: $label。タップで開きます。';
+  }
 }

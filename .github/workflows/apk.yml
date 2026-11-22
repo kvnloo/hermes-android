@@ -30,7 +30,12 @@ jobs:
           printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=upload\nkeyPassword=%s\n' \
             "$RUNNER_TEMP/upload.jks" "$PW" "$PW" > key.properties
       - name: Build APK
-        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --dart-define=ARES_PLAY_BUILD=true --split-debug-info=symbols-apk
+        # HERMES_BUILD_SHA/TIME let the preview-channel chip name this build.
+        run: |
+          flutter build apk --release --split-per-abi --target-platform android-arm64 \
+            --dart-define=ARES_PLAY_BUILD=true --split-debug-info=symbols-apk \
+            --dart-define=HERMES_BUILD_SHA="$GITHUB_SHA" \
+            --dart-define=HERMES_BUILD_TIME="$(date -u +%s)"
       - name: Check signer and package
         run: |
           set -x

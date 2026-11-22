@@ -1644,5 +1644,9 @@
   "ng_copy_theme": "复制主题 JSON",
   "ng_paste_theme_json": "粘贴主题 JSON",
   "ng_theme_applied": "已应用主题",
-  "ng_apply": "应用"
+  "ng_apply": "应用",
+  "preview_channel": "预览渠道",
+  "preview_channel_subtitle": "跟随最新通过的 staging 构建，并显示正在运行的构建。",
+  "preview_chip_running": "正在运行的构建 {label}。轻点隐藏。",
+  "preview_chip_newer": "有更新的预览构建：{label}。轻点打开。"
 }

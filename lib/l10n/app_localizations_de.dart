@@ -6030,4 +6030,21 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get ng_bot_import_add => 'Bot hinzufügen';
+
+  @override
+  String get preview_channel => 'Vorschaukanal';
+
+  @override
+  String get preview_channel_subtitle =>
+      'Dem neuesten grünen Staging-Build folgen und anzeigen, welcher Build läuft.';
+
+  @override
+  String preview_chip_running(String label) {
+    return 'Laufender Build $label. Zum Ausblenden tippen.';
+  }
+
+  @override
+  String preview_chip_newer(String label) {
+    return 'Neuerer Vorschau-Build verfügbar: $label. Zum Öffnen tippen.';
+  }
 }

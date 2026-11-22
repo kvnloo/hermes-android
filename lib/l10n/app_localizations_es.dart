@@ -6025,4 +6025,21 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get ng_bot_import_add => 'Añadir bot';
+
+  @override
+  String get preview_channel => 'Canal de vista previa';
+
+  @override
+  String get preview_channel_subtitle =>
+      'Sigue la compilación de staging verde más reciente y muestra qué compilación se está ejecutando.';
+
+  @override
+  String preview_chip_running(String label) {
+    return 'Compilación en ejecución $label. Toca para ocultar.';
+  }
+
+  @override
+  String preview_chip_newer(String label) {
+    return 'Hay una compilación de vista previa más nueva: $label. Toca para abrirla.';
+  }
 }

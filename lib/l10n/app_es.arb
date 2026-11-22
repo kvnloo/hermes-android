@@ -1644,5 +1644,9 @@
   "ng_copy_theme": "Copiar JSON del tema",
   "ng_paste_theme_json": "Pegar el JSON de un tema",
   "ng_theme_applied": "Tema aplicado",
-  "ng_apply": "Aplicar"
+  "ng_apply": "Aplicar",
+  "preview_channel": "Canal de vista previa",
+  "preview_channel_subtitle": "Sigue la compilación de staging verde más reciente y muestra qué compilación se está ejecutando.",
+  "preview_chip_running": "Compilación en ejecución {label}. Toca para ocultar.",
+  "preview_chip_newer": "Hay una compilación de vista previa más nueva: {label}. Toca para abrirla."
 }
