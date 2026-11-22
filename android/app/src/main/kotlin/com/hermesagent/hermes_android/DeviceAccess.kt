@@ -1,6 +1,7 @@
 package com.hermesagent.hermes_android
 
 import android.Manifest
+import android.app.Activity
 import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -24,14 +25,7 @@ import android.os.OutcomeReceiver
 import android.provider.CalendarContract.Instances
 import android.provider.ContactsContract
 import android.provider.Settings
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.Switch
 import android.widget.TextView
-import androidx.activity.ComponentActivity
-import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -218,94 +212,119 @@ class DeviceAlarmReceiver : BroadcastReceiver() {
     }
 }
 
-class DeviceAccessActivity : ComponentActivity() {
-    private lateinit var access: DeviceAccess
-    private lateinit var list: LinearLayout
-    private var refreshJob: kotlinx.coroutines.Job? = null
-    private val scope = kotlinx.coroutines.MainScope()
-    private val permissions = registerForActivityResult(ActivityResultContracts.RequestPermission()) { refresh() }
+/**
+ * Backend of Settings → Device access. The page itself is Flutter
+ * (HmDeviceAccessScreen) so it follows the app theme and has the shared top
+ * bar with back; this class keeps the native state, toggle and permission
+ * logic and serves it over [CHANNEL].
+ */
+internal class DeviceAccessSettings(
+    private val activity: Activity,
+    private val launchPermission: (permission: String, done: () -> Unit) -> Unit,
+) {
+    private val access = DeviceAccess(activity)
+    // The former DeviceAccessActivity kept "already asked" in getPreferences(),
+    // whose file is named after that activity. Reuse it so returning users keep it.
+    private val asked = activity.getSharedPreferences("DeviceAccessActivity", Context.MODE_PRIVATE)
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        access = DeviceAccess(this)
-        list = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            val padding = (20 * resources.displayMetrics.density).toInt()
-            setPadding(padding, padding, padding, padding)
-        }
-        // The manifest supplies a native NoActionBar theme; keep the header clear of system bars.
-        setContentView(ScrollView(this).apply { addView(list) }.also(::padForSystemBars))
+    suspend fun state(source: DeviceSource): String =
+        if (!access.enabled(source)) "Off"
+        else try {
+            if (!access.available(source)) "Unavailable on this device"
+            else if (access.granted(source)) "Permission granted"
+            else "Permission denied or not yet granted"
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (_: Exception) { "Unavailable on this device" }
+
+    /** One entry per source, in [DeviceSource] order. */
+    suspend fun states(): List<Map<String, Any>> = DeviceSource.entries.map { source ->
+        val state = state(source)
+        val enabled = access.enabled(source)
+        val available = runCatching { access.available(source) }.getOrDefault(false)
+        mapOf(
+            "source" to source.name,
+            "label" to source.label,
+            "enabled" to enabled,
+            "state" to state,
+            "canRequest" to (enabled && available && state != "Permission granted"),
+        )
     }
 
-    override fun onResume() { super.onResume(); refresh() }
+    fun setEnabled(source: DeviceSource, value: Boolean) = access.setEnabled(source, value)
 
-    private fun refresh() {
-        refreshJob?.cancel()
-        refreshJob = scope.launch {
-            val states = DeviceSource.entries.associateWith { source ->
-                if (!access.enabled(source)) "Off"
-                else try {
-                    if (!access.available(source)) "Unavailable on this device"
-                    else if (access.granted(source)) "Permission granted"
-                    else "Permission denied or not yet granted"
-                } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                catch (_: Exception) { "Unavailable on this device" }
-            }
-            list.removeAllViews()
-            list.addView(TextView(this@DeviceAccessActivity).apply {
-                text = "Device access\nSources are off by default. This build does not send device data to a host."
-                textSize = 18f
-            })
-            for ((source, state) in states) {
-                list.addView(Switch(this@DeviceAccessActivity).apply {
-                    text = "${source.label} · $state"
-                    minHeight = (48 * resources.displayMetrics.density).toInt()
-                    isChecked = access.enabled(source)
-                    setOnCheckedChangeListener { _, checked -> access.setEnabled(source, checked); refresh() }
-                })
-                if (access.enabled(source) && access.available(source) && state != "Permission granted") {
-                    list.addView(Button(this@DeviceAccessActivity).apply {
-                        text = "Grant or manage ${source.label} permission"
-                        setOnClickListener { requestSource(source) }
-                    })
-                }
-            }
-        }
-    }
-
-    private fun requestSource(source: DeviceSource) {
-        val packageUri = Uri.parse("package:$packageName")
+    /** Opens the permission prompt or settings page; [done] runs once it is up or answered. */
+    fun request(source: DeviceSource, done: (Boolean) -> Unit) {
+        val packageUri = Uri.parse("package:${activity.packageName}")
         try {
             when (source) {
                 DeviceSource.ALARM -> {
-                    val alarms = getSystemService(AlarmManager::class.java)
+                    val alarms = activity.getSystemService(AlarmManager::class.java)
                     if (Build.VERSION.SDK_INT >= 31 && !alarms.canScheduleExactAlarms()) {
-                        startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, packageUri))
+                        activity.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, packageUri))
                     } else if (Build.VERSION.SDK_INT >= 33 &&
-                        checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                        permissions.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                        launchPermission(Manifest.permission.POST_NOTIFICATIONS) { done(true) }
+                        return
                     } else {
-                        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri))
+                        activity.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri))
                     }
                 }
                 else -> {
                     val permission = requireNotNull(source.permission)
-                    val asked = getPreferences(MODE_PRIVATE)
-                    if (asked.getBoolean(permission, false) && !shouldShowRequestPermissionRationale(permission)) {
-                        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri))
+                    if (asked.getBoolean(permission, false) && !activity.shouldShowRequestPermissionRationale(permission)) {
+                        activity.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri))
                     } else {
                         asked.edit().putBoolean(permission, true).apply()
-                        permissions.launch(permission)
+                        launchPermission(permission) { done(true) }
+                        return
                     }
                 }
             }
+            done(true)
         } catch (_: RuntimeException) {
-            android.widget.Toast.makeText(this, "Permission settings are unavailable.", android.widget.Toast.LENGTH_SHORT).show()
+            done(false)
         }
     }
 
-    override fun onDestroy() { scope.cancel(); super.onDestroy() }
+    companion object {
+        const val CHANNEL = "com.hermesagent.hermes_android/device_access"
+    }
+}
+
+/** Serves [DeviceAccessSettings] to Flutter: states, setEnabled, requestSource. */
+internal class DeviceAccessChannel(
+    messenger: io.flutter.plugin.common.BinaryMessenger,
+    private val settings: DeviceAccessSettings,
+) {
+    private val scope = kotlinx.coroutines.MainScope()
+    private val channel = io.flutter.plugin.common.MethodChannel(messenger, DeviceAccessSettings.CHANNEL)
+
+    init {
+        channel.setMethodCallHandler { call, result ->
+            val source = call.argument<String>("source")?.let { name ->
+                DeviceSource.entries.firstOrNull { it.name == name }
+            }
+            when (call.method) {
+                "states" -> scope.launch {
+                    try { result.success(settings.states()) }
+                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                    catch (e: Exception) { result.error("unavailable", e.message, null) }
+                }
+                "setEnabled" -> {
+                    val value = call.argument<Boolean>("enabled")
+                    if (source == null || value == null) result.error("bad_args", null, null)
+                    else { settings.setEnabled(source, value); result.success(null) }
+                }
+                "requestSource" -> {
+                    if (source == null) result.error("bad_args", null, null)
+                    else settings.request(source) { ok -> result.success(ok) }
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    fun close() { channel.setMethodCallHandler(null); scope.cancel() }
 }
 
 class HealthPermissionRationaleActivity : android.app.Activity() {

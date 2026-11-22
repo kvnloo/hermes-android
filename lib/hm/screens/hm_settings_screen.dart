@@ -3,7 +3,6 @@
 // existing NextGen pages (same data, older look).
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/services/connection_manager.dart';
@@ -13,6 +12,7 @@ import '../../nextgen/ui/settings_page.dart';
 import '../avatar/hm_avatar.dart';
 import '../features/settings/cache_screen.dart';
 import '../features/settings/chat_settings_screen.dart';
+import '../features/settings/device_access_screen.dart';
 import '../features/settings/security_screen.dart';
 import '../features/settings/settings_prefs.dart';
 import '../features/terminal/hm_terminal.dart' show hmTerminalDefaultHost;
@@ -73,7 +73,7 @@ class HmSettingsScreen extends StatelessWidget {
                 HmRow(
                   icon: Icons.perm_device_information_outlined,
                   label: 'Device access',
-                  onTap: () => _openDeviceAccess(context),
+                  onTap: () => push(const HmDeviceAccessScreen()),
                 ),
               HmRow(
                 icon: Icons.storage,
@@ -135,24 +135,6 @@ class HmSettingsScreen extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static Future<void> _openDeviceAccess(BuildContext context) async {
-    const channel = MethodChannel(
-      'com.hermesagent.hermes_android/device_access',
-    );
-    try {
-      if (await channel.invokeMethod<bool>('openSettings') == true) return;
-    } on PlatformException {
-      // No device settings surface on this Android build.
-    } on MissingPluginException {
-      // No native implementation in this environment.
-    }
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Device access is unavailable.')),
-      );
-    }
   }
 
   static String _modeLabel(ThemeMode mode) => switch (mode) {
