@@ -92,10 +92,19 @@ class LiveLine {
     required this.key,
     required this.fromUser,
     required this.text,
+    this.tools = const [],
+    this.work = false,
   });
   final String key;
   final bool fromUser;
   final String text;
+
+  /// The agent's tool calls in this reply, as the chat holds them (live
+  /// objects: running, then done with a result).
+  final List<NgTool> tools;
+
+  /// The agent's work on a delegated request (its tool rows), not speech.
+  final bool work;
 }
 
 /// The host has no voice routes (older Hermes): 404 on `/api/audio/*`.
@@ -340,8 +349,14 @@ class ChatLiveBrain extends ChangeNotifier implements LiveBrain {
     for (final item in chat.items.skip(_from))
       if (item is NgUserItem && item.text.trim().isNotEmpty)
         LiveLine(key: item.key, fromUser: true, text: item.text.trim())
-      else if (item is NgAssistantItem && item.text.trim().isNotEmpty)
-        LiveLine(key: item.key, fromUser: false, text: item.text.trim()),
+      else if (item is NgAssistantItem &&
+          (item.text.trim().isNotEmpty || item.tools.isNotEmpty))
+        LiveLine(
+          key: item.key,
+          fromUser: false,
+          text: item.text.trim(),
+          tools: List.of(item.tools),
+        ),
   ];
 
   @override
