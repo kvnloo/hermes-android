@@ -238,6 +238,14 @@ class NgColors extends ThemeExtension<NgColors> {
         glow: glow,
       );
 
+  /// Solid with a material: the opaque background moves to the root scene,
+  /// so the material pane painted over it shows behind every route.
+  NgColors _onScene() => _withTokens(
+    {'background': background.withValues(alpha: 0)},
+    glow,
+    background.withValues(alpha: 1),
+  );
+
   NgColors _withGlass({required bool blurred}) {
     final tint = background.withValues(alpha: 1);
     final body = _glassText(text, tint);
@@ -494,9 +502,10 @@ ThemeData nextGenTheme(
     look.glow,
     look.theme,
   );
-  final c = look.surface == NgSurface.glass && transparentWindow
+  final glass = look.surface == NgSurface.glass && transparentWindow
       ? solid._withGlass(blurred: blurredWindow)
-      : solid;
+      : null;
+  final c = glass ?? (look.material.visible ? solid._onScene() : solid);
   final base = hermesTheme(brightness);
   final scheme = base.colorScheme.copyWith(
     brightness: brightness,
@@ -661,7 +670,9 @@ ThemeData nextGenTheme(
       contentTextStyle: t(NgType.bodySmall, c.text2),
     ),
     drawerTheme: DrawerThemeData(
-      backgroundColor: c.glassScene == null ? c.sidebar : c.sheet,
+      backgroundColor: c.glassScene == null || c.sidebar.a == 1
+          ? c.sidebar
+          : c.sheet,
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(),
     ),

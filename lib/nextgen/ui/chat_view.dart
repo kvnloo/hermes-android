@@ -27,11 +27,13 @@ import '../../core/services/document_scanner.dart';
 import '../../core/services/voice_composer_adapter.dart';
 import '../../hm/features/settings/settings_prefs.dart';
 import '../data/chat_controller.dart';
+import '../nextgen_preferences.dart';
 import '../data/nextgen_gateway.dart';
 import '../data/read_aloud.dart';
 import '../theme/nextgen_theme.dart';
 import '../haptics.dart';
 import 'model_sheet.dart';
+import 'ng_elemental_pane.dart';
 import 'nextgen_scope.dart';
 import 'session_dock.dart';
 import 'sessions_sidebar.dart';
@@ -1043,14 +1045,9 @@ class _NgChatViewState extends State<NgChatView> {
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: c.surface,
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: c.stroke),
-            boxShadow: shadow,
-          ),
-          padding: const EdgeInsets.all(8),
+        child: ListenableBuilder(
+          // Look & Feel changes don't rebuild pushed routes; follow them here.
+          listenable: NextGenLook.instance,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1150,6 +1147,21 @@ class _NgChatViewState extends State<NgChatView> {
                 ],
               ),
             ],
+          ),
+          builder: (context, column) => NgLiquidChrome(
+            enabled: NextGenLook.instance.liquid,
+            material: NextGenLook.instance.material,
+            tint: ngLiquidTint(c),
+            rim: c.text,
+            radius: 32,
+            fallback: BoxDecoration(
+              color: c.surface,
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(color: c.stroke),
+              boxShadow: shadow,
+            ),
+            padding: const EdgeInsets.all(8),
+            child: column!,
           ),
         ),
       ),
