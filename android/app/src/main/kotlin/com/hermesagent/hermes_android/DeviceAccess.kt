@@ -30,6 +30,7 @@ import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.core.view.ViewCompat
@@ -226,15 +227,14 @@ class DeviceAccessActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         access = DeviceAccess(this)
         list = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             val padding = (20 * resources.displayMetrics.density).toInt()
             setPadding(padding, padding, padding, padding)
         }
-        // targetSdk 35+ draws edge-to-edge, so the action bar and status bar
-        // covered the header. The header names the screen; pad past the bars.
-        actionBar?.hide()
+        // The manifest supplies a native NoActionBar theme; keep the header clear of system bars.
         setContentView(ScrollView(this).apply { addView(list) }.also(::padForSystemBars))
     }
 
@@ -260,6 +260,7 @@ class DeviceAccessActivity : ComponentActivity() {
             for ((source, state) in states) {
                 list.addView(Switch(this@DeviceAccessActivity).apply {
                     text = "${source.label} · $state"
+                    minHeight = (48 * resources.displayMetrics.density).toInt()
                     isChecked = access.enabled(source)
                     setOnCheckedChangeListener { _, checked -> access.setEnabled(source, checked); refresh() }
                 })
