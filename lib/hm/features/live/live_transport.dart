@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/services/connection_manager.dart';
 import '../../../core/services/dashboard_api_client.dart';
 import '../../../core/services/voice_composer_adapter.dart';
+import '../../../core/widgets/ephemeral_ui_card.dart';
 import '../../../nextgen/data/chat_controller.dart';
 import '../../../nextgen/data/read_aloud.dart';
 import 'live_strings.dart';
@@ -93,6 +94,7 @@ class LiveLine {
     required this.fromUser,
     required this.text,
     this.tools = const [],
+    this.cards = const [],
     this.work = false,
   });
   final String key;
@@ -102,6 +104,10 @@ class LiveLine {
   /// The agent's tool calls in this reply, as the chat holds them (live
   /// objects: running, then done with a result).
   final List<NgTool> tools;
+
+  /// The sources of the ephemeral-ui cards in this reply, drawn with the
+  /// chat's renderer.
+  final List<String> cards;
 
   /// The agent's work on a delegated request (its tool rows), not speech.
   final bool work;
@@ -356,6 +362,7 @@ class ChatLiveBrain extends ChangeNotifier implements LiveBrain {
           fromUser: false,
           text: item.text.trim(),
           tools: List.of(item.tools),
+          cards: ephemeralUiFences(item.text),
         ),
   ];
 

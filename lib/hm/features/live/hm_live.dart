@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import '../../../core/services/android_voice_composer_adapter.dart';
+import '../../../core/widgets/ephemeral_ui_card.dart';
+import '../../../core/widgets/markdown_code_block.dart';
 import '../../../nextgen/data/chat_controller.dart';
 import '../../../nextgen/nextgen_preferences.dart';
 import '../../../nextgen/theme/nextgen_theme.dart';
@@ -309,7 +311,7 @@ class _Transcript extends StatelessWidget {
     final rows = <Widget>[
       for (final line in live.lines)
         if (line.work)
-          LiveWork(key: ValueKey(line.key), tools: line.tools)
+          LiveWork(key: ValueKey(line.key), tools: line.tools, cards: line.cards)
         else
           _Line(
             key: ValueKey(line.key),
@@ -317,6 +319,7 @@ class _Transcript extends StatelessWidget {
             text: line.text,
             fromUser: line.fromUser,
             tools: line.tools,
+            cards: line.cards,
           ),
       if (live.partial.trim().isNotEmpty)
         _Line(
@@ -351,16 +354,19 @@ class _Line extends StatelessWidget {
     required this.text,
     required this.fromUser,
     this.tools = const [],
+    this.cards = const [],
   });
   final String speaker;
   final String text;
   final bool fromUser;
   final List<NgTool> tools;
+  final List<String> cards;
 
   @override
   Widget build(BuildContext context) {
     final c = NgColors.of(context);
-    if (text.isEmpty) return LiveWork(tools: tools);
+    final words = cards.isEmpty ? text : withoutEphemeralUi(text);
+    if (words.isEmpty) return LiveWork(tools: tools, cards: cards);
     return Padding(
       padding: const EdgeInsets.only(bottom: 22),
       child: Column(
@@ -377,7 +383,7 @@ class _Line extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            text,
+            words,
             style: HmType.body.copyWith(
               color: fromUser ? c.text3 : c.text,
               fontStyle: fromUser ? FontStyle.italic : FontStyle.normal,
@@ -385,6 +391,7 @@ class _Line extends StatelessWidget {
               height: 1.35,
             ),
           ),
+          for (final card in cards) LiveCard(source: card),
         ],
       ),
     );
@@ -396,8 +403,16 @@ class _Line extends StatelessWidget {
 /// default (spinner and the running tool while it runs, then "Used …");
 /// tap to see each call, tap a call for its input and output.
 class LiveWork extends StatefulWidget {
-  const LiveWork({super.key, required this.tools, this.bottom = 16});
+  const LiveWork({
+    super.key,
+    required this.tools,
+    this.cards = const [],
+    this.bottom = 16,
+  });
   final List<NgTool> tools;
+
+  /// Ephemeral-ui cards the work produced, shown open under the rows.
+  final List<String> cards;
   final double bottom;
 
   @override
@@ -410,22 +425,46 @@ class _LiveWorkState extends State<LiveWork> {
   @override
   Widget build(BuildContext context) {
     final tools = widget.tools;
-    if (tools.isEmpty) return const SizedBox.shrink();
+    final cards = widget.cards;
+    if (tools.isEmpty && cards.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: EdgeInsets.only(bottom: widget.bottom),
-      child: NgDisclosure(
-        key: const ValueKey('live-work'),
-        icon: Icons.build_outlined,
-        label: ngToolsLabel(tools),
-        busy: tools.any((t) => t.running),
-        open: _open,
-        onTap: () => setState(() => _open = !_open),
-        child: Column(
-          children: [for (final t in tools) NgToolRow(tool: t)],
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (tools.isNotEmpty)
+            NgDisclosure(
+              key: const ValueKey('live-work'),
+              icon: Icons.build_outlined,
+              label: ngToolsLabel(tools),
+              busy: tools.any((t) => t.running),
+              open: _open,
+              onTap: () => setState(() => _open = !_open),
+              child: Column(
+                children: [for (final t in tools) NgToolRow(tool: t)],
+              ),
+            ),
+          for (final card in cards) LiveCard(source: card),
+        ],
       ),
     );
   }
+}
+
+/// One ephemeral-ui card in the call's transcript, through the chat's own
+/// fenced-block renderer (so it draws exactly as in the chat, and an invalid
+/// card shows as code there and here alike).
+class LiveCard extends StatelessWidget {
+  const LiveCard({super.key, required this.source});
+  final String source;
+
+  @override
+  Widget build(BuildContext context) => MarkdownCodeBlock(
+    key: const ValueKey('live-card'),
+    code: source,
+    language: ephemeralUiLanguage,
+    selectable: false,
+  );
 }
 
 /// The Live call's theme under a light app theme: the active look's own dark
