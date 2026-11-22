@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.provider.OpenableColumns
 import android.provider.Settings
 import android.view.WindowManager
+import androidx.activity.result.contract.ActivityResultContracts
 // local_auth (the app lock) needs a FragmentActivity host.
 import io.flutter.embedding.android.FlutterActivityLaunchConfigs.BackgroundMode
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -36,6 +37,12 @@ class MainActivity : FlutterFragmentActivity() {
     private var handsFreeVoice: HandsFreeVoicePlugin? = null
 
     private var documentScanner: DocumentScanner? = null
+    private var deviceAccess: DeviceAccessChannel? = null
+    private var deviceAccessPermissionDone: (() -> Unit)? = null
+    // Registered at construction: ActivityResult launchers must exist before STARTED.
+    private val devicePermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        deviceAccessPermissionDone?.also { deviceAccessPermissionDone = null }?.invoke()
+    }
 
     private val glassWindow by lazy { GlassWindowPlugin(this) }
 
@@ -97,14 +104,13 @@ class MainActivity : FlutterFragmentActivity() {
         }
         attachmentFileSaver?.close()
         attachmentFileSaver = AttachmentFileSaver(this, flutterEngine.dartExecutor.binaryMessenger)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
-            "com.hermesagent.hermes_android/device_access").setMethodCallHandler { call, result ->
-            if (call.method == "openSettings") {
-                result.success(runCatching { startActivity(Intent(this, DeviceAccessActivity::class.java)) }.isSuccess)
-            } else {
-                result.notImplemented()
-            }
-        }
+        deviceAccess?.close()
+        deviceAccess = DeviceAccessChannel(flutterEngine.dartExecutor.binaryMessenger,
+            DeviceAccessSettings(this) { permission, done ->
+                deviceAccessPermissionDone?.invoke()
+                deviceAccessPermissionDone = done
+                devicePermission.launch(permission)
+            })
         BackgroundWorkPlatform.install(this, flutterEngine.dartExecutor.binaryMessenger)
         MobilePushPlugin.install(flutterEngine)
         handsFreeVoice = HandsFreeVoicePlugin.install(flutterEngine)
@@ -177,6 +183,8 @@ class MainActivity : FlutterFragmentActivity() {
         handsFreeVoice = null
         documentScanner?.close()
         documentScanner = null
+        deviceAccess?.close()
+        deviceAccess = null
         glassWindow.detach()
         super.cleanUpFlutterEngine(flutterEngine)
     }
