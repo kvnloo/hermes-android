@@ -28,10 +28,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 SavedConnection _connection() => SavedConnection(
   id: 'c1',
   label: 'Home',
-  host: '10.0.0.5',
+  host: 'gateway.test',
   port: 9119,
   apiKey: '',
-  desktopGatewayUrl: 'http://10.0.0.5:9119',
+  desktopGatewayUrl: 'http://gateway.test:9119',
   singleLogin: true,
   signInMethod: 'none',
   dashboardProxied: true,
@@ -43,7 +43,7 @@ class _Gateway extends NextGenGateway {
   @override
   Future<WsClient> connected({
     Duration timeout = const Duration(seconds: 20),
-  }) async => WsClient('http://10.0.0.5:9119');
+  }) async => WsClient('http://gateway.test:9119');
 
   @override
   Future<Map<String, dynamic>> call(
@@ -172,7 +172,7 @@ Future<_Gateway> _pumpHome(
   final gateway = _Gateway(
     _connection(),
     dashboard: DashboardClient(
-      host: '10.0.0.5',
+      host: 'gateway.test',
       proxied: true,
       httpClient: host.client(),
     ),
@@ -213,7 +213,7 @@ void main() {
       final gateway = _Gateway(
         _connection(),
         dashboard: DashboardClient(
-          host: '10.0.0.5',
+          host: 'gateway.test',
           proxied: true,
           httpClient: host.client(),
         ),
