@@ -27,6 +27,8 @@ except ImportError:
 FIXTURE_SESSION_ID = "fixture-copy"
 DASHBOARD_TOKEN = "fixture-dashboard-token"
 DASHBOARD_COOKIE = "fixture-dashboard-cookie"
+GATEWAY_PROTOCOL = "hermes-gateway-v1"
+TICKET_PROTOCOL_PREFIX = "hermes-gateway-ticket."
 MAX_ATTACHMENT_BYTES = 16 * 1024 * 1024
 DISCONNECT_BEFORE_ACK = "before_ack"
 DISCONNECT_AFTER_ACK = "after_ack_before_first_delta"
@@ -267,6 +269,18 @@ async def dashboard_status(_request: web.Request) -> web.Response:
     )
 
 
+async def list_profiles(request: web.Request) -> web.Response:
+    if not dashboard_authorized(request):
+        return unauthorized(state_from(request), request)
+    return web.json_response(
+        {
+            "profiles": [
+                {"name": "default", "display_name": "Fixture Hermes", "is_default": True}
+            ]
+        }
+    )
+
+
 async def list_cron_jobs(request: web.Request) -> web.Response:
     if not dashboard_authorized(request):
         return unauthorized(state_from(request), request)
@@ -414,7 +428,7 @@ async def set_default_model(request: web.Request) -> web.Response:
 
 async def list_sessions(request: web.Request) -> web.Response:
     state = state_from(request)
-    if not bearer_authorized(request):
+    if not (bearer_authorized(request) or dashboard_authorized(request)):
         return unauthorized(state, request)
     state.log(
         {
@@ -1493,6 +1507,20 @@ async def websocket_gateway(request: web.Request) -> web.StreamResponse:
     state = state_from(request)
     ticket = request.query.get("ticket", "")
     token = request.query.get("token", "")
+    offered = [
+        part.strip()
+        for header in request.headers.getall("Sec-WebSocket-Protocol", [])
+        for part in header.split(",")
+    ]
+    protocol_tickets = [
+        part[len(TICKET_PROTOCOL_PREFIX):]
+        for part in offered
+        if part.startswith(TICKET_PROTOCOL_PREFIX)
+    ]
+    if protocol_tickets:
+        if ticket or token or GATEWAY_PROTOCOL not in offered or len(protocol_tickets) != 1:
+            return web.json_response({"error": "invalid WebSocket credentials"}, status=401)
+        ticket = protocol_tickets[0]
     ticket_valid = state.consume_ticket(ticket) if ticket else False
     token_valid = token == DASHBOARD_TOKEN
     if not ticket_valid and not token_valid:
@@ -1506,7 +1534,10 @@ async def websocket_gateway(request: web.Request) -> web.StreamResponse:
         )
         return web.json_response({"error": "invalid WebSocket ticket"}, status=401)
 
-    ws = web.WebSocketResponse(max_msg_size=20 * 1024 * 1024)
+    ws = web.WebSocketResponse(
+        max_msg_size=20 * 1024 * 1024,
+        protocols=(GATEWAY_PROTOCOL,) if protocol_tickets else (),
+    )
     await ws.prepare(request)
     recovery_connection_id = f"ws-{id(ws)}"
     state.log(
@@ -1591,6 +1622,7 @@ def create_app(state: GatewayState) -> web.Application:
     app.router.add_get("/api/status", dashboard_status)
     app.router.add_post("/auth/password-login", password_login)
     app.router.add_get("/api/cron/jobs", list_cron_jobs)
+    app.router.add_get("/api/profiles", list_profiles)
     app.router.add_post("/api/auth/ws-ticket", ws_ticket)
     app.router.add_get("/api/model/info", model_info)
     app.router.add_get("/api/model/options", model_options)
