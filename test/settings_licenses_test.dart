@@ -190,6 +190,9 @@ void main() {
         'third_party/licenses/hermes-agent-MIT.txt',
       ],
       'Third-party source/build materials (scope)': ['third_party/NOTICE.md'],
+      'elemental-ui materials and lighting (GPL-3.0-only)': [
+        'third_party/elemental-ui/LICENSE',
+      ],
     };
     for (final package in packages.entries) {
       tester

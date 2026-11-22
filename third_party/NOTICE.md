@@ -179,3 +179,17 @@ Scope: the three avatar styles a person picks in Settings → Look & Feel.
 - **Syn face**, ported from kvnloo/synergy.ai, adapting **Moodie** (MIT,
   Copyright (c) 2026 Moodie contributors) and **bloub** (MIT, Copyright (c)
   2026 Jérémy Perret) in `lib/hm/avatar/syn_face.dart`; see `syn-face/`.
+
+## elemental-ui materials — runtime material
+
+Scope: `assets/elemental/*` (basecolor, normal and roughness maps for the
+`geo.basalt.vesicular.v1`, `geo.limestone.porous.v1` and `geo.slate.layered.v1`
+packs) and the lighting model in `shaders/elemental_glass.frag`, used by the
+NextGen Material setting (Settings → Look & Feel). The packs were generated
+from [elemental-ui](https://github.com/kvnloo/elemental-ui) and the lighting
+follows its `shaders/elemental_surface.wgsl` (branch `feat/runtime-scaffold`). Copyright © 2026 Kevin Rajan and
+contributors. Licence: GPL-3.0-only ([elemental-ui/LICENSE](elemental-ui/LICENSE)).
+Generation command and file hashes: [elemental-ui/PROVENANCE.md](elemental-ui/PROVENANCE.md).
+They are experimental procedural drafts, not calibrated scans. GPL-3.0-only is
+not MIT-compatible: these files stay on the kvnloo fork unless their copyright
+holder relicenses them.
