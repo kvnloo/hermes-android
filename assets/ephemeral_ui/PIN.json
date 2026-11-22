@@ -1,9 +1,0 @@
-{
-  "source": "https://github.com/kvnloo/ephemeral-ui",
-  "ref": "main",
-  "commit": "7c5daca42108f6701c0e78f227a7db3b2f50d25d",
-  "path": "catalog/catalog.json",
-  "version": "0.1.0",
-  "sha256": "75e18220dab326bdc4824c1cc3710f1b1bb08f19d31f150d337452c56b4ec90a",
-  "note": "Vendored verbatim; never edit catalog.json. Re-vendor with: python3 scripts/ephemeral_ui_catalog.py --update <commit-or-tag>"
-}

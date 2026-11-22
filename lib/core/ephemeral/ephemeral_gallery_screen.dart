@@ -58,7 +58,6 @@ class _EphemeralGalleryScreenState extends State<EphemeralGalleryScreen> {
     final tokens = HermesTokens.of(context);
     final groups = catalog.groups;
     final kinds = _group == null ? catalog.kinds : groups[_group] ?? const [];
-    final pin = catalog.pin;
     return CustomScrollView(
       key: const Key('ephemeral-gallery-scroll'),
       slivers: [
@@ -83,7 +82,7 @@ class _EphemeralGalleryScreenState extends State<EphemeralGalleryScreen> {
                 const SizedBox(height: 2),
                 Text(
                   '${catalog.kinds.length} kinds · ${catalog.fixtureCount} '
-                  'fixtures${pin == null ? '' : ' · pinned ${pin.shortCommit}'}'
+                  'fixtures · generated ${catalog.generatedAt.split('T').first}'
                   ' · read-only',
                   style: tokens.typography.label.copyWith(color: tokens.muted),
                 ),

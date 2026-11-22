@@ -1,8 +1,9 @@
 /// The shared ephemeral-ui card catalog, vendored from kvnloo/ephemeral-ui.
 ///
-/// `assets/ephemeral_ui/catalog.json` is a verbatim copy of the kit's
-/// generated `catalog/catalog.json`; `PIN.json` beside it records the commit,
-/// version and sha256 it came from. The app never edits either file.
+/// `assets/shared_ui/catalog.json` is a byte-for-byte copy of the kit's
+/// generated `catalog/catalog.json`; `PIN.json` beside it records the
+/// upstream revision and versions. The app never edits either file;
+/// `scripts/ephemeral_ui_catalog.py` checks both against upstream.
 library;
 
 import 'dart:convert';
@@ -11,8 +12,10 @@ import 'package:flutter/services.dart';
 
 /// Asset paths of the vendored catalog and its pin.
 abstract final class EphemeralCatalogAssets {
-  static const catalog = 'assets/ephemeral_ui/catalog.json';
-  static const pin = 'assets/ephemeral_ui/PIN.json';
+  static const catalog = 'assets/shared_ui/catalog.json';
+
+  /// Read by tools and tests only; not bundled into the app.
+  static const pin = 'assets/shared_ui/PIN.json';
 }
 
 /// Fixture states the catalog defines (`fixtures[].state`).
@@ -145,26 +148,18 @@ final class EphemeralKind {
 
 /// Where the vendored copy came from (`PIN.json`).
 final class EphemeralCatalogPin {
-  const EphemeralCatalogPin({
-    required this.source,
-    required this.commit,
-    required this.version,
-    required this.sha256,
-  });
+  const EphemeralCatalogPin({required this.revision, required this.version});
 
-  final String source;
-  final String commit;
+  /// Full ephemeral-ui commit the copy was taken from.
+  final String revision;
+
+  /// `catalogVersion`: the catalog's semver at [revision].
   final String version;
-  final String sha256;
-
-  String get shortCommit => commit.length > 7 ? commit.substring(0, 7) : commit;
 
   factory EphemeralCatalogPin.fromJson(Map<String, Object?> json) =>
       EphemeralCatalogPin(
-        source: _string(json['source'], 'pin.source'),
-        commit: _string(json['commit'], 'pin.commit'),
-        version: _string(json['version'], 'pin.version'),
-        sha256: _string(json['sha256'], 'pin.sha256'),
+        revision: _string(json['revision'], 'pin.revision'),
+        version: _string(json['catalogVersion'], 'pin.catalogVersion'),
       );
 }
 
@@ -173,7 +168,6 @@ final class EphemeralCatalog {
     required this.version,
     required this.generatedAt,
     required this.kinds,
-    this.pin,
   }) : _byKind = {for (final k in kinds) k.kind: k};
 
   /// The only file shape this app reads (`v`).
@@ -182,7 +176,6 @@ final class EphemeralCatalog {
   final String version;
   final String generatedAt;
   final List<EphemeralKind> kinds;
-  final EphemeralCatalogPin? pin;
   final Map<String, EphemeralKind> _byKind;
 
   int get fixtureCount =>
@@ -201,7 +194,7 @@ final class EphemeralCatalog {
 
   /// Parses `catalog.json`. Throws [FormatException] for any shape other
   /// than `v == 0` or when the recorded counts disagree with the content.
-  static EphemeralCatalog parse(String source, {EphemeralCatalogPin? pin}) {
+  static EphemeralCatalog parse(String source) {
     final json = _map(jsonDecode(source), 'catalog');
     if (json['v'] != supportedShape) {
       throw FormatException(
@@ -219,7 +212,6 @@ final class EphemeralCatalog {
       version: _string(json['version'], 'version'),
       generatedAt: _string(json['generatedAt'], 'generatedAt'),
       kinds: kinds,
-      pin: pin,
     );
     final count = _map(json['count'], 'count');
     if (count['kinds'] != kinds.length ||
@@ -239,12 +231,6 @@ final class EphemeralCatalog {
     return _loaded ??= _read(rootBundle);
   }
 
-  static Future<EphemeralCatalog> _read(AssetBundle bundle) async {
-    final pinSource = await bundle.loadString(EphemeralCatalogAssets.pin);
-    final pin = EphemeralCatalogPin.fromJson(
-      _map(jsonDecode(pinSource), 'pin'),
-    );
-    final source = await bundle.loadString(EphemeralCatalogAssets.catalog);
-    return parse(source, pin: pin);
-  }
+  static Future<EphemeralCatalog> _read(AssetBundle bundle) async =>
+      parse(await bundle.loadString(EphemeralCatalogAssets.catalog));
 }

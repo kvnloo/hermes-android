@@ -4,7 +4,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hermes_android/core/ephemeral/ephemeral_card.dart';
@@ -17,7 +16,7 @@ final _pinJson =
     jsonDecode(File(EphemeralCatalogAssets.pin).readAsStringSync())
         as Map<String, Object?>;
 final _pin = EphemeralCatalogPin.fromJson(_pinJson);
-final _catalog = EphemeralCatalog.parse(utf8.decode(_catalogBytes), pin: _pin);
+final _catalog = EphemeralCatalog.parse(utf8.decode(_catalogBytes));
 
 Widget _host(Widget child, {Brightness brightness = Brightness.dark}) =>
     MaterialApp(
@@ -37,9 +36,10 @@ Iterable<String> _texts(WidgetTester tester, Finder within) sync* {
 
 void main() {
   group('pinned catalog', () {
-    test('vendored copy matches its pin (never edited)', () {
-      expect(sha256.convert(_catalogBytes).toString(), _pin.sha256);
-      expect(_pin.commit, matches(RegExp(r'^[0-9a-f]{40}$')));
+    test('vendored copy is at its pinned revision and version', () {
+      // Byte-for-byte equality with upstream is checked by
+      // scripts/ephemeral_ui_catalog.py --check-upstream in CI.
+      expect(_pin.revision, matches(RegExp(r'^[0-9a-f]{40}$')));
       expect(_catalog.version, _pin.version);
     });
 
@@ -172,7 +172,7 @@ void main() {
         find.text('ephemeral-ui catalog v${_catalog.version}'),
         findsOneWidget,
       );
-      expect(find.textContaining('pinned ${_pin.shortCommit}'), findsOneWidget);
+      expect(find.textContaining('generated 2026-11-01'), findsOneWidget);
       expect(
         find.textContaining(
           '${_catalog.kinds.length} kinds · ${_catalog.fixtureCount} fixtures',
@@ -249,7 +249,7 @@ void main() {
     testWidgets('loads the vendored asset through the bundle', (tester) async {
       final catalog = await tester.runAsync(EphemeralCatalog.load);
       expect(catalog!.kinds, hasLength(_catalog.kinds.length));
-      expect(catalog.pin!.commit, _pin.commit);
+      expect(catalog.version, _pin.version);
     });
   });
 

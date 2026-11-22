@@ -1,43 +1,42 @@
 #!/usr/bin/env python3
-"""Pin, verify and refresh the vendored ephemeral-ui card catalog.
+"""Verify, check and refresh the vendored ephemeral-ui card catalog.
 
-assets/ephemeral_ui/catalog.json is a verbatim copy of kvnloo/ephemeral-ui
-catalog/catalog.json; PIN.json records the commit, version and sha256.
+assets/shared_ui/catalog.json is a byte-for-byte copy of kvnloo/ephemeral-ui
+catalog/catalog.json at the commit PIN.json names (`revision`), with its
+`catalogVersion`. The same pin covers any theme files vendored beside it.
 
-  python3 scripts/ephemeral_ui_catalog.py --verify          # offline: copy == pin
-  python3 scripts/ephemeral_ui_catalog.py --check-upstream  # fail when stale
+  python3 scripts/ephemeral_ui_catalog.py --verify          # offline shape/pin
+  python3 scripts/ephemeral_ui_catalog.py --check-upstream  # edited or stale?
   python3 scripts/ephemeral_ui_catalog.py --update <ref>    # re-vendor from ref
 
---check-upstream compares the pin with the catalog at the upstream ref
-(default: main) and exits 1 when the pinned copy is stale, naming any kind
-upstream has that the vendored copy (and so the gallery) does not cover.
+--check-upstream fails when the copy differs from the pinned revision (it
+was edited) or from the upstream ref, default main (it is stale), naming any
+kind upstream has that the vendored copy, and so the gallery, does not cover.
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import pathlib
 import sys
 import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-VENDOR = ROOT / "assets" / "ephemeral_ui"
+VENDOR = ROOT / "assets" / "shared_ui"
 CATALOG = VENDOR / "catalog.json"
 PIN = VENDOR / "PIN.json"
 REPO = "kvnloo/ephemeral-ui"
-RAW = "https://raw.githubusercontent.com/{repo}/{ref}/catalog/catalog.json"
+RAW = "https://raw.githubusercontent.com/{repo}/{ref}/{path}"
+CATALOG_PATH = "catalog/catalog.json"
+# Other upstream files that may be vendored beside the catalog under one pin.
+THEME_FILES = {"glide.json": "theme/glide.json", "tokens.schema.json": "theme/tokens.schema.json"}
 COMMIT_API = "https://api.github.com/repos/{repo}/commits/{ref}"
 SUPPORTED_SHAPE = 0
 
 
 class CatalogError(Exception):
     pass
-
-
-def sha256(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
 
 
 def parse(data: bytes) -> dict:
@@ -59,24 +58,32 @@ def kinds(catalog: dict) -> list[str]:
 
 
 def verify(catalog_bytes: bytes, pin: dict) -> dict:
-    """The vendored copy is the pinned file, untouched."""
-    digest = sha256(catalog_bytes)
-    if digest != pin["sha256"]:
-        raise CatalogError(
-            f"assets/ephemeral_ui/catalog.json sha256 {digest} != pin {pin['sha256']}; "
-            "never edit the copy, re-vendor with --update"
-        )
+    """Offline: the copy is a v0 catalog at the pinned version."""
+    revision = pin.get("revision", "")
+    if len(revision) != 40 or any(c not in "0123456789abcdef" for c in revision):
+        raise CatalogError("PIN.json revision must be a full ephemeral-ui commit SHA")
     catalog = parse(catalog_bytes)
-    if catalog["version"] != pin["version"]:
+    if catalog["version"] != pin.get("catalogVersion"):
         raise CatalogError(
-            f"catalog version {catalog['version']} != pin {pin['version']}"
+            f"catalog version {catalog['version']} != PIN.json catalogVersion "
+            f"{pin.get('catalogVersion')}"
         )
     return catalog
 
 
-def compare(pinned: dict, pin: dict, upstream_bytes: bytes, ref: str) -> list[str]:
+def unedited(catalog_bytes: bytes, pinned_bytes: bytes, revision: str) -> list[str]:
+    """The copy is byte-identical to upstream at the pinned revision."""
+    if catalog_bytes == pinned_bytes:
+        return []
+    return [
+        f"assets/shared_ui/catalog.json differs from {REPO}@{revision[:7]}; "
+        "never edit the copy, re-vendor with --update"
+    ]
+
+
+def compare(pinned: dict, local_bytes: bytes, upstream_bytes: bytes, ref: str) -> list[str]:
     """Problems that make the pinned copy stale against upstream; [] if current."""
-    if sha256(upstream_bytes) == pin["sha256"]:
+    if upstream_bytes == local_bytes:
         return []
     upstream = parse(upstream_bytes)
     problems = []
@@ -112,34 +119,44 @@ def main(argv: list[str] | None = None) -> int:
     pin = json.loads(PIN.read_text())
     try:
         if args.update:
-            data = fetch(RAW.format(repo=REPO, ref=args.update))
+            ref = args.update
+            data = fetch(RAW.format(repo=REPO, ref=ref, path=CATALOG_PATH))
             catalog = parse(data)
-            commit = json.loads(fetch(COMMIT_API.format(repo=REPO, ref=args.update)))["sha"]
+            commit = json.loads(fetch(COMMIT_API.format(repo=REPO, ref=ref)))["sha"]
             CATALOG.write_bytes(data)
-            pin.update(
-                ref=args.update,
-                commit=commit,
-                version=catalog["version"],
-                sha256=sha256(data),
-            )
+            pin["revision"] = commit
+            pin["catalogVersion"] = catalog["version"]
+            for name, path in THEME_FILES.items():
+                if (VENDOR / name).exists():
+                    theme = fetch(RAW.format(repo=REPO, ref=commit, path=path))
+                    (VENDOR / name).write_bytes(theme)
+                    if name == "glide.json":
+                        pin["themeVersion"] = json.loads(theme)["version"]
             PIN.write_text(json.dumps(pin, indent=2) + "\n")
             print(
                 f"vendored catalog v{catalog['version']} ({len(catalog['kinds'])} kinds) "
-                f"from {REPO}@{commit[:7]}; now add layouts for new kinds and "
-                "run flutter test --update-goldens"
+                f"from {REPO}@{commit[:7]}; add layouts for new kinds, then run "
+                "flutter test --update-goldens"
             )
             return 0
 
-        pinned = verify(CATALOG.read_bytes(), pin)
+        local = CATALOG.read_bytes()
+        pinned = verify(local, pin)
         if args.verify:
             print(
                 f"ok: catalog v{pinned['version']} ({len(pinned['kinds'])} kinds) "
-                f"matches pin {pin['commit'][:7]}"
+                f"pinned at {pin['revision'][:7]}"
             )
             return 0
 
         ref = args.check_upstream
-        problems = compare(pinned, pin, fetch(RAW.format(repo=REPO, ref=ref)), ref)
+        revision = pin["revision"]
+        problems = unedited(
+            local, fetch(RAW.format(repo=REPO, ref=revision, path=CATALOG_PATH)), revision
+        )
+        problems += compare(
+            pinned, local, fetch(RAW.format(repo=REPO, ref=ref, path=CATALOG_PATH)), ref
+        )
         if problems:
             for problem in problems:
                 print(f"stale: {problem}", file=sys.stderr)
@@ -148,7 +165,10 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
             return 1
-        print(f"ok: pinned catalog v{pinned['version']} is current with {REPO}@{ref}")
+        print(
+            f"ok: catalog v{pinned['version']} is {REPO}@{revision[:7]} byte for byte "
+            f"and current with {ref}"
+        )
         return 0
     except CatalogError as error:
         print(f"error: {error}", file=sys.stderr)
