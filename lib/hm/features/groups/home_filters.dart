@@ -6,9 +6,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/models/session.dart';
 import '../../../nextgen/theme/nextgen_theme.dart';
 import '../../hm_bots.dart';
 import '../../hm_ui.dart';
+import '../sessions/bot_session_tree.dart';
 import 'groups_api.dart';
 
 enum HmHomeSort { recent, name }
@@ -138,8 +140,16 @@ sealed class HmHomeItem {
 }
 
 final class HmHomeBotItem extends HmHomeItem {
-  const HmHomeBotItem(this.summary, {required this.recent});
+  const HmHomeBotItem(
+    this.summary, {
+    required this.recent,
+    this.matches = const [],
+  });
   final HmBotSummary summary;
+
+  /// While searching: this bot's sessions whose title or first line matches,
+  /// newest first. Home lists them under the bot.
+  final List<Session> matches;
 
   /// The latest chat falls inside the Recent sessions window.
   final bool recent;
@@ -176,6 +186,7 @@ HmHomeView applyHmHomeFilters(
   required DateTime now,
   String query = '',
   Map<String, List<double>> unreadActivity = const {},
+  Map<String, List<Session>> sessions = const {},
 }) {
   final since = now.subtract(f.windowLength).millisecondsSinceEpoch / 1000;
   final q = query.trim().toLowerCase();
@@ -192,12 +203,21 @@ HmHomeView applyHmHomeFilters(
       );
       if (!unread) continue;
     }
+    final matches = q.isEmpty
+        ? const <Session>[]
+        : [
+            for (final row in hmBotSessionRows(
+              sessions[s.bot.profile] ?? [?s.latest],
+            ))
+              if (hmSessionLabel(row).toLowerCase().contains(q)) row,
+          ];
     if (q.isNotEmpty &&
         !s.bot.displayName.toLowerCase().contains(q) &&
-        !(s.latest?.title.toLowerCase().contains(q) ?? false)) {
+        !(s.latest?.title.toLowerCase().contains(q) ?? false) &&
+        matches.isEmpty) {
       continue;
     }
-    items.add(HmHomeBotItem(s, recent: recent));
+    items.add(HmHomeBotItem(s, recent: recent, matches: matches));
   }
   // Group chats carry no unread marker, so "Unread" leaves them out.
   if (f.includeGroups && f.show == HmHomeShow.all) {
