@@ -420,7 +420,10 @@ internal object MobilePushBridge {
         val builder = if (Build.VERSION.SDK_INT >= 26) android.app.Notification.Builder(context, "hermes_mobile_push") else android.app.Notification.Builder(context)
         manager.notify("mobile_push", event.hashCode(), builder.setSmallIcon(R.drawable.ic_stat_mobile_push)
             .setContentTitle("Hermes").setContentText("Server activity is available. Open Hermes to check.")
-            .setVisibility(android.app.Notification.VISIBILITY_SECRET).setAutoCancel(true).setContentIntent(pending).build())
+            .setVisibility(android.app.Notification.VISIBILITY_SECRET).setAutoCancel(true).setContentIntent(pending)
+            .addAction(android.app.Notification.Action.Builder(
+                null, "Open Hermes", pending
+            ).build()).build())
         changed()
     }
 
@@ -434,6 +437,9 @@ internal object MobilePushBridge {
         if (!validTap(state, tap) || (0 until issued.length()).none { issued.getJSONObject(it).toString() == tap.toString() }) return
         state.put("tap", tap)
         MobilePushStore.write(context, state)
+        // Android auto-cancels body taps, but not action buttons.
+        context.getSystemService(NotificationManager::class.java)
+            .cancel("mobile_push", tap.getString("event_id").hashCode())
         intent.removeExtra("mobile_push_tap")
         changed()
     }

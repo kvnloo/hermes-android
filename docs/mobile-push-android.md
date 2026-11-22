@@ -109,7 +109,8 @@ server-side. Local authority remains off regardless.
   challenge. Unknown kinds, wrong installation/nonce/generation, expired hints,
   disabled consent, and unconfirmed notifications are rejected natively.
 * Native notifications are generic (no session ID/title/text/approval token).
-  Notification taps carry a locally issued event/installation/nonce/revision,
+  The **Open Hermes** action uses the same route as tapping the notification
+  body. Both carry a locally issued event/installation/nonce/revision,
   are revalidated against durable authority and expiry, and resolve session IDs
   **only** from the authenticated plugin event feed. No arbitrary URL, automatic
   approval, or prompt resubmission is implemented.
