@@ -74,7 +74,7 @@ Device: **S25** is Kevin's Galaxy S25 Ultra running the signed CI build of `11f4
 - [x] Caching: `parity/r2-09-Caching.jpg` (emu).
 - [x] Terminal Connection over SSH: `parity/r2-111-termconn.jpg` (emu). Trust prompt: local `fork/r3-040-trust.png` `a5cf826b5b7a`. Live shell printing `parity-42`: local `fork/r3-032-terminal-shell.png` `5e3ad0b02f05`.
 - [x] Look & Feel: theme mode, the new Solid/Glass surface, the theme engine's looks, and Import / Copy theme JSON: `parity/a3-lookfeel-surface.jpg`. Glass over the wallpaper: `parity/a3-glass-settings.jpg` (emu-s, PRs #25 and #28). Ephemeral-ui (OpenUI) boards render natively since PR #18, covered by widget tests; no screenshot.
-- [ ] Liquid Glass + elemental-ui (HA-029): Material (basalt, slate, limestone, water, quartz) and the Liquid Glass composer in Look & Feel. Emulator recordings and stills in [`parity/ha-029-liquid-glass-elemental.md`](parity/ha-029-liquid-glass-elemental.md) (emu). Open until an S25 recording is added.
+- [x] Liquid Glass + elemental-ui (HA-029): Material (basalt, slate, limestone, water, quartz) and the Liquid Glass composer in Look & Feel. [API 36 emulator recordings and screenshots](parity/ha-029-liquid-glass-elemental.md); contrast, preferences and composer fallback covered by `test/ng_elemental_test.dart`. An S25 performance and readability recording is still pending.
 
 ## System surfaces in the official manifest
 
