@@ -168,6 +168,15 @@ class FakeBrain extends ChangeNotifier implements LiveBrain {
   Completer<String>? _reply;
 
   @override
+  String? activeTool;
+
+  /// The running turn moves to [tool] (null: between tools).
+  void useTool(String? tool) {
+    activeTool = tool;
+    notifyListeners();
+  }
+
+  @override
   List<LiveLine> get lines => List.of(shown);
 
   @override
@@ -216,9 +225,16 @@ class FakeVoice implements LiveVoice {
 }
 
 class LiveRig {
-  LiveRig({FakeHost? host, FakeEar? ear, this.peer, this.setupLimit})
-    : host = host ?? FakeHost(),
-      ear = ear ?? FakeEar();
+  LiveRig({
+    FakeHost? host,
+    FakeEar? ear,
+    this.peer,
+    this.setupLimit,
+    this.redialPeer,
+    this.progressEvery,
+    this.reconnectDelays,
+  }) : host = host ?? FakeHost(),
+       ear = ear ?? FakeEar();
   final FakeHost host;
   final FakeEar ear;
   final FakeBrain brain = FakeBrain();
@@ -227,7 +243,19 @@ class LiveRig {
   /// Set to give the call a GPT-Live (WebRTC) transport.
   final FakePeer? peer;
   final Duration? setupLimit;
+
+  /// Builds the peer of each redial after the first call dropped; null
+  /// reuses [peer].
+  final FakePeer Function()? redialPeer;
+  final Duration? progressEvery;
+  final List<Duration>? reconnectDelays;
   LiveCall? call;
+
+  /// Every call the controller built, oldest first.
+  final List<LiveCall> calls = [];
+
+  /// Every peer handed out, oldest first.
+  final List<FakePeer> peers = [];
 
   LiveController build() => LiveController(
     host: host,
@@ -236,7 +264,30 @@ class LiveRig {
     voice: voice,
     call: peer == null
         ? null
-        : () => call = LiveCall(host: host, peer: () => peer!),
+        : () {
+            final c = call = LiveCall(
+              host: host,
+              peer: () {
+                final p = peers.isEmpty || redialPeer == null
+                    ? peer!
+                    : redialPeer!();
+                peers.add(p);
+                return p;
+              },
+            );
+            calls.add(c);
+            return c;
+          },
     setupLimit: setupLimit ?? const Duration(seconds: 35),
+    progressEvery: progressEvery ?? const Duration(seconds: 20),
+    reconnectDelays:
+        reconnectDelays ??
+        const [
+          Duration(seconds: 1),
+          Duration(seconds: 2),
+          Duration(seconds: 4),
+          Duration(seconds: 8),
+          Duration(seconds: 16),
+        ],
   );
 }

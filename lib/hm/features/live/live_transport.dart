@@ -148,6 +148,9 @@ abstract interface class LiveBrain implements Listenable {
   /// This call's turns, as the chat holds them.
   List<LiveLine> get lines;
   Future<String> ask(String text);
+
+  /// The tool the running turn is on ("terminal · git status"), else null.
+  String? get activeTool;
   void dispose();
 }
 
@@ -340,6 +343,21 @@ class ChatLiveBrain extends ChangeNotifier implements LiveBrain {
       else if (item is NgAssistantItem && item.text.trim().isNotEmpty)
         LiveLine(key: item.key, fromUser: false, text: item.text.trim()),
   ];
+
+  @override
+  String? get activeTool {
+    final items = chat.items;
+    for (var i = items.length - 1; i >= _from && i >= 0; i--) {
+      final item = items[i];
+      if (item is! NgAssistantItem) continue;
+      final tool = item.tools.where((t) => t.running).lastOrNull;
+      if (tool == null) return null;
+      final detail = tool.detail?.replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (detail == null || detail.isEmpty) return tool.name;
+      return '${tool.name} · ${detail.length > 80 ? '${detail.substring(0, 80)}…' : detail}';
+    }
+    return null;
+  }
 
   @override
   Future<String> ask(String text) async {
