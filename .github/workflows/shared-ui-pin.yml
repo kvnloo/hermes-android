@@ -1,5 +1,9 @@
 name: Shared UI pin
 
+# check (every event): vendored bytes match the pinned commit; versions and
+# brand names agree. freshness (schedule/dispatch only): reports drift from
+# ephemeral-ui main without blocking PRs.
+
 on:
   pull_request:
     branches: [main, staging]
@@ -17,4 +21,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: python3 -m unittest scripts.test_check_shared_ui_pin
       - run: python3 scripts/check_shared_ui_pin.py
+
+  freshness:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/check_shared_ui_pin.py --upstream main

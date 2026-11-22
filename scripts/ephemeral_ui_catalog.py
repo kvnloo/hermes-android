@@ -6,18 +6,22 @@ catalog/catalog.json at the commit PIN.json names (`revision`), with its
 `catalogVersion`. The same pin covers any theme files vendored beside it.
 
   python3 scripts/ephemeral_ui_catalog.py --verify          # offline shape/pin
-  python3 scripts/ephemeral_ui_catalog.py --check-upstream  # edited or stale?
+  python3 scripts/ephemeral_ui_catalog.py --check-pinned    # PR gate: unedited?
+  python3 scripts/ephemeral_ui_catalog.py --check-upstream  # scheduled: stale?
   python3 scripts/ephemeral_ui_catalog.py --update <ref>    # re-vendor from ref
 
---check-upstream fails when the copy differs from the pinned revision (it
-was edited) or from the upstream ref, default main (it is stale), naming any
-kind upstream has that the vendored copy, and so the gallery, does not cover.
+--check-pinned fails when the copy differs from the pinned revision (it was
+edited). It reads only the immutable pinned commit, so a PR's result depends
+on its own tree. --check-upstream (schedule/dispatch only) fails when the copy
+differs from the upstream ref, default main (it is stale), naming any kind
+upstream has that the vendored copy, and so the gallery, does not cover.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import sys
 import urllib.request
@@ -102,6 +106,14 @@ def compare(pinned: dict, local_bytes: bytes, upstream_bytes: bytes, ref: str) -
     return problems
 
 
+def summary(markdown: str) -> None:
+    """Append to the GitHub Actions job summary when running in Actions."""
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if path:
+        with open(path, "a", encoding="utf-8") as out:
+            out.write(markdown)
+
+
 def fetch(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": "hermes-android-ci"})
     with urllib.request.urlopen(request, timeout=30) as response:
@@ -112,6 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--verify", action="store_true")
+    mode.add_argument("--check-pinned", action="store_true")
     mode.add_argument("--check-upstream", nargs="?", const="main", metavar="REF")
     mode.add_argument("--update", metavar="REF")
     args = parser.parse_args(argv)
@@ -149,26 +162,34 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
-        ref = args.check_upstream
         revision = pin["revision"]
-        problems = unedited(
-            local, fetch(RAW.format(repo=REPO, ref=revision, path=CATALOG_PATH)), revision
-        )
-        problems += compare(
+        if args.check_pinned:
+            problems = unedited(
+                local, fetch(RAW.format(repo=REPO, ref=revision, path=CATALOG_PATH)), revision
+            )
+            for problem in problems:
+                print(f"edited: {problem}", file=sys.stderr)
+            if problems:
+                return 1
+            print(f"ok: catalog v{pinned['version']} is {REPO}@{revision[:7]} byte for byte")
+            return 0
+
+        ref = args.check_upstream
+        problems = compare(
             pinned, local, fetch(RAW.format(repo=REPO, ref=ref, path=CATALOG_PATH)), ref
         )
         if problems:
+            fix = f"python3 scripts/ephemeral_ui_catalog.py --update {ref}"
             for problem in problems:
                 print(f"stale: {problem}", file=sys.stderr)
-            print(
-                f"re-vendor: python3 scripts/ephemeral_ui_catalog.py --update {ref}",
-                file=sys.stderr,
+            print(f"re-vendor: {fix}", file=sys.stderr)
+            summary(
+                f"### ephemeral-ui catalog drift\n\nPinned {REPO}@{revision[:7]} is behind "
+                f"`{ref}`:\n\n" + "".join(f"- {p}\n" for p in problems)
+                + f"\nRe-vendor: `{fix}`\n"
             )
             return 1
-        print(
-            f"ok: catalog v{pinned['version']} is {REPO}@{revision[:7]} byte for byte "
-            f"and current with {ref}"
-        )
+        print(f"ok: catalog v{pinned['version']} at {revision[:7]} is current with {ref}")
         return 0
     except CatalogError as error:
         print(f"error: {error}", file=sys.stderr)
