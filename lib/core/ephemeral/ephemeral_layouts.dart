@@ -1,6 +1,6 @@
 /// Per-kind layout for the native ephemeral-ui renderer.
 ///
-/// One explicit entry per catalog kind (catalog-v0.1.0). When the
+/// One explicit entry per catalog kind (catalog-v0.6.0). When the
 /// vendored catalog gains a kind, the gallery coverage test fails until the
 /// kind gets an entry here, so a gap is never silent.
 library;
@@ -127,6 +127,7 @@ const Map<String, EphemeralLayout> ephemeralKindLayouts = {
   'cua-action': EphemeralLayout.fields(),
   'work-dock': EphemeralLayout.fields(),
   // studio
+  'cua-spaces': EphemeralLayout.fields(),
   'screen': EphemeralLayout.fields(),
   'sandbox': EphemeralLayout.fields(),
   'twin': EphemeralLayout.fields(),
@@ -137,6 +138,10 @@ const Map<String, EphemeralLayout> ephemeralKindLayouts = {
   'fleet-factory': EphemeralLayout.fields(),
   // agent
   'gev-contacts': EphemeralLayout.fields(),
+  // app
+  'health-activity': EphemeralLayout.fields(),
+  'health-recovery': EphemeralLayout.fields(),
+  'health-nutrition': EphemeralLayout.fields(),
   // intent
   'intent-declare': EphemeralLayout.fields(),
   'intent-contract': EphemeralLayout.fields(),
@@ -146,8 +151,17 @@ const Map<String, EphemeralLayout> ephemeralKindLayouts = {
   'intel-value': EphemeralLayout.fields(),
   'intel-context': EphemeralLayout.fields(),
   'intel-health': EphemeralLayout.fields(),
+  // infra
+  'infra-architecture': EphemeralLayout.fields(),
+  'infra-cluster': EphemeralLayout.fields(),
+  'infra-iac': EphemeralLayout.fields(),
+  'infra-models': EphemeralLayout.fields(),
   // intel
   'intel-suite': EphemeralLayout.fields(),
+  // studio
+  'ace-facility': EphemeralLayout.fields(),
+  'form-check': EphemeralLayout.fields(),
+  'swing': EphemeralLayout.fields(),
   // ops
   'ops-burn': EphemeralLayout.fields(),
   'ops-alive': EphemeralLayout.fields(),
