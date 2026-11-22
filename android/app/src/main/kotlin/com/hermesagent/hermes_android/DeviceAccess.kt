@@ -32,6 +32,8 @@ import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -230,7 +232,10 @@ class DeviceAccessActivity : ComponentActivity() {
             val padding = (20 * resources.displayMetrics.density).toInt()
             setPadding(padding, padding, padding, padding)
         }
-        setContentView(ScrollView(this).apply { addView(list) })
+        // targetSdk 35+ draws edge-to-edge, so the action bar and status bar
+        // covered the header. The header names the screen; pad past the bars.
+        actionBar?.hide()
+        setContentView(ScrollView(this).apply { addView(list) }.also(::padForSystemBars))
     }
 
     override fun onResume() { super.onResume(); refresh() }
@@ -305,11 +310,23 @@ class DeviceAccessActivity : ComponentActivity() {
 class HealthPermissionRationaleActivity : android.app.Activity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        actionBar?.hide()
         setContentView(TextView(this).apply {
             setPadding(32, 32, 32, 32)
+            padForSystemBars(this)
             text = "Hermes requests read-only access to the last 24 hours of step totals. " +
                 "Device access defaults off. This build does not send health data to a host. " +
                 "You can turn it off in Hermes settings or revoke it in Health Connect."
         })
+    }
+}
+
+/** Adds the system-bar and cutout insets to [view]'s own padding (edge-to-edge). */
+private fun padForSystemBars(view: android.view.View) {
+    val base = intArrayOf(view.paddingLeft, view.paddingTop, view.paddingRight, view.paddingBottom)
+    ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
+        val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+        v.setPadding(base[0] + bars.left, base[1] + bars.top, base[2] + bars.right, base[3] + bars.bottom)
+        insets
     }
 }
