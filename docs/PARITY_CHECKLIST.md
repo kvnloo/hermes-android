@@ -94,5 +94,5 @@ Built in PR #27 unless a reason is given.
 ## Boat validation
 
 - [x] Staging upstream merge: retains fork identity and the screenshot fixture seam. Password sign-in, [bot list](parity/ha-parity2-home.jpg) and [Routines with an active synthetic job](parity/ha-parity2-routines.jpg) exercised on an API 36 emulator.
-- [ ] Refresh store goldens with Nunito: three Flutter goldens regenerated and matched on rerun; needs emulator/S25 screenshot.
+- [x] Refresh store goldens with Nunito: Onyx, Dash Gold and Settings all matched in `test/store_screenshots_test.dart`; [Onyx Settings on API 36](parity/ha-parity2-nunito.jpg) is a separate Android visual check.
 - [x] Debug APK: integrated staging build installed and launched on an API 36 emulator as z0 Agent Dev ([first launch](parity/ha-parity2-launch.jpg)).
