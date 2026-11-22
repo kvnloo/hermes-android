@@ -18,6 +18,7 @@ import '../features/groups/hm_groups.dart';
 import '../features/groups/home_filters.dart';
 import '../features/live/hm_live.dart';
 import '../features/settings/cache_sync.dart';
+import '../features/sessions/bot_session_tree.dart';
 import '../features/settings/app_lock.dart';
 import '../features/terminal/hm_terminal.dart';
 import '../features/work/hm_execution.dart';
@@ -165,6 +166,7 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
   VoidCallback? _detachCache;
   HmGroupsDirectory? _groups;
   final _filters = HmHomeFilterStore();
+  final _expanded = HmExpandedBots();
   final _groupChanges = StreamController<List<String>?>.broadcast();
   NextGenGateway? _gateway;
   StreamSubscription<dynamic>? _changes;
@@ -271,6 +273,7 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
       unawaited(bots.seedFromCache(gateway.connection.id));
       unawaited(bots.refresh());
       _detachCache = hmAttachChatListCache(bots, gateway.connection.id);
+      unawaited(_expanded.load(gateway.connection.id));
       _groups?.dispose();
       _groups = HmGroupsDirectory(hmGroupsApiFor(gateway))..refresh();
       _changes?.cancel();
@@ -315,6 +318,7 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
     _bots?.dispose();
     _groups?.dispose();
     _filters.dispose();
+    _expanded.dispose();
     super.dispose();
   }
 
@@ -327,6 +331,71 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
   );
 
   Future<void> _openAgent(HmBot bot) => hmOpenAgent(context, bot, _bots!);
+
+  void _toggleTree(HmBot bot) {
+    final bots = _bots;
+    if (bots == null) return;
+    if (_expanded.toggle(bot.profile)) hmEnsureBotSessions(bots, bot);
+  }
+
+  Future<void> _showAllSessions(HmBot bot) {
+    final bots = _bots!;
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => HmBotSessionsScreen(
+          bot: bot,
+          api: bots.apiFor(bot),
+          onOpen: (context, session) => hmOpenChat(
+            context,
+            bot: bot,
+            bots: bots,
+            sessionId: session.id,
+            title: session.title,
+          ),
+          onNewSession: (context) => hmOpenChat(context, bot: bot, bots: bots),
+        ),
+      ),
+    );
+  }
+
+  Widget _botItem(HmHomeBotItem item) {
+    final bots = _bots!;
+    final bot = item.summary.bot;
+    final searching = _query.trim().isNotEmpty;
+    // A search shows matching sessions under their bot whatever the saved
+    // expanded state; clearing it restores that state.
+    final open = searching
+        ? item.matches.isNotEmpty
+        : _expanded.isExpanded(bot.profile);
+    final row = _BotRow(
+      summary: item.summary,
+      showLatest: item.recent,
+      onTap: () => _openChat(bot, session: item.summary.latest),
+      onLongPress: () => _openAgent(bot),
+      trailing: searching
+          ? null
+          : HmTreeChevron(
+              expanded: open,
+              botName: bot.displayName,
+              onPressed: () => _toggleTree(bot),
+            ),
+    );
+    if (!open) return row;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        row,
+        HmBotSessionTree(
+          bot: bot,
+          bots: bots,
+          matches: searching ? item.matches : null,
+          onOpen: (s) => _openChat(bot, session: s),
+          onShowAll: () => _showAllSessions(bot),
+          onNewSession: searching ? null : () => _openChat(bot),
+        ),
+      ],
+    );
+  }
 
   Future<void> _newSession() async {
     final bots = _bots;
@@ -423,6 +492,7 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
                 bots,
                 groups,
                 _filters,
+                _expanded,
                 NgScope.of(context).gateway,
               ]),
               builder: (context, _) {
@@ -433,6 +503,7 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
                   now: DateTime.now(),
                   query: _query,
                   unreadActivity: hmUnreadActivity(bots),
+                  sessions: bots.sessions,
                 );
                 final rows = view.items;
                 if (bots.loading && bots.bots.isEmpty) {
@@ -461,17 +532,11 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
                     padding: const EdgeInsets.only(top: 4, bottom: 96),
                     itemCount: rows.length,
                     itemBuilder: (context, i) => switch (rows[i]) {
-                      HmHomeBotItem(:final summary, :final recent) => _BotRow(
-                        summary: summary,
-                        showLatest: recent,
-                        onTap: () =>
-                            _openChat(summary.bot, session: summary.latest),
-                        onLongPress: () => _openAgent(summary.bot),
-                      ),
+                      final HmHomeBotItem item => _botItem(item),
                       HmHomeGroupItem(:final room) => HmGroupRow(
                         room: room,
                         bots: bots,
-                        when: _BotRow._when(room.updatedAt),
+                        when: hmWhen(room.updatedAt),
                         onTap: () => _openGroup(room),
                       ),
                     },
@@ -532,7 +597,11 @@ class _BotRow extends StatelessWidget {
     required this.onTap,
     this.onLongPress,
     this.showLatest = true,
+    this.trailing,
   });
+
+  /// The session tree's expand control, after the time.
+  final Widget? trailing;
 
   final HmBotSummary summary;
 
@@ -590,7 +659,7 @@ class _BotRow extends StatelessWidget {
                         ),
                         if (latest != null)
                           Text(
-                            _when(summary.lastActive),
+                            hmWhen(summary.lastActive),
                             style: HmType.caption.copyWith(color: c.text3),
                           ),
                       ],
@@ -605,27 +674,11 @@ class _BotRow extends StatelessWidget {
                   ],
                 ),
               ),
+              if (trailing != null) ...[const SizedBox(width: 4), trailing!],
             ],
           ),
         ),
       ),
     );
-  }
-
-  static String _when(double seconds) {
-    final t = DateTime.fromMillisecondsSinceEpoch((seconds * 1000).round());
-    final now = DateTime.now();
-    final d = now.difference(t);
-    if (d.inMinutes < 1) return 'now';
-    if (d.inHours < 1) return '${d.inMinutes}m';
-    if (now.year == t.year && now.month == t.month && now.day == t.day) {
-      final h = t.hour % 12 == 0 ? 12 : t.hour % 12;
-      return '$h:${t.minute.toString().padLeft(2, '0')} ${t.hour < 12 ? 'AM' : 'PM'}';
-    }
-    if (d.inDays < 7) {
-      return const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][t.weekday -
-          1];
-    }
-    return '${t.month}/${t.day}/${t.year % 100}';
   }
 }

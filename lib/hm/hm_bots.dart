@@ -96,6 +96,14 @@ class HmBotsModel extends ChangeNotifier {
   final NextGenGateway gateway;
   List<HmBot> bots = const [];
   final Map<String, List<Session>> sessions = {};
+
+  /// Why the last read of a bot's sessions failed, by profile; cleared by
+  /// the next good read. Home's session tree shows it with a retry.
+  final Map<String, String> sessionErrors = {};
+
+  /// Whether the host holds more of a bot's sessions than [sessions] keeps.
+  final Map<String, bool> sessionsHasMore = {};
+  final Map<String, Future<void>> _botLoads = {};
   bool loading = false;
   String? error;
   bool _disposed = false;
@@ -241,10 +249,30 @@ class HmBotsModel extends ChangeNotifier {
     try {
       final page = await apiFor(bot).getSessionsPage(limit: 50);
       sessions[bot.profile] = page.sessions.where((s) => !s.archived).toList();
-    } catch (_) {
+      sessionsHasMore[bot.profile] = page.hasMore;
+      sessionErrors.remove(bot.profile);
+    } catch (e) {
       sessions[bot.profile] = sessions[bot.profile] ?? const [];
+      sessionErrors[bot.profile] = '$e'.replaceFirst('Exception: ', '');
     }
   }
+
+  /// Reads one bot's sessions again (a retry, or a bot the last refresh
+  /// did not reach). Concurrent calls for the same bot share one request.
+  Future<void> loadBotSessions(HmBot bot) =>
+      _botLoads[bot.profile] ??= () async {
+        try {
+          await _loadSessions(bot);
+        } finally {
+          _botLoads.remove(bot.profile);
+          _notify();
+        }
+      }();
+
+  /// Whether a read of [profile]'s sessions is in flight.
+  bool loadingBot(String profile) =>
+      _botLoads.containsKey(profile) ||
+      (loading && !sessions.containsKey(profile));
 
   void _notify() {
     if (!_disposed) notifyListeners();

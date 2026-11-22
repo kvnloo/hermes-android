@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:hermes_android/core/l10n/l10n.dart';
 
 import '../../core/models/session.dart';
+import '../../core/services/dashboard_api_client.dart';
 import '../../core/utils/session_sources.dart';
 import '../data/seen_chats.dart';
 import '../theme/nextgen_theme.dart';
@@ -32,9 +33,16 @@ enum NgDestination {
 
 /// Holds the sidebar's session list so it survives the drawer closing.
 class NgSessionsModel extends ChangeNotifier {
-  NgSessionsModel(NgScope scope) : _scope = scope {
+  /// [apiOverride] scopes the list to one profile (a Home bot's "Show all"); the
+  /// connection's own profile is used when it is null.
+  NgSessionsModel(NgScope scope, {this.apiOverride}) : _scope = scope {
     _listen();
   }
+
+  final DashboardApiClient? apiOverride;
+
+  /// The client every list read and read-state write goes through.
+  DashboardApiClient get api => apiOverride ?? scope.gateway.api;
 
   NgScope _scope;
   NgScope get scope => _scope;
@@ -133,11 +141,7 @@ class NgSessionsModel extends ChangeNotifier {
     if (row != null && (row.unread || row.lastReadAt != null)) {
       sessions[i] = row.withReadState(unread: false, lastReadAt: now);
       if (row.unread || (row.lastReadAt ?? 0) < activity) {
-        unawaited(
-          scope.gateway.api
-              .setSessionUnread(id, unread: false)
-              .catchError((_) {}),
-        );
+        unawaited(api.setSessionUnread(id, unread: false).catchError((_) {}));
       }
     }
     notifyListeners();
@@ -150,11 +154,7 @@ class NgSessionsModel extends ChangeNotifier {
     final i = sessions.indexWhere((e) => e.id == s.id);
     if (i >= 0 && s.lastReadAt != null) {
       sessions[i] = s.withReadState(unread: true, lastReadAt: 0);
-      unawaited(
-        scope.gateway.api
-            .setSessionUnread(s.id, unread: true)
-            .catchError((_) {}),
-      );
+      unawaited(api.setSessionUnread(s.id, unread: true).catchError((_) {}));
     }
     notifyListeners();
   }
@@ -210,10 +210,7 @@ class NgSessionsModel extends ChangeNotifier {
     try {
       if (query.isNotEmpty) {
         // Search is one server-side read; it does not page.
-        final page = await scope.gateway.api.getSessionsPage(
-          limit: _pageSize,
-          title: query,
-        );
+        final page = await api.getSessionsPage(limit: _pageSize, title: query);
         if (generation != _generation) return;
         sessions = page.sessions.where((s) => !s.isUntitledCronShell).toList();
         _serverOffset = 0;
@@ -229,7 +226,7 @@ class NgSessionsModel extends ChangeNotifier {
         var pages = 0;
         var more = false;
         while (pages < _maxRefreshPages) {
-          final page = await scope.gateway.api.getSessionsPage(
+          final page = await api.getSessionsPage(
             limit: _pageSize,
             offset: offset,
           );
@@ -275,7 +272,7 @@ class NgSessionsModel extends ChangeNotifier {
     loading = true;
     notifyListeners();
     try {
-      final page = await scope.gateway.api.getSessionsPage(
+      final page = await api.getSessionsPage(
         limit: _pageSize,
         offset: _serverOffset,
       );
