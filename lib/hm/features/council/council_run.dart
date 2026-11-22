@@ -5,6 +5,8 @@
 // or a reply the snapshot does not hold.
 import 'package:flutter/painting.dart' show Color;
 
+import '../../avatar/avatar_palette.dart';
+
 const councilSchema = 'glide.council-run/v1';
 
 enum CouncilStance { agree, dissent, abstain }
@@ -12,18 +14,20 @@ enum CouncilStance { agree, dissent, abstain }
 /// The mineral a seat is drawn in. Each one names a model family's look and
 /// tints the seat's thinking orb.
 enum CouncilMineral {
-  citrine('Citrine', Color(0xFFDC9A32)),
-  rose('Rose quartz', Color(0xFFD99A9C)),
-  smoky('Smoky quartz', Color(0xFF8B735B)),
-  clear('Clear quartz', Color(0xFFC9D2D0)),
-  malachite('Malachite', Color(0xFF2F8A5C)),
-  labradorite('Labradorite', Color(0xFF4FA8D8)),
-  moonstone('Moonstone', Color(0xFF8FB8FF)),
-  lapis('Lapis lazuli', Color(0xFF3D62C9));
+  citrine('Citrine'),
+  rose('Rose quartz'),
+  smoky('Smoky quartz'),
+  clear('Clear quartz'),
+  malachite('Malachite'),
+  labradorite('Labradorite'),
+  moonstone('Moonstone'),
+  lapis('Lapis lazuli');
 
-  const CouncilMineral(this.label, this.tint);
+  const CouncilMineral(this.label);
   final String label;
-  final Color tint;
+
+  /// The ink this seat's orb is tinted with.
+  Color get tint => AvatarPalette.councilMinerals[name]!;
 
   static CouncilMineral? byName(Object? name) {
     for (final m in values) {

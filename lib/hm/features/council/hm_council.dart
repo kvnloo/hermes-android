@@ -14,14 +14,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../nextgen/theme/nextgen_theme.dart';
+import '../../avatar/avatar_palette.dart';
 import '../../avatar/hm_avatar_state.dart';
 import '../../avatar/thinking_orb_view.dart';
 import '../../hm_ui.dart';
 import 'council_reader.dart';
 import 'council_run.dart';
 
-/// The council's own orb (brief and verdict): brass, like the brief boss.
-const councilInk = Color(0xFFD7B986);
+/// The council's own orb (brief and verdict).
+const councilInk = AvatarPalette.councilBrass;
 
 /// Opens the council screen; [voice] defaults to the app's TTS engine.
 Future<void> openHmCouncil(
