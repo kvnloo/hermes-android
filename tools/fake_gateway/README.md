@@ -11,7 +11,7 @@ python -m pip install -r requirements.txt
 python fake_gateway.py --host 127.0.0.1 --port 18642 --api-key test-key
 ```
 
-In another terminal:
+In another terminal (start a fresh fixture process before each full probe):
 
 ```bash
 python test_fake_gateway.py
@@ -48,3 +48,11 @@ routes reject non-loopback callers.
 
 The fixture binds to loopback by default. Do not expose it as a real gateway or
 reuse its synthetic credentials for any other service.
+
+## Android sign-in and cron list smoke
+
+From a debug build, add the loopback fixture as a self-hosted instance (use
+`adb reverse` on a tethered test device). Tap **Test**, continue to password
+sign-in, and enter `fixture` for both fields. Open **Settings → Agents → Fixture Hermes → Routines** and
+verify **Fixture morning briefing** is shown as active. The fixture only
+supports reading this list; it never schedules or executes jobs.
