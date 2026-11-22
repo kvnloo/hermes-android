@@ -161,9 +161,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         const SizedBox(height: 16),
 
-        TurboMotionSwitch(preferences: app.widget.connManager.prefs),
-        const SizedBox(height: 16),
-
         // ---- Section: Notifications ----
         _buildSectionHeader(context.l10n.notifications),
         const _NotificationSettings(),
@@ -189,6 +186,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // ---- Section: Session Sources ----
         _buildSectionHeader(context.l10n.session_sources, classicOnly: true),
         _SessionSourcesFilter(connectionId: widget.connection.id),
+        const SizedBox(height: 16),
+
+        TurboMotionSwitch(preferences: app.widget.connManager.prefs),
         const SizedBox(height: 16),
 
         // ---- Section: Connection ----
