@@ -228,17 +228,6 @@ class _Header extends StatelessWidget {
 
   final EphemeralCardData data;
 
-  static const _palette = [
-    Color(0xFF6366F1),
-    Color(0xFF0EA5E9),
-    Color(0xFF10B981),
-    Color(0xFFF59E0B),
-    Color(0xFFEF4444),
-    Color(0xFFEC4899),
-    Color(0xFF8B5CF6),
-    Color(0xFF14B8A6),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final tokens = HermesTokens.of(context);
@@ -254,8 +243,18 @@ class _Header extends StatelessWidget {
     for (final unit in appId.codeUnits) {
       hash = (hash * 31 + unit) & 0x7fffffff;
     }
+    // Monogram tints come from the active tokens, so every theme recolours
+    // them; host apps outside the catalog stay neutral.
+    final palette = [
+      tokens.accent,
+      tokens.running,
+      tokens.success,
+      tokens.warning,
+      tokens.blocked,
+      tokens.danger,
+    ];
     final tint = data.appInCatalog
-        ? _palette[hash % _palette.length]
+        ? palette[hash % palette.length]
         : tokens.muted;
     return Row(
       children: [
