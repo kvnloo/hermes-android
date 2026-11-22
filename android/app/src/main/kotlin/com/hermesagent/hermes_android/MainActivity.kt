@@ -35,6 +35,8 @@ class MainActivity : FlutterFragmentActivity() {
     private var attachmentFileSaver: AttachmentFileSaver? = null
     private var handsFreeVoice: HandsFreeVoicePlugin? = null
 
+    private var documentScanner: DocumentScanner? = null
+
     private val glassWindow by lazy { GlassWindowPlugin(this) }
 
     override fun getBackgroundMode(): BackgroundMode =
@@ -53,6 +55,16 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "com.hermesagent.hermes_android/system_assistant").setMethodCallHandler { call, result ->
+            val destination = when (call.method) {
+                "assistantSettings" -> Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)
+                "screenPreview" -> Intent(this, ScreenCaptureActivity::class.java)
+                else -> null
+            }
+            if (destination == null) result.notImplemented()
+            else result.success(runCatching { startActivity(destination) }.isSuccess)
+        }
         glassWindow.attach(flutterEngine)
         VoiceDraftMedia.install(this, flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
@@ -75,6 +87,8 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             }
         }
+        documentScanner?.close()
+        documentScanner = DocumentScanner(this, flutterEngine.dartExecutor.binaryMessenger)
         attachmentPdfPreview?.close()
         attachmentPdfPreview = AttachmentPdfPreview(this, flutterEngine.dartExecutor.binaryMessenger)
         if (!BuildConfig.PLAY_BUILD) {
@@ -83,6 +97,14 @@ class MainActivity : FlutterFragmentActivity() {
         }
         attachmentFileSaver?.close()
         attachmentFileSaver = AttachmentFileSaver(this, flutterEngine.dartExecutor.binaryMessenger)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "com.hermesagent.hermes_android/device_access").setMethodCallHandler { call, result ->
+            if (call.method == "openSettings") {
+                result.success(runCatching { startActivity(Intent(this, DeviceAccessActivity::class.java)) }.isSuccess)
+            } else {
+                result.notImplemented()
+            }
+        }
         BackgroundWorkPlatform.install(this, flutterEngine.dartExecutor.binaryMessenger)
         MobilePushPlugin.install(flutterEngine)
         handsFreeVoice = HandsFreeVoicePlugin.install(flutterEngine)
@@ -153,6 +175,8 @@ class MainActivity : FlutterFragmentActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         handsFreeVoice?.setForeground(false)
         handsFreeVoice = null
+        documentScanner?.close()
+        documentScanner = null
         glassWindow.detach()
         super.cleanUpFlutterEngine(flutterEngine)
     }
@@ -193,10 +217,10 @@ class MainActivity : FlutterFragmentActivity() {
         false
     }
 
-    // The attachment saver's document picker result; everything else goes on
-    // to Flutter's plugins as before.
+    // Route app-owned picker results before passing the rest to Flutter plugins.
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (attachmentFileSaver?.onActivityResult(requestCode, resultCode, data) == true) return
+        if (documentScanner?.onActivityResult(requestCode, resultCode, data) == true) return
         super.onActivityResult(requestCode, resultCode, data)
     }
 

@@ -1,7 +1,9 @@
 // Settings: account banner, then agents/instances, device, appearance and
 // help groups. Sub-pages not yet rebuilt in the Hermes style open the
 // existing NextGen pages (same data, older look).
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/services/connection_manager.dart';
@@ -67,6 +69,12 @@ class HmSettingsScreen extends StatelessWidget {
                 value: settings.lockEnabled ? 'On' : 'Off',
                 onTap: () => push(const HmSecurityScreen()),
               ),
+              if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
+                HmRow(
+                  icon: Icons.perm_device_information_outlined,
+                  label: 'Device access',
+                  onTap: () => _openDeviceAccess(context),
+                ),
               HmRow(
                 icon: Icons.storage,
                 label: 'Caching',
@@ -127,6 +135,24 @@ class HmSettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static Future<void> _openDeviceAccess(BuildContext context) async {
+    const channel = MethodChannel(
+      'com.hermesagent.hermes_android/device_access',
+    );
+    try {
+      if (await channel.invokeMethod<bool>('openSettings') == true) return;
+    } on PlatformException {
+      // No device settings surface on this Android build.
+    } on MissingPluginException {
+      // No native implementation in this environment.
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Device access is unavailable.')),
+      );
+    }
   }
 
   static String _modeLabel(ThemeMode mode) => switch (mode) {

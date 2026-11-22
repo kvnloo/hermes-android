@@ -1638,5 +1638,11 @@
   "ng_bot_import_title": "Importar bot",
   "ng_bot_import_invalid": "Não foi possível ler este ficheiro de bot ou o formato não é suportado.",
   "ng_bot_import_open_chat": "Abrir conversa",
-  "ng_bot_import_add": "Adicionar bot"
+  "ng_bot_import_add": "Adicionar bot",
+  "ng_look": "Aparência",
+  "ng_import_theme": "Importar tema",
+  "ng_copy_theme": "Copiar JSON do tema",
+  "ng_paste_theme_json": "Colar o JSON de um tema",
+  "ng_theme_applied": "Tema aplicado",
+  "ng_apply": "Aplicar"
 }

@@ -4515,6 +4515,21 @@ class AppLocalizationsPt extends AppLocalizations {
   String get ng_attach => 'Anexar';
 
   @override
+  String get scan_document => 'Scan document';
+
+  @override
+  String get document_scanner_unavailable =>
+      'Document scanning requires a supported Android device with up-to-date Google Play services.';
+
+  @override
+  String get document_scanner_module_unavailable =>
+      'The document scanner couldn’t start. Connect to the internet so Google Play services can finish setting it up, then try again.';
+
+  @override
+  String get document_scan_failed =>
+      'Couldn’t attach the scan. Try scanning fewer pages or choose a file instead.';
+
+  @override
   String get ng_stop_dictation => 'Parar ditado';
 
   @override
@@ -5866,22 +5881,22 @@ class AppLocalizationsPt extends AppLocalizations {
   String get ng_notify_master_off => 'Notificações desativadas';
 
   @override
-  String get ng_look => 'Look';
+  String get ng_look => 'Aparência';
 
   @override
-  String get ng_import_theme => 'Import theme';
+  String get ng_import_theme => 'Importar tema';
 
   @override
-  String get ng_copy_theme => 'Copy theme JSON';
+  String get ng_copy_theme => 'Copiar JSON do tema';
 
   @override
-  String get ng_paste_theme_json => 'Paste a theme\'s JSON';
+  String get ng_paste_theme_json => 'Colar o JSON de um tema';
 
   @override
-  String get ng_theme_applied => 'Theme applied';
+  String get ng_theme_applied => 'Tema aplicado';
 
   @override
-  String get ng_apply => 'Apply';
+  String get ng_apply => 'Aplicar';
 
   @override
   String get openui_show_source => 'Mostrar código-fonte';
@@ -11675,6 +11690,24 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get ng_notify_master_off => 'Notificações desativadas';
+
+  @override
+  String get ng_look => 'Aparência';
+
+  @override
+  String get ng_import_theme => 'Importar tema';
+
+  @override
+  String get ng_copy_theme => 'Copiar JSON do tema';
+
+  @override
+  String get ng_paste_theme_json => 'Colar o JSON de um tema';
+
+  @override
+  String get ng_theme_applied => 'Tema aplicado';
+
+  @override
+  String get ng_apply => 'Aplicar';
 
   @override
   String get openui_show_source => 'Mostrar código-fonte';

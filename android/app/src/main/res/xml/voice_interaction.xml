@@ -1,0 +1,5 @@
+<voice-interaction-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:sessionService="com.hermesagent.hermes_android.HermesSessionService"
+    android:supportsAssist="true"
+    android:recognitionService="com.hermesagent.hermes_android.HermesRecognitionService"
+    android:supportsLaunchVoiceAssistFromKeyguard="false" />

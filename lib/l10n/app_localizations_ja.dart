@@ -4393,6 +4393,21 @@ class AppLocalizationsJa extends AppLocalizations {
   String get ng_attach => '添付';
 
   @override
+  String get scan_document => 'Scan document';
+
+  @override
+  String get document_scanner_unavailable =>
+      'Document scanning requires a supported Android device with up-to-date Google Play services.';
+
+  @override
+  String get document_scanner_module_unavailable =>
+      'The document scanner couldn’t start. Connect to the internet so Google Play services can finish setting it up, then try again.';
+
+  @override
+  String get document_scan_failed =>
+      'Couldn’t attach the scan. Try scanning fewer pages or choose a file instead.';
+
+  @override
   String get ng_stop_dictation => '音声入力を停止';
 
   @override
@@ -5702,22 +5717,22 @@ class AppLocalizationsJa extends AppLocalizations {
   String get ng_notify_master_off => '通知オフ';
 
   @override
-  String get ng_look => 'Look';
+  String get ng_look => '外観';
 
   @override
-  String get ng_import_theme => 'Import theme';
+  String get ng_import_theme => 'テーマをインポート';
 
   @override
-  String get ng_copy_theme => 'Copy theme JSON';
+  String get ng_copy_theme => 'テーマのJSONをコピー';
 
   @override
-  String get ng_paste_theme_json => 'Paste a theme\'s JSON';
+  String get ng_paste_theme_json => 'テーマのJSONを貼り付け';
 
   @override
-  String get ng_theme_applied => 'Theme applied';
+  String get ng_theme_applied => 'テーマを適用しました';
 
   @override
-  String get ng_apply => 'Apply';
+  String get ng_apply => '適用';
 
   @override
   String get openui_show_source => 'ソースを表示';

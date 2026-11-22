@@ -4523,6 +4523,21 @@ class AppLocalizationsFr extends AppLocalizations {
   String get ng_attach => 'Joindre';
 
   @override
+  String get scan_document => 'Scan document';
+
+  @override
+  String get document_scanner_unavailable =>
+      'Document scanning requires a supported Android device with up-to-date Google Play services.';
+
+  @override
+  String get document_scanner_module_unavailable =>
+      'The document scanner couldn’t start. Connect to the internet so Google Play services can finish setting it up, then try again.';
+
+  @override
+  String get document_scan_failed =>
+      'Couldn’t attach the scan. Try scanning fewer pages or choose a file instead.';
+
+  @override
   String get ng_stop_dictation => 'Arrêter la dictée';
 
   @override
@@ -5874,22 +5889,22 @@ class AppLocalizationsFr extends AppLocalizations {
   String get ng_notify_master_off => 'Notifications désactivées';
 
   @override
-  String get ng_look => 'Look';
+  String get ng_look => 'Apparence';
 
   @override
-  String get ng_import_theme => 'Import theme';
+  String get ng_import_theme => 'Importer un thème';
 
   @override
-  String get ng_copy_theme => 'Copy theme JSON';
+  String get ng_copy_theme => 'Copier le JSON du thème';
 
   @override
-  String get ng_paste_theme_json => 'Paste a theme\'s JSON';
+  String get ng_paste_theme_json => 'Coller le JSON d’un thème';
 
   @override
-  String get ng_theme_applied => 'Theme applied';
+  String get ng_theme_applied => 'Thème appliqué';
 
   @override
-  String get ng_apply => 'Apply';
+  String get ng_apply => 'Appliquer';
 
   @override
   String get openui_show_source => 'Afficher la source';

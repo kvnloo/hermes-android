@@ -1,0 +1,17 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application>
+        <service android:name=".HermesAppFunctionService" android:exported="true"
+            android:permission="android.permission.BIND_APP_FUNCTION_SERVICE">
+            <property android:name="android.app.appfunctions.schema"
+                android:value="app_functions_schema.xsd" />
+            <property android:name="android.app.appfunctions.v2"
+                android:value="hermes_app_functions.xml" />
+            <intent-filter>
+                <action android:name="android.app.appfunctions.AppFunctionService" />
+            </intent-filter>
+        </service>
+        <property android:name="android.app.appfunctions.app_metadata"
+            android:resource="@xml/hermes_app_function_metadata" />
+    </application>
+</manifest>

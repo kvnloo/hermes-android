@@ -83,9 +83,15 @@ Built in PR #27 unless a reason is given.
 - [x] Home screen widget "Hermes Agent Actions" with New Chat and Live Voice: `parity/a3-widget-home.jpg`. New Chat opened a new chat (emu-s).
 - [x] Launcher shortcuts New Chat, Start Live Voice, Open Sessions, the same set as the official app: `parity/a3-shortcuts.jpg` (emu-s).
 - [x] Share target: shared text lands as a NextGen new-chat draft: `parity/a3-share-text.jpg` (emu-s).
-- [ ] System assistant: VoiceInteractionService, assist overlay, screen share. Reason: not built. It needs a VoiceInteractionService, a session service, an assist overlay activity and a screen-share foreground service, which is its own feature. Follow-up card.
-- [ ] Device access: Health Connect, calendar, contacts, location, exact alarms. Reason: not built. Each source needs a permission flow on the phone and a tool contract with the host. Follow-up card.
-- [ ] App Functions ("Ask your Hermes bots, run their routines…"). Reason: not built. It needs the AndroidX AppFunctions service and its generated schema, which no installed agent on Kevin's devices calls yet. Follow-up card.
+- [ ] System assistant: role setup, assist overlay and consented screen image attachment implemented; needs emulator/S25 screenshot. Continuous host streaming is not wired; the current Live wire does not define screen frames.
+- [ ] Device access: opt-in controls, Android permission flows and local tool implementations added; needs emulator/S25 screenshot and a matching host implementation before enabling remote requests. See [device tool contract](device-tools.md).
+- [ ] App Functions: opt-in AndroidX service prepares a chat draft or opens routines for user review. Generated schema inspected in opt-in debug APK; needs emulator/S25 screenshot with a supported caller.
 - [x] Bot directory import (`application/vnd.ai.nousresearch.hermes.mobile.bot+json`): opening a bot file shows Import bot with name, title and description: local `fork/a3-bot-import.png` `5a5afe92d2c5` (emu-s). Fields beyond `name`, `title` and `description` aren't confirmed from the official app.
-- [ ] Document scanner. Reason: not built. The official app uses the ML Kit document scanner, which adds a Google Play services dependency. Follow-up card.
+- [ ] Document scanner: implemented in Attach → Scan document on supported Google Play services devices. The scanner flow and PDF/JPEG draft attachments still need screenshots on the S25; see [validation steps](plans/doc-scanner.md#s25-verification).
 - [ ] Push notifications with actions. The fork has `MobilePushService`; not compared. Reason: the official app pushes through Firebase and the fork through UnifiedPush. Comparing actions needs both apps registered for push on one host, which this round didn't set up.
+
+## Boat validation
+
+- [ ] Staging upstream merge: retains fork identity and test seam for screenshot fixtures; needs emulator/S25 screenshot and end-to-end sign-in/cron-list verification.
+- [ ] Refresh store goldens with Nunito: three Flutter goldens regenerated and matched on rerun; needs emulator/S25 screenshot.
+- [ ] Debug APK: built from the integrated Android branches; needs emulator/S25 screenshot after install.

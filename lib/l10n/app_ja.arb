@@ -1638,5 +1638,11 @@
   "ng_bot_import_title": "ボットをインポート",
   "ng_bot_import_invalid": "このボットファイルを読み込めないか、対応していない形式です。",
   "ng_bot_import_open_chat": "チャットを開く",
-  "ng_bot_import_add": "ボットを追加"
+  "ng_bot_import_add": "ボットを追加",
+  "ng_look": "外観",
+  "ng_import_theme": "テーマをインポート",
+  "ng_copy_theme": "テーマのJSONをコピー",
+  "ng_paste_theme_json": "テーマのJSONを貼り付け",
+  "ng_theme_applied": "テーマを適用しました",
+  "ng_apply": "適用"
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../nextgen/nextgen_preferences.dart';
 import '../../nextgen/theme/nextgen_theme.dart';
+import 'avatar_palette.dart';
 import 'hm_avatar_state.dart';
 import 'persona_orb.dart';
 import 'syn_face.dart';
@@ -19,16 +20,7 @@ class HmCharacterSpec {
   final Color? color;
 
   /// Mid tones that read on light and dark substrates alike.
-  static const palette = [
-    Color(0xFF2F4BD8),
-    Color(0xFF7A3FD1),
-    Color(0xFF0F8A7E),
-    Color(0xFFD2552B),
-    Color(0xFF6E8A1E),
-    Color(0xFFC2357A),
-    Color(0xFF3D6C9E),
-    Color(0xFF8A5A2B),
-  ];
+  static const palette = AvatarPalette.bodyTones;
 
   /// The bot's fixed body tone: its own colour, else one picked by seed.
   Color get tone => color ?? palette[seed % palette.length];
@@ -44,9 +36,7 @@ class HmCharacterSpec {
     final raw = meta is Map ? meta['character'] : null;
     final seed = raw is Map ? raw['seed'] : null;
     final color = raw is Map ? raw['color'] : null;
-    final own = color is String && RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(color)
-        ? Color(0xFF000000 | int.parse(color.substring(1), radix: 16))
-        : null;
+    final own = AvatarPalette.parseBodyTone(color);
     return HmCharacterSpec(
       seed: seed is int ? seed : fallback.seed,
       color:

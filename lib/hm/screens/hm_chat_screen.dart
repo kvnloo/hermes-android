@@ -287,7 +287,7 @@ Future<T?> showHmMenu<T>(
           child: Material(
             color: c.surface,
             elevation: 8,
-            shadowColor: Colors.black26,
+            shadowColor: c.menuShadow,
             borderRadius: BorderRadius.circular(HmMetrics.groupRadius),
             clipBehavior: Clip.antiAlias,
             child: Padding(

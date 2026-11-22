@@ -4512,6 +4512,21 @@ class AppLocalizationsRu extends AppLocalizations {
   String get ng_attach => 'Прикрепить';
 
   @override
+  String get scan_document => 'Scan document';
+
+  @override
+  String get document_scanner_unavailable =>
+      'Document scanning requires a supported Android device with up-to-date Google Play services.';
+
+  @override
+  String get document_scanner_module_unavailable =>
+      'The document scanner couldn’t start. Connect to the internet so Google Play services can finish setting it up, then try again.';
+
+  @override
+  String get document_scan_failed =>
+      'Couldn’t attach the scan. Try scanning fewer pages or choose a file instead.';
+
+  @override
   String get ng_stop_dictation => 'Остановить диктовку';
 
   @override
@@ -5862,22 +5877,22 @@ class AppLocalizationsRu extends AppLocalizations {
   String get ng_notify_master_off => 'Уведомления выключены';
 
   @override
-  String get ng_look => 'Look';
+  String get ng_look => 'Внешний вид';
 
   @override
-  String get ng_import_theme => 'Import theme';
+  String get ng_import_theme => 'Импортировать тему';
 
   @override
-  String get ng_copy_theme => 'Copy theme JSON';
+  String get ng_copy_theme => 'Скопировать JSON темы';
 
   @override
-  String get ng_paste_theme_json => 'Paste a theme\'s JSON';
+  String get ng_paste_theme_json => 'Вставить JSON темы';
 
   @override
-  String get ng_theme_applied => 'Theme applied';
+  String get ng_theme_applied => 'Тема применена';
 
   @override
-  String get ng_apply => 'Apply';
+  String get ng_apply => 'Применить';
 
   @override
   String get openui_show_source => 'Показать исходный код';
