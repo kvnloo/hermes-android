@@ -292,10 +292,26 @@ void main() {
       expect(peer.closed, isTrue);
     });
 
-    test('transport loss ends the call with the official text', () {
-      peer.lose();
+    test('transport loss with no redials left ends the call', () async {
+      final rig = LiveRig(
+        host: FakeHost(mode: 'gpt-live', available: true),
+        peer: FakePeer(),
+        reconnectDelays: const [],
+      );
+      final live = rig.build();
+      await live.start();
+      rig.peer!.lose();
       expect(live.phase, LivePhase.failed);
       expect(live.failure, LiveText.gptLiveLost);
+    });
+
+    test('transport loss starts a redial instead of failing', () {
+      peer.lose();
+      expect(live.phase, LivePhase.connecting);
+      expect(live.reconnecting, isTrue);
+      expect(live.notice, LiveText.gptLiveReconnecting);
+      expect(live.failure, isNull);
+      return live.end();
     });
   });
 
@@ -376,7 +392,7 @@ void main() {
       expect(rig.brain.asked, ['one']);
     });
 
-    test('a superseded delegation\'s reply is not spoken', () async {
+    test('a superseded delegation\'s reply is quiet context, not speech', () async {
       peer.event(_delta(true, 'first'));
       peer.event(_delegation('d1'));
       await _settle();
@@ -386,7 +402,15 @@ void main() {
       await _settle();
       rig.brain.reply('first answer');
       await _settle();
-      expect(peer.sent, isEmpty);
+      expect(peer.sent, [
+        {
+          'type': 'session.thinking.append',
+          'delegation_id': 'd1',
+          'event_id': 'think_1',
+          'content': 'Result of an earlier request: first answer',
+        },
+      ]);
+      peer.sent.clear();
       expect(rig.brain.asked, ['first', 'no, second']);
       rig.brain.reply('second answer');
       await _settle();

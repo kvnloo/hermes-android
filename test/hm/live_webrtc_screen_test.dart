@@ -166,13 +166,53 @@ void main() {
     expect(rig.peer!.sent.last, {'type': 'session.close'});
   });
 
-  testWidgets('the connection drops: official error, close still works', (
+  testWidgets('the connection drops and comes back: reconnecting, then on', (
     tester,
   ) async {
-    final rig = _gptLive();
+    final rig = LiveRig(
+      host: FakeHost(mode: 'gpt-live', available: true),
+      peer: FakePeer(),
+      redialPeer: FakePeer.new,
+    );
+    await _open(tester, rig);
+    rig.peer!.event({
+      'type': 'session.output_transcript.delta',
+      'delta': 'Still checking.',
+    });
+    await _frames(tester);
+    rig.peer!.lose();
+    await _frames(tester);
+    expect(_status(tester), LiveText.connecting);
+    expect(find.text(LiveText.gptLiveReconnecting), findsOneWidget);
+    expect(find.text('Still checking.'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 1));
+    await _frames(tester);
+    expect(rig.peers, hasLength(2));
+    expect(find.text(LiveText.gptLiveReconnecting), findsNothing);
+    expect(find.text('Still checking.'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel(LiveText.end));
+    await _frames(tester);
+    expect(find.byType(HmLiveScreen), findsNothing);
+  });
+
+  testWidgets('the connection stays down: official error, close still works', (
+    tester,
+  ) async {
+    final rig = LiveRig(
+      host: FakeHost(mode: 'gpt-live', available: true),
+      peer: FakePeer(),
+      redialPeer: () => FakePeer(offerError: StateError('offline')),
+    );
     await _open(tester, rig);
     rig.peer!.lose();
     await _frames(tester);
+    // 1 + 2 + 4 + 8 + 16 s of backoff, every redial failing.
+    for (var i = 0; i < 31; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+    await _frames(tester);
+    expect(rig.peers, hasLength(6));
     expect(_status(tester), LiveText.gptLiveLost);
     expect(_orbState(tester), HmAvatarState.error);
     await tester.tap(find.bySemanticsLabel(LiveText.end));

@@ -16,6 +16,14 @@
 // chat (thinking) whose final message goes back on the data channel. A setup
 // failure, or a setup slower than 35 s, falls back to the chained loop with
 // a notice.
+//
+// A long delegation keeps the voice informed: every [progressEvery], and
+// whenever the agent starts a new tool, a quiet `session.thinking.append`
+// says the work is still running, so the voice neither guesses ("still
+// waiting…") nor sits on a delegation with no word from us. A call whose
+// transport drops redials with backoff ([reconnectDelays]) and resumes from
+// the transcript so far; a turn still running in the chat carries on, and
+// its result is said on the new call (or queued until one is up).
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -44,6 +52,14 @@ class LiveController extends ChangeNotifier {
     this.setupLimit = const Duration(seconds: 35),
     this.callLimit = const Duration(minutes: 30),
     this.speakingHold = const Duration(milliseconds: 1500),
+    this.progressEvery = const Duration(seconds: 20),
+    this.reconnectDelays = const [
+      Duration(seconds: 1),
+      Duration(seconds: 2),
+      Duration(seconds: 4),
+      Duration(seconds: 8),
+      Duration(seconds: 16),
+    ],
   }) {
     brain.addListener(_changed);
   }
@@ -66,6 +82,13 @@ class LiveController extends ChangeNotifier {
   /// How long after the voice's last transcript delta it still counts as
   /// speaking.
   final Duration speakingHold;
+
+  /// How often a running delegation tells the voice it is still working.
+  final Duration progressEvery;
+
+  /// The wait before each redial of a dropped GPT-Live call; once they are
+  /// spent the call fails with [LiveText.gptLiveLost].
+  final List<Duration> reconnectDelays;
 
   LivePhase _phase = LivePhase.connecting;
   LivePhase get phase => _phase;
@@ -107,6 +130,20 @@ class LiveController extends ChangeNotifier {
   final Set<String> _delegationsSeen = {};
   String? _activeDelegation;
   Future<void>? _turn;
+
+  /// The chat as it stood when the call began, to seed a redial.
+  List<LiveLine> _seedLines = const [];
+  bool _reconnecting = false;
+  Timer? _redialTimer;
+  Completer<bool>? _redialWait;
+  final Set<Timer> _progressTimers = {};
+
+  /// Results (and quiet notes) that finished while no call was up, said
+  /// once one is.
+  final List<({String text, bool quiet})> _undelivered = [];
+
+  /// A dropped call is being redialled.
+  bool get reconnecting => _reconnecting;
 
   List<LiveLine> get lines => webRtc ? List.of(_callLines) : brain.lines;
 
@@ -245,16 +282,10 @@ class LiveController extends ChangeNotifier {
   /// Opens the WebRTC call. True when the call is settled (up, or failed for
   /// good); false, with [notice] set, to fall back to the chained loop.
   Future<bool> _startCall(int epoch) async {
+    _seedLines = brain.lines;
     final c = _call = call!();
-    final started = _callStarted = Completer<void>();
-    // Awaited below; a close during setup must not surface as uncaught.
-    unawaited(started.future.catchError((Object _) {}));
-    c.onEvent = (event) => _onCallEvent(c, event);
     try {
-      await Future(() async {
-        await c.connect(history: liveHistoryFrom(brain.lines));
-        await started.future;
-      }).timeout(setupLimit);
+      await _dial(c, history: liveHistoryFrom(_seedLines));
     } on LiveCallMicDenied {
       if (epoch == _epoch) _fail(LiveText.micOff);
       return true;
@@ -278,6 +309,98 @@ class LiveController extends ChangeNotifier {
     if (_muted) c.setMuted(true);
     _refreshCall();
     return true;
+  }
+
+  /// Connects [c] and waits for its channel, within [setupLimit].
+  Future<void> _dial(
+    LiveCall c, {
+    required List<Map<String, Object?>> history,
+    List<({bool fromUser, String text})> turns = const [],
+  }) async {
+    final started = _callStarted = Completer<void>();
+    // Awaited below; a close during setup must not surface as uncaught.
+    unawaited(started.future.catchError((Object _) {}));
+    c.onEvent = (event) => _onCallEvent(c, event);
+    await Future(() async {
+      await c.connect(history: history, turns: turns);
+      await started.future;
+    }).timeout(setupLimit);
+  }
+
+  /// The transport under a running call dropped: redial with backoff and
+  /// resume from what was said. Running turns are left alone.
+  Future<void> _reconnect(LiveCall lost) async {
+    if (_reconnecting) return;
+    _reconnecting = true;
+    _callUp = false;
+    _botSpeaking = false;
+    _working = false;
+    _speakingTimer?.cancel();
+    final epoch = _epoch;
+    final turns = lost.turns;
+    notice = LiveText.gptLiveReconnecting;
+    _set(LivePhase.connecting);
+    bool gone() => _disposed || isOver || epoch != _epoch;
+    for (final delay in reconnectDelays) {
+      if (!await _pause(delay) || gone()) {
+        _reconnecting = false;
+        return;
+      }
+      final c = _call = call!();
+      try {
+        await _dial(
+          c,
+          history: liveHistoryFrom([..._seedLines, ..._callLines]),
+          turns: turns,
+        );
+      } on LiveCallMicDenied {
+        _reconnecting = false;
+        if (!gone()) _fail(LiveText.micOff);
+        return;
+      } catch (_) {
+        await c.close();
+        if (gone()) {
+          _reconnecting = false;
+          return;
+        }
+        continue;
+      }
+      if (gone()) {
+        _reconnecting = false;
+        await c.close();
+        return;
+      }
+      _reconnecting = false;
+      _callUp = true;
+      if (_muted) c.setMuted(true);
+      if (notice == LiveText.gptLiveReconnecting) notice = null;
+      _flushUndelivered(c);
+      _refreshCall();
+      return;
+    }
+    _reconnecting = false;
+    if (!gone()) _fail(LiveText.gptLiveLost);
+  }
+
+  /// Waits [delay]; false when the call was torn down meanwhile.
+  Future<bool> _pause(Duration delay) {
+    final done = _redialWait = Completer<bool>();
+    _redialTimer = Timer(delay, () {
+      if (!done.isCompleted) done.complete(true);
+    });
+    return done.future;
+  }
+
+  void _flushUndelivered(LiveCall c) {
+    final pending = List.of(_undelivered);
+    _undelivered.clear();
+    for (final item in pending) {
+      if (item.quiet) {
+        c.note(item.text);
+      } else {
+        c.say(item.text);
+      }
+    }
   }
 
   void _onCallEvent(LiveCall c, LiveCallEvent event) {
@@ -320,6 +443,10 @@ class LiveController extends ChangeNotifier {
           return;
         }
         if (isOver) return;
+        if (lost && _callUp && reconnectDelays.isNotEmpty) {
+          unawaited(_reconnect(c));
+          return;
+        }
         _fail(lost ? LiveText.gptLiveLost : LiveText.gptLiveClosed);
     }
   }
@@ -342,8 +469,9 @@ class LiveController extends ChangeNotifier {
   }
 
   /// A delegation: run it as a turn in the chat and send the final message
-  /// back. A newer delegation supersedes one still waiting (its reply is not
-  /// spoken); a repeated id is ignored.
+  /// back. A newer delegation supersedes one still queued (it never runs);
+  /// one already running finishes, and its result reaches the voice as
+  /// quiet context instead of being dropped. A repeated id is ignored.
   void _delegate(LiveCall c, LiveCallDelegation d) {
     if (!_delegationsSeen.add(d.id)) return;
     _activeDelegation = d.id;
@@ -356,26 +484,103 @@ class LiveController extends ChangeNotifier {
         _settle(d.id);
         return;
       }
+      final stopProgress = _progress(c, d.id);
       final String reply;
       try {
         reply = await brain.ask(d.prompt);
       } catch (e) {
+        stopProgress();
         if (_activeDelegation != d.id) return;
         notice = '$e';
-        c.reply(d.id, 'Sorry, I could not reach Hermes for that request.');
+        _deliver(c, d.id, 'Sorry, I could not reach Hermes for that request.');
         _settle(d.id);
         return;
       }
-      if (_activeDelegation != d.id) return;
+      stopProgress();
       final spoken = reply.trim();
+      if (_activeDelegation != d.id) {
+        if (spoken.isNotEmpty) {
+          _deliver(
+            c,
+            d.id,
+            'Result of an earlier request: $spoken',
+            quiet: true,
+          );
+        }
+        return;
+      }
       if (spoken.isEmpty) {
-        c.think(d.id, 'Hermes finished that request without a spoken result.');
-      } else if (!c.reply(d.id, spoken) && !isOver) {
+        _deliver(
+          c,
+          d.id,
+          'Hermes finished that request without a spoken result.',
+          quiet: true,
+        );
+      } else if (!_deliver(c, d.id, spoken) && !isOver) {
         notice = LiveText.gptLiveRepliesStopped;
       }
       _settle(d.id);
     }();
     unawaited(turn.catchError((Object _) {}));
+  }
+
+  /// Sends [text] for delegation [id], opened on [origin]: on that call while
+  /// it is up, else (it dropped and a new one is up) as session-wide context
+  /// on the new one, else queued for the next call. [quiet] sends thinking,
+  /// which the voice uses without saying it.
+  bool _deliver(LiveCall origin, String id, String text, {bool quiet = false}) {
+    if (isOver) return false;
+    final now = _call;
+    if (!_callUp || now == null) {
+      if (_reconnecting) {
+        _undelivered.add((text: text, quiet: quiet));
+        return true;
+      }
+      return false;
+    }
+    if (identical(now, origin)) {
+      return quiet ? origin.think(id, text) : origin.reply(id, text);
+    }
+    return quiet ? now.note(text) : now.say(text);
+  }
+
+  /// While delegation [id] runs: a quiet progress note every [progressEvery]
+  /// and whenever the agent moves to another tool. Returns the stopper.
+  void Function() _progress(LiveCall origin, String id) {
+    String? lastTool;
+    void tell(String text) {
+      if (!_callUp || isOver) return;
+      final now = _call;
+      if (now == null) return;
+      if (identical(now, origin)) {
+        origin.think(id, text);
+      } else {
+        now.note('An earlier request is still running. $text');
+      }
+    }
+
+    void onBrain() {
+      final tool = brain.activeTool;
+      if (tool == null || tool == lastTool) return;
+      lastTool = tool;
+      tell('Hermes is working: $tool. Not done yet.');
+    }
+
+    final timer = Timer.periodic(progressEvery, (_) {
+      final tool = brain.activeTool;
+      tell(
+        tool == null
+            ? 'Hermes is still working on that. Not done yet.'
+            : 'Hermes is still working: $tool. Not done yet.',
+      );
+    });
+    _progressTimers.add(timer);
+    brain.addListener(onBrain);
+    return () {
+      timer.cancel();
+      _progressTimers.remove(timer);
+      brain.removeListener(onBrain);
+    };
   }
 
   void _settle(String id) {
@@ -411,6 +616,14 @@ class LiveController extends ChangeNotifier {
     _limitTimer?.cancel();
     _speakingTimer = null;
     _limitTimer = null;
+    _redialTimer?.cancel();
+    _redialTimer = null;
+    final wait = _redialWait;
+    if (wait != null && !wait.isCompleted) wait.complete(false);
+    for (final timer in _progressTimers) {
+      timer.cancel();
+    }
+    _progressTimers.clear();
   }
 
   /// The mic button. While thinking or speaking it only takes effect when

@@ -234,9 +234,15 @@ class LiveCall {
 
   /// Opens the mic and peer, exchanges SDP with the host, applies the answer.
   /// Completes once the answer is applied; [LiveCallStarted] follows when the
-  /// channel opens.
-  Future<void> connect({List<Map<String, Object?>> history = const []}) async {
+  /// channel opens. [turns] is the spoken exchange of an earlier call this
+  /// one replaces, so a delegation right after a reconnect still finds the
+  /// user's words.
+  Future<void> connect({
+    List<Map<String, Object?>> history = const [],
+    List<({bool fromUser, String text})> turns = const [],
+  }) async {
     if (_peer != null) throw StateError('GPT-Live is already started.');
+    _turns.addAll(turns);
     final peer = _peer = _makePeer();
     peer
       ..onOpen = _markStarted
@@ -323,7 +329,9 @@ class LiveCall {
         final message = error is Map ? error['message']?.toString() : null;
         _emit(LiveCallError(message ?? LiveText.gptLiveError));
       case 'session.closed':
-        _finish(event['reason']?.toString() ?? 'closed', lost: false);
+        final reason = event['reason']?.toString() ?? 'closed';
+        // The provider's own word for a dropped primary/upstream connection.
+        _finish(reason, lost: reason == 'connection_lost');
     }
   }
 
@@ -387,6 +395,41 @@ class LiveCall {
     return sent;
   }
 
+  /// A result for a delegation an earlier (lost) call opened: this session
+  /// never knew that id, so it goes as session-wide commentary the voice
+  /// says aloud.
+  bool say(String text) {
+    var sent = false;
+    for (final chunk in chunkForCommentary(text)) {
+      sent = _send({
+        'type': 'session.commentary.append',
+        'delegation_id': null,
+        'event_id': _nextId('say'),
+        'content': chunk,
+      });
+      if (!sent) return false;
+    }
+    return sent;
+  }
+
+  /// Quiet session-wide context (no delegation id): progress or a result
+  /// for a delegation an earlier call opened.
+  bool note(String text) {
+    final clean = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (clean.isEmpty) return false;
+    return _send({
+      'type': 'session.thinking.append',
+      'delegation_id': null,
+      'event_id': _nextId('think'),
+      'content': clean.length > liveAppendCharLimit
+          ? clean.substring(0, liveAppendCharLimit)
+          : clean,
+    });
+  }
+
+  /// The spoken exchange so far, carried into a replacement call.
+  List<({bool fromUser, String text})> get turns => List.of(_turns);
+
   /// Mute silences the mic track's frames.
   void setMuted(bool muted) => _peer?.setMicEnabled(!muted);
 
@@ -414,6 +457,60 @@ class LiveCall {
   }
 }
 
+// ── Link health ─────────────────────────────────────────────────────────────
+
+/// Reads the peer's connection states into one "lost" signal.
+///
+/// `disconnected` is transient by design: ICE consent checks missed for a few
+/// seconds (a Wi-Fi power-save nap, a cell handover, a busy CPU while a tool
+/// drives the phone) and it usually comes back to `connected` by itself.
+/// Treating it as fatal, as this client did, dropped calls that would have
+/// recovered. Only `failed`/`closed`, or a `disconnected` that outlasts
+/// [grace], counts as lost; [onLost] fires once.
+class LiveLinkGuard {
+  LiveLinkGuard({
+    required this.onLost,
+    this.grace = const Duration(seconds: 10),
+  });
+
+  final void Function() onLost;
+  final Duration grace;
+  Timer? _timer;
+  bool _lost = false;
+  bool _closed = false;
+
+  bool get lost => _lost;
+
+  /// Connected (again): a pending disconnect is forgiven.
+  void connected() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  void disconnected() {
+    if (_lost || _closed || _timer != null) return;
+    _timer = Timer(grace, _lose);
+  }
+
+  /// `failed`, `closed`, or the data channel closing: no way back.
+  void failed() => _lose();
+
+  void _lose() {
+    _timer?.cancel();
+    _timer = null;
+    if (_lost || _closed) return;
+    _lost = true;
+    onLost();
+  }
+
+  /// Our own close: nothing after this is a loss.
+  void close() {
+    _closed = true;
+    _timer?.cancel();
+    _timer = null;
+  }
+}
+
 // ── Production peer ─────────────────────────────────────────────────────────
 
 /// [LivePeer] over flutter_webrtc. Remote audio plays through the native
@@ -425,6 +522,11 @@ class FlutterWebRtcPeer implements LivePeer {
   RTCDataChannel? _channel;
   MediaStream? _mic;
   bool _closed = false;
+  late final LiveLinkGuard _link = LiveLinkGuard(
+    onLost: () {
+      if (!_closed) _onLost();
+    },
+  );
 
   void Function() _onOpen = () {};
   void Function(String) _onMessage = (_) {};
@@ -456,9 +558,17 @@ class FlutterWebRtcPeer implements LivePeer {
     }
     final pc = _pc = await createPeerConnection({'sdpSemantics': 'unified-plan'});
     pc.onConnectionState = (state) {
-      if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
-          state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
-        if (!_closed) _onLost();
+      if (_closed) return;
+      switch (state) {
+        case RTCPeerConnectionState.RTCPeerConnectionStateConnected:
+          _link.connected();
+        case RTCPeerConnectionState.RTCPeerConnectionStateDisconnected:
+          _link.disconnected();
+        case RTCPeerConnectionState.RTCPeerConnectionStateFailed:
+        case RTCPeerConnectionState.RTCPeerConnectionStateClosed:
+          _link.failed();
+        default:
+          break;
       }
     };
     for (final track in _mic!.getAudioTracks()) {
@@ -472,7 +582,7 @@ class FlutterWebRtcPeer implements LivePeer {
     channel.onDataChannelState = (state) {
       if (state == RTCDataChannelState.RTCDataChannelOpen) _onOpen();
       if (state == RTCDataChannelState.RTCDataChannelClosed && !_closed) {
-        _onLost();
+        _link.failed();
       }
     };
     channel.onMessage = (message) {
@@ -528,6 +638,7 @@ class FlutterWebRtcPeer implements LivePeer {
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
+    _link.close();
     for (final track in _mic?.getTracks() ?? const <MediaStreamTrack>[]) {
       try {
         await track.stop();

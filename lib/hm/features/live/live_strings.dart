@@ -42,5 +42,6 @@ abstract final class LiveText {
   static const speaking = 'Tap the orb to interrupt';
   static const muted = 'Muted';
   static const mute = 'Mute';
+  static const gptLiveReconnecting = 'Reconnecting to GPT-Live…';
   static const unmute = 'Unmute';
 }
