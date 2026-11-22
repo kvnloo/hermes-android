@@ -191,6 +191,7 @@ dependencies {
        add("kspDebug", "androidx.appfunctions:appfunctions-compiler:1.0.0")
    }
    implementation(voiceAar)
+   implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0")
    // Open-source C2DM IPC transport, not Firebase SDK/GMS client libraries.
    val replacementEmbeddedPushAar = providers.gradleProperty("embeddedPushAar").orNull
    if (replacementEmbeddedPushAar == null) {

@@ -7536,6 +7536,30 @@ abstract class AppLocalizations {
   /// **'Attach'**
   String get ng_attach;
 
+  /// No description provided for @scan_document.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan document'**
+  String get scan_document;
+
+  /// No description provided for @document_scanner_unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Document scanning requires a supported Android device with up-to-date Google Play services.'**
+  String get document_scanner_unavailable;
+
+  /// No description provided for @document_scanner_module_unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The document scanner couldn’t start. Connect to the internet so Google Play services can finish setting it up, then try again.'**
+  String get document_scanner_module_unavailable;
+
+  /// No description provided for @document_scan_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t attach the scan. Try scanning fewer pages or choose a file instead.'**
+  String get document_scan_failed;
+
   /// No description provided for @ng_stop_dictation.
   ///
   /// In en, this message translates to:

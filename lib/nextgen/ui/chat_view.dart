@@ -23,6 +23,7 @@ import '../../core/widgets/media_artifact_card.dart';
 import '../../core/services/android_voice_composer_adapter.dart';
 import '../../core/services/attachment_controller.dart' show attachmentMimeType;
 import '../../core/services/attachment_draft_service.dart';
+import '../../core/services/document_scanner.dart';
 import '../../core/services/voice_composer_adapter.dart';
 import '../../hm/features/settings/settings_prefs.dart';
 import '../data/chat_controller.dart';
@@ -237,6 +238,9 @@ class _NgChatViewState extends State<NgChatView> {
   int get _slotsLeft => maxRemoteAttachmentDrafts - _drafts.length;
 
   Future<void> _attach() async {
+    final owner = chat;
+    final canScan = await const DocumentScanner().isAvailable();
+    if (!mounted || chat != owner || _preparing) return;
     final c = NgColors.of(context);
     final choice = await showNgSheet<String>(
       context,
@@ -259,11 +263,17 @@ class _NgChatViewState extends State<NgChatView> {
               title: Text(ngL.ng_files),
               onTap: () => Navigator.pop(context, 'files'),
             ),
+            if (canScan)
+              ListTile(
+                leading: Icon(Icons.document_scanner_outlined, color: c.text2),
+                title: Text(ngL.scan_document),
+                onTap: () => Navigator.pop(context, 'scan'),
+              ),
           ],
         ),
       ),
     );
-    if (choice == null || !mounted) return;
+    if (choice == null || !mounted || chat != owner) return;
     if (_slotsLeft <= 0) {
       ngToast(
         context,
@@ -304,6 +314,22 @@ class _NgChatViewState extends State<NgChatView> {
               errors.add(e.message);
             }
           }
+        case 'scan':
+          final service = owner.attachmentService;
+          final scan = await const DocumentScanner().scanIntoDraft(
+            service: service,
+            existingDrafts: List.of(_drafts),
+            mode: AttachmentDraftMode.remoteGateway,
+            maxTotalBytes: maxNextGenAttachmentDraftBytes,
+          );
+          if (scan != null) {
+            if (!mounted || chat != owner) {
+              await service.removeAll(scan.drafts);
+              return;
+            }
+            setState(() => _drafts.addAll(scan.drafts));
+            if (scan.skipped > 0) errors.add(ngL.files_skipped(scan.skipped));
+          }
         case 'files':
           final result = await FilePicker.platform.pickFiles(
             type: FileType.any,
@@ -336,11 +362,21 @@ class _NgChatViewState extends State<NgChatView> {
           }
       }
     } catch (e) {
-      errors.add(ngL.ng_couldn_t_prepare_that_file(e));
+      errors.add(
+        choice == 'scan'
+            ? switch (e is PlatformException ? e.code : null) {
+                'unavailable' => ngL.document_scanner_unavailable,
+                'module_unavailable' => ngL.document_scanner_module_unavailable,
+                _ => ngL.document_scan_failed,
+              }
+            : ngL.ng_couldn_t_prepare_that_file(e),
+      );
     } finally {
       if (mounted) setState(() => _preparing = false);
     }
-    if (errors.isNotEmpty && mounted) ngToast(context, errors.first);
+    if (errors.isNotEmpty && mounted && chat == owner) {
+      ngToast(context, errors.first);
+    }
   }
 
   Future<void> _removeDraft(AttachmentDraft draft) async {

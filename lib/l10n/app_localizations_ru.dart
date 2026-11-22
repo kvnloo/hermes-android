@@ -4512,6 +4512,21 @@ class AppLocalizationsRu extends AppLocalizations {
   String get ng_attach => 'Прикрепить';
 
   @override
+  String get scan_document => 'Scan document';
+
+  @override
+  String get document_scanner_unavailable =>
+      'Document scanning requires a supported Android device with up-to-date Google Play services.';
+
+  @override
+  String get document_scanner_module_unavailable =>
+      'The document scanner couldn’t start. Connect to the internet so Google Play services can finish setting it up, then try again.';
+
+  @override
+  String get document_scan_failed =>
+      'Couldn’t attach the scan. Try scanning fewer pages or choose a file instead.';
+
+  @override
   String get ng_stop_dictation => 'Остановить диктовку';
 
   @override
