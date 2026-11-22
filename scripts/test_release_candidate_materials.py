@@ -145,13 +145,13 @@ def _run_script(step: str) -> str:
     return "\n".join(line[10:] for line in body.splitlines()) + "\n"
 
 
-class ApkTestBuildNumberTest(unittest.TestCase):
-    """apk.yml's build_number input is a test-install override only."""
+class ApkTestInputsTest(unittest.TestCase):
+    """apk.yml dispatch inputs are test-install overrides only."""
 
     def setUp(self):
         self.apk = (WORKFLOWS / "apk.yml").read_text()
 
-    def _build(self, build_number):
+    def _build(self, build_number, live_lanes_fixture=""):
         """Run apk.yml's Build APK script against a stub flutter; return argv."""
         script = _run_script(_step(self.apk, "Build APK"))
         with tempfile.TemporaryDirectory() as temp:
@@ -159,10 +159,14 @@ class ApkTestBuildNumberTest(unittest.TestCase):
             argv = Path(temp) / "argv"
             stub.write_text(f'#!/bin/sh\nprintf "%s\\n" "$@" > "{argv}"\n')
             stub.chmod(0o755)
+            date = Path(temp) / "date"
+            date.write_text("#!/bin/sh\necho 1700000000\n")
+            date.chmod(0o755)
             env = {
                 "PATH": f"{temp}:{os.environ.get('PATH', '')}",
                 "GITHUB_SHA": "0" * 40,
                 "TEST_BUILD_NUMBER": build_number,
+                "TEST_LIVE_LANES_FIXTURE": live_lanes_fixture,
             }
             result = subprocess.run(
                 ["bash", "-e", "-c", script], env=env, cwd=temp,
@@ -173,7 +177,7 @@ class ApkTestBuildNumberTest(unittest.TestCase):
 
     def test_input_is_optional_dispatch_string(self):
         on = self.apk.split("\non:\n", 1)[1].split("\njobs:\n", 1)[0]
-        block = on.split("      build_number:\n", 1)[1].split("  push:", 1)[0]
+        block = on.split("      build_number:\n", 1)[1].split("      live_lanes_fixture:", 1)[0]
         self.assertIn("required: false", block)
         self.assertIn("default: ''", block)
         self.assertIn("type: string", block)
@@ -185,18 +189,43 @@ class ApkTestBuildNumberTest(unittest.TestCase):
                     line.strip().startswith(("if:", "name:")), line
                 )
 
-    def test_unset_keeps_the_default_build(self):
-        result, args = self._build("")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(args[:2], ["build", "apk"])
-        self.assertNotIn("--build-number", args)
-        self.assertEqual(
-            args[2:7],
-            ["--release", "--split-per-abi", "--target-platform", "android-arm64",
-             "--dart-define=ARES_PLAY_BUILD=true"],
-        )
-        self.assertIn("--split-debug-info=symbols-apk", args)
-        self.assertIn("--dart-define=HERMES_BUILD_SHA=" + "0" * 40, args)
+    def test_fixture_is_optional_dispatch_boolean(self):
+        on = self.apk.split("\non:\n", 1)[1].split("\njobs:\n", 1)[0]
+        block = on.split("      live_lanes_fixture:\n", 1)[1].split("  push:", 1)[0]
+        self.assertIn("required: false", block)
+        self.assertIn("default: false", block)
+        self.assertIn("type: boolean", block)
+        build = _step(self.apk, "Build APK")
+        self.assertIn("TEST_LIVE_LANES_FIXTURE: ${{ inputs.live_lanes_fixture }}", build)
+        self.assertNotIn("inputs.live_lanes_fixture", _run_script(build))
+
+    def test_disabled_fixture_keeps_the_default_build(self):
+        for fixture in ("", "false"):
+            with self.subTest(fixture=fixture):
+                result, args = self._build("", fixture)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(args, [
+                    "build", "apk", "--release", "--split-per-abi",
+                    "--target-platform", "android-arm64",
+                    "--dart-define=ARES_PLAY_BUILD=true",
+                    "--split-debug-info=symbols-apk",
+                    "--dart-define=HERMES_BUILD_SHA=" + "0" * 40,
+                    "--dart-define=HERMES_BUILD_TIME=1700000000",
+                ])
+
+    def test_enabled_fixture_only_adds_the_define(self):
+        for build_number in ("", "3087"):
+            with self.subTest(build_number=build_number):
+                default_result, default_args = self._build(build_number, "false")
+                result, args = self._build(build_number, "true")
+                self.assertEqual(default_result.returncode, 0, default_result.stderr)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                index = default_args.index("--dart-define=ARES_PLAY_BUILD=true")
+                self.assertEqual(
+                    args,
+                    default_args[:index] + ["--dart-define=HERMES_LIVE_LANES_FIXTURE=true"]
+                    + default_args[index:],
+                )
 
     def test_set_passes_build_number(self):
         result, args = self._build("3087")
@@ -217,8 +246,9 @@ class ApkTestBuildNumberTest(unittest.TestCase):
     def test_artifact_name_and_versioncode_check(self):
         upload = self.apk.split("actions/upload-artifact@v4", 1)[1]
         self.assertIn(
-            "name: ${{ inputs.build_number != '' && "
-            "format('z0-agent-test-{0}', inputs.build_number) || 'z0-agent-apk' }}",
+            "name: ${{ inputs.live_lanes_fixture && 'z0-agent-test-live-lanes' || "
+            "(inputs.build_number != '' && "
+            "format('z0-agent-test-{0}', inputs.build_number) || 'z0-agent-apk') }}",
             upload,
         )
         check = _step(self.apk, "Check test build versionCode")

@@ -13,6 +13,11 @@ on:
         required: false
         default: ''
         type: string
+      live_lanes_fixture:
+        description: 'Enable the Live lanes fixture (test APK only)'
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [feat/official-parity]
 
@@ -45,6 +50,7 @@ jobs:
         # build keeps the pubspec build number.
         env:
           TEST_BUILD_NUMBER: ${{ inputs.build_number }}
+          TEST_LIVE_LANES_FIXTURE: ${{ inputs.live_lanes_fixture }}
         run: |
           set -- --release --split-per-abi --target-platform android-arm64
           if [ -n "$TEST_BUILD_NUMBER" ]; then
@@ -59,6 +65,9 @@ jobs:
             fi
             set -- "$@" --build-number "$TEST_BUILD_NUMBER"
             echo "Test build: arm64 versionCode $((TEST_BUILD_NUMBER * 10 + 2))"
+          fi
+          if [ "$TEST_LIVE_LANES_FIXTURE" = true ]; then
+            set -- "$@" --dart-define=HERMES_LIVE_LANES_FIXTURE=true
           fi
           flutter build apk "$@" \
             --dart-define=ARES_PLAY_BUILD=true --split-debug-info=symbols-apk \
@@ -88,5 +97,5 @@ jobs:
         with:
           # Test builds get their own name so nothing that reads
           # z0-agent-apk (the S25 updater, release tooling) picks them up.
-          name: ${{ inputs.build_number != '' && format('z0-agent-test-{0}', inputs.build_number) || 'z0-agent-apk' }}
+          name: ${{ inputs.live_lanes_fixture && 'z0-agent-test-live-lanes' || (inputs.build_number != '' && format('z0-agent-test-{0}', inputs.build_number) || 'z0-agent-apk') }}
           path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
