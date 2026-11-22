@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/ephemeral/ephemeral_gallery_screen.dart';
 import '../../core/models/connection.dart';
 import '../../core/screens/model_management_screen.dart';
 import '../../core/screens/settings_screen.dart';
@@ -572,6 +573,17 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                     icon: Icons.privacy_tip_outlined,
                     title: ngL.privacy_policy,
                     onTap: openAresPrivacyPolicy,
+                  ),
+                  NgRow(
+                    key: const ValueKey('ng-card-gallery-link'),
+                    icon: Icons.dashboard_customize_outlined,
+                    title: 'Card gallery',
+                    subtitle: 'Every ephemeral-ui card kind, from the shared catalog',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const EphemeralGalleryScreen(),
+                      ),
+                    ),
                   ),
                   NgRow(
                     icon: Icons.description_outlined,
