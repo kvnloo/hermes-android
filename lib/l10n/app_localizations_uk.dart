@@ -5919,6 +5919,13 @@ class AppLocalizationsUk extends AppLocalizations {
   String get turbo_section => 'Turbo';
 
   @override
+  String get turbo_motion => 'Turbo motion';
+
+  @override
+  String get turbo_motion_description =>
+      'Speed up interface animations without changing your model.';
+
+  @override
   String get turbo_description_parallel => 'Parallel fast free model pool';
 
   @override

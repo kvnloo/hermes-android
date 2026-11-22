@@ -9900,6 +9900,18 @@ abstract class AppLocalizations {
   /// **'Turbo'**
   String get turbo_section;
 
+  /// No description provided for @turbo_motion.
+  ///
+  /// In en, this message translates to:
+  /// **'Turbo motion'**
+  String get turbo_motion;
+
+  /// No description provided for @turbo_motion_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed up interface animations without changing your model.'**
+  String get turbo_motion_description;
+
   /// No description provided for @turbo_description_parallel.
   ///
   /// In en, this message translates to:

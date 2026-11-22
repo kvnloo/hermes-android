@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/services/turbo_motion.dart';
 import '../data/chat_controller.dart';
 import '../data/session_control.dart';
 import '../nextgen_l10n.dart';
@@ -74,7 +75,10 @@ class _NgDockState extends State<NgDock> {
     // Never more than about half the screen, so the transcript stays usable
     // on a small phone at large text; the dock scrolls beyond that.
     return AnimatedSize(
-      duration: const Duration(milliseconds: 200),
+      duration: TurboMotion.duration(
+        context,
+        const Duration(milliseconds: 200),
+      ),
       alignment: Alignment.bottomCenter,
       child: sections.isEmpty
           ? const SizedBox(width: double.infinity)
@@ -129,7 +133,10 @@ class _NgDockState extends State<NgDock> {
                 children: [
                   AnimatedRotation(
                     turns: open ? 0.25 : 0,
-                    duration: const Duration(milliseconds: 150),
+                    duration: TurboMotion.duration(
+                      context,
+                      const Duration(milliseconds: 150),
+                    ),
                     child: Icon(Icons.chevron_right, size: 18, color: c.text3),
                   ),
                   const SizedBox(width: 6),
@@ -373,7 +380,10 @@ class _NgDockState extends State<NgDock> {
                 tween: Tween(
                   end: todos.total == 0 ? 0.0 : todos.done / todos.total,
                 ),
-                duration: const Duration(milliseconds: 300),
+                duration: TurboMotion.duration(
+                  context,
+                  const Duration(milliseconds: 300),
+                ),
                 builder: (context, value, _) => LinearProgressIndicator(
                   value: value,
                   minHeight: 3,

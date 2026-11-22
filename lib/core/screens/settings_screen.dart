@@ -12,6 +12,7 @@ import '../services/config_backup_service.dart';
 import '../services/connection_manager.dart';
 import '../services/hands_free_preference.dart';
 import '../services/notification_prefs.dart';
+import '../widgets/turbo_motion_controls.dart';
 import '../widgets/background_work_settings.dart';
 import '../services/turn_notification_service.dart';
 import '../widgets/config_backup_card.dart';
@@ -133,6 +134,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 16),
+        TurboMotionSwitch(preferences: app.widget.connManager.prefs),
         const SizedBox(height: 16),
         // ---- Section: Theme ----
         _buildSectionHeader(context.l10n.appearance, classicOnly: true),

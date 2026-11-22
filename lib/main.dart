@@ -31,6 +31,7 @@ import 'core/services/locale_preference.dart';
 import 'core/services/lan_discovery_service.dart';
 import 'core/services/text_size_preference.dart';
 import 'core/services/theme_preference.dart';
+import 'core/services/turbo_motion.dart';
 import 'core/services/turn_notification_service.dart';
 import 'core/screens/chat_screen.dart';
 import 'core/screens/workspace_screen.dart';
@@ -40,6 +41,7 @@ import 'core/widgets/config_backup_card.dart';
 import 'core/widgets/theme_palette_picker.dart';
 import 'core/widgets/hermes_system_ui.dart';
 import 'core/widgets/setup_interface_choice.dart';
+import 'core/widgets/turbo_motion_controls.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'package:hermes_android/core/l10n/l10n.dart';
@@ -110,6 +112,7 @@ class _StartupAppState extends State<StartupApp> {
       () async {
         prefs = await SharedPreferences.getInstance();
         NextGenPreferences.load(prefs);
+        TurboMotion.load(prefs);
         HmSettingsPrefs.instance.load(prefs);
         NgChatController.messageCache = const _HmMessageCache();
         try {
@@ -1231,6 +1234,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
     return ListenableBuilder(
       listenable: Listenable.merge([
         nextGenEnabled,
+        TurboMotion.enabled,
         NextGenLook.instance,
         GlassWindowService.shared,
       ]),
@@ -1274,18 +1278,24 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
       themeMode: nextGen
           ? look.themeMode
           : HermesApp.getThemeMode(widget.connManager.prefs),
-      theme: nextGen
-          ? ngTheme(Brightness.light)
-          : hermesTheme(
-              Brightness.light,
-              palette: HermesApp.getThemePalette(widget.connManager.prefs),
-            ),
-      darkTheme: nextGen
-          ? ngTheme(Brightness.dark)
-          : hermesTheme(
-              Brightness.dark,
-              palette: HermesApp.getThemePalette(widget.connManager.prefs),
-            ),
+      theme: TurboMotion.applyToTheme(
+        context,
+        nextGen
+            ? ngTheme(Brightness.light)
+            : hermesTheme(
+                Brightness.light,
+                palette: HermesApp.getThemePalette(widget.connManager.prefs),
+              ),
+      ),
+      darkTheme: TurboMotion.applyToTheme(
+        context,
+        nextGen
+            ? ngTheme(Brightness.dark)
+            : hermesTheme(
+                Brightness.dark,
+                palette: HermesApp.getThemePalette(widget.connManager.prefs),
+              ),
+      ),
       builder: (context, child) {
         final systemMediaQuery = MediaQuery.of(context);
         final preference = HermesApp.getTextSizePreference(
@@ -1307,7 +1317,9 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
                 : child!,
           ),
         );
-        return scene == null ? app : ColoredBox(color: scene, child: app);
+        return TurboMotionScope(
+          child: scene == null ? app : ColoredBox(color: scene, child: app),
+        );
       },
       home: nextGen
           ? NextGenHome(
@@ -1492,6 +1504,7 @@ class HomeScreenState extends State<HomeScreen> {
 
     final choice = await showModalBottomSheet<ImportChoice>(
       context: context,
+      sheetAnimationStyle: TurboMotion.sheetStyle(context),
       isScrollControlled: true,
       builder: (_) => const ImportOptionsSheet(),
     );
@@ -1518,6 +1531,7 @@ class HomeScreenState extends State<HomeScreen> {
     final app = context.findAncestorStateOfType<HermesAppState>();
     showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: TurboMotion.sheetStyle(context),
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
@@ -1536,6 +1550,7 @@ class HomeScreenState extends State<HomeScreen> {
               preferences: widget.connManager.prefs,
               onChanged: app?.refreshAppearancePreferences,
             ),
+            TurboMotionSwitch(preferences: widget.connManager.prefs),
           ],
         ),
       ),
@@ -1555,6 +1570,7 @@ class HomeScreenState extends State<HomeScreen> {
     final service = LanDiscoveryService();
     final discovered = await showModalBottomSheet<List<DiscoveredHermesServer>>(
       context: context,
+      sheetAnimationStyle: TurboMotion.sheetStyle(context),
       isScrollControlled: true,
       builder: (context) => LanDiscoverySheet(service: service),
     );
@@ -1675,6 +1691,7 @@ class HomeScreenState extends State<HomeScreen> {
   Future<void> _showAddDialog() async {
     final choice = await showModalBottomSheet<String>(
       context: context,
+      sheetAnimationStyle: TurboMotion.sheetStyle(context),
       showDragHandle: true,
       builder: (sheet) => SafeArea(
         child: Column(
@@ -2281,6 +2298,7 @@ class HomeScreenState extends State<HomeScreen> {
         ),
         centerTitle: true,
         actions: [
+          const Center(child: TurboMotionBadge()),
           IconButton(
             key: const Key('home_appearance_button'),
             tooltip: context.l10n.appearance,

@@ -14,7 +14,9 @@ import '../../core/services/connection_manager.dart';
 import '../../core/services/dashboard_api_client.dart';
 import '../../core/services/hermes_sign_in.dart';
 import '../../core/services/lan_discovery_service.dart';
+import '../../core/services/turbo_motion.dart';
 import '../../core/widgets/setup_interface_choice.dart';
+import '../../core/widgets/turbo_motion_controls.dart';
 import '../theme/nextgen_theme.dart';
 import 'certificate_picker.dart';
 import 'widgets.dart';
@@ -438,6 +440,7 @@ class _NgConnectScreenState extends State<NgConnectScreen> {
       child: Scaffold(
         backgroundColor: c.background,
         appBar: AppBar(
+          actions: const [Center(child: TurboMotionBadge())],
           backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
           leading: _signInStep
@@ -459,7 +462,10 @@ class _NgConnectScreenState extends State<NgConnectScreen> {
           child: SafeArea(
             top: false,
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
+              duration: TurboMotion.duration(
+                context,
+                const Duration(milliseconds: 200),
+              ),
               child: _signInStep ? _signInView(c) : _addressView(c),
             ),
           ),
