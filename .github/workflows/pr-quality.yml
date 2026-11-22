@@ -27,6 +27,14 @@ jobs:
           python3 -m unittest discover -s tools -p test_embedded_push_materials.py
           python3 scripts/check_readme_release_window.py
 
+      - name: Verify ephemeral-ui card catalog pin
+        # Fails when the vendored catalog was edited, or when upstream main
+        # has a newer catalog (e.g. a kind the gallery does not cover yet).
+        run: |
+          python3 -m unittest scripts.test_ephemeral_ui_catalog
+          python3 scripts/ephemeral_ui_catalog.py --verify
+          python3 scripts/ephemeral_ui_catalog.py --check-upstream main
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:

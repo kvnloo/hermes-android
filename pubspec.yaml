@@ -110,6 +110,7 @@ flutter:
     - shaders/elemental_glass.frag
   assets:
     - assets/
+    - assets/ephemeral_ui/
     - assets/elemental/geo.basalt.vesicular.v1/
     - assets/elemental/geo.limestone.porous.v1/
     - assets/elemental/geo.slate.layered.v1/
