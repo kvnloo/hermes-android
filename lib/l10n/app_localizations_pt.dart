@@ -5983,6 +5983,38 @@ class AppLocalizationsPt extends AppLocalizations {
   String get theme_surface_reload_action => 'Redesenhar';
 
   @override
+  String get theme_material => 'Material';
+
+  @override
+  String get theme_material_none => 'Nenhum';
+
+  @override
+  String get theme_material_basalt => 'Basalto';
+
+  @override
+  String get theme_material_slate => 'Ardósia';
+
+  @override
+  String get theme_material_limestone => 'Calcário';
+
+  @override
+  String get theme_material_water => 'Água';
+
+  @override
+  String get theme_material_quartz => 'Quartzo';
+
+  @override
+  String get theme_material_hint =>
+      'Pedra, água ou cristal do elemental-ui, iluminados por uma luz que se move devagar.';
+
+  @override
+  String get theme_liquid => 'Campo de mensagem Liquid Glass';
+
+  @override
+  String get theme_liquid_hint =>
+      'A caixa de mensagem curva a cena atrás dela como uma lente.';
+
+  @override
   String ng_worked_for(String duration) {
     return 'Trabalhou durante $duration';
   }
@@ -11768,6 +11800,38 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get theme_surface_reload_action => 'Redesenhar';
+
+  @override
+  String get theme_material => 'Material';
+
+  @override
+  String get theme_material_none => 'Nenhum';
+
+  @override
+  String get theme_material_basalt => 'Basalto';
+
+  @override
+  String get theme_material_slate => 'Ardósia';
+
+  @override
+  String get theme_material_limestone => 'Calcário';
+
+  @override
+  String get theme_material_water => 'Água';
+
+  @override
+  String get theme_material_quartz => 'Quartzo';
+
+  @override
+  String get theme_material_hint =>
+      'Pedra, água ou cristal do elemental-ui, iluminados por uma luz que se move devagar.';
+
+  @override
+  String get theme_liquid => 'Campo de mensagem Liquid Glass';
+
+  @override
+  String get theme_liquid_hint =>
+      'A caixa de mensagem curva a cena atrás dela como uma lente.';
 
   @override
   String ng_worked_for(String duration) {

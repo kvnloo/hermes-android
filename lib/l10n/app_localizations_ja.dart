@@ -5816,6 +5816,36 @@ class AppLocalizationsJa extends AppLocalizations {
   String get theme_surface_reload_action => '再描画';
 
   @override
+  String get theme_material => 'マテリアル';
+
+  @override
+  String get theme_material_none => 'なし';
+
+  @override
+  String get theme_material_basalt => '玄武岩';
+
+  @override
+  String get theme_material_slate => 'スレート';
+
+  @override
+  String get theme_material_limestone => '石灰岩';
+
+  @override
+  String get theme_material_water => '水';
+
+  @override
+  String get theme_material_quartz => '石英';
+
+  @override
+  String get theme_material_hint => 'elemental-ui の石・水・水晶を、ゆっくり動く光で照らします。';
+
+  @override
+  String get theme_liquid => 'Liquid Glass 入力欄';
+
+  @override
+  String get theme_liquid_hint => 'メッセージ欄が背後の画面をレンズのように屈折させます。';
+
+  @override
   String ng_worked_for(String duration) {
     return '作業時間 $duration';
   }

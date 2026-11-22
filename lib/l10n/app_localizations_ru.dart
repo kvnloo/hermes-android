@@ -5979,6 +5979,38 @@ class AppLocalizationsRu extends AppLocalizations {
   String get theme_surface_reload_action => 'Перерисовать';
 
   @override
+  String get theme_material => 'Материал';
+
+  @override
+  String get theme_material_none => 'Нет';
+
+  @override
+  String get theme_material_basalt => 'Базальт';
+
+  @override
+  String get theme_material_slate => 'Сланец';
+
+  @override
+  String get theme_material_limestone => 'Известняк';
+
+  @override
+  String get theme_material_water => 'Вода';
+
+  @override
+  String get theme_material_quartz => 'Кварц';
+
+  @override
+  String get theme_material_hint =>
+      'Камень, вода или кристалл из elemental-ui в медленно движущемся свете.';
+
+  @override
+  String get theme_liquid => 'Поле ввода Liquid Glass';
+
+  @override
+  String get theme_liquid_hint =>
+      'Поле сообщения преломляет сцену за ним, как линза.';
+
+  @override
   String ng_worked_for(String duration) {
     return 'Время работы: $duration';
   }

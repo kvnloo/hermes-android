@@ -2521,6 +2521,16 @@
   "theme_surface_reload_title": "Redraw the window?",
   "theme_surface_reload_body": "Hermes restarts its window to switch surfaces. Chats and drafts are kept.",
   "theme_surface_reload_action": "Redraw",
+  "theme_material": "Material",
+  "theme_material_none": "None",
+  "theme_material_basalt": "Basalt",
+  "theme_material_slate": "Slate",
+  "theme_material_limestone": "Limestone",
+  "theme_material_water": "Water",
+  "theme_material_quartz": "Quartz",
+  "theme_material_hint": "Stone, water or crystal from elemental-ui, lit by a slowly moving light.",
+  "theme_liquid": "Liquid Glass composer",
+  "theme_liquid_hint": "The message box bends the scene behind it like a lens.",
   "ng_worked_for": "Worked for {duration}",
   "@ng_worked_for": {
     "placeholders": {
