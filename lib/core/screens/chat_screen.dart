@@ -39,7 +39,9 @@ import '../controllers/annotation_controller.dart';
 import '../controllers/voice_composer_controller.dart';
 import '../controllers/voice_recording_controller.dart';
 import '../services/local_voice_recorder.dart';
+import '../services/turbo_motion.dart';
 import '../services/voice_transcription.dart';
+import '../widgets/turbo_motion_controls.dart';
 import '../widgets/voice_recording_controls.dart';
 import '../widgets/annotation_voice_tray.dart';
 import '../controllers/delegated_task_controller.dart';
@@ -4056,6 +4058,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
     await showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: TurboMotion.sheetStyle(context),
       builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -4558,6 +4561,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       );
       final selection = await showModalBottomSheet<_ModelSelection>(
         context: context,
+        sheetAnimationStyle: TurboMotion.sheetStyle(context),
         showDragHandle: true,
         isScrollControlled: true,
         builder: (_) => _ChatModelPickerSheet(
@@ -7172,6 +7176,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           ),
         ),
         actions: [
+          const Center(child: TurboMotionBadge()),
           if (_annotationWired || _annotationInk.active)
             IconButton(
               key: const Key('annotation-mode-toggle'),
@@ -8467,6 +8472,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     try {
       await showModalBottomSheet<void>(
         context: context,
+        sheetAnimationStyle: TurboMotion.sheetStyle(context),
         isScrollControlled: true,
         useSafeArea: true,
         builder: (_) => ReceivedRecoveryInspector(
@@ -9365,6 +9371,7 @@ class MessageBubble extends StatelessWidget {
   Future<void> _showActions(BuildContext context) async {
     await showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: TurboMotion.sheetStyle(context),
       showDragHandle: true,
       // The sheet scrolls: at large text scales four 48 dp tiles plus the
       // header exceed the default sheet height, and an action a user cannot

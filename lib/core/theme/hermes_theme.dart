@@ -11,6 +11,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../shared_ui/glide_theme.dart';
+
 /// Complete palettes, not accent-only overrides. Persist [name], never [index].
 /// Seeds identify the palette; accessible foregrounds use brightness-aware tones.
 enum HermesPalette {
@@ -348,8 +350,18 @@ ColorScheme _hermesColorScheme(Brightness brightness, HermesPalette palette) {
 ThemeData hermesTheme(
   Brightness brightness, {
   HermesPalette palette = HermesPalette.gold,
+  GlideTheme? glide,
 }) {
-  final scheme = _hermesColorScheme(brightness, palette);
+  final legacy = _hermesColorScheme(brightness, palette);
+  final scheme =
+      glide?.colorScheme(legacy, sharedAccent: palette == HermesPalette.gold) ??
+      legacy;
+  final cardRadius = glide == null
+      ? HermesRadius.card
+      : BorderRadius.circular(glide.radius('card'));
+  final tileRadius = glide == null
+      ? HermesRadius.card
+      : BorderRadius.circular(glide.radius('tile'));
   final tokens = HermesTokens._fromScheme(scheme, palette);
   final base = ThemeData(
     colorScheme: scheme,
@@ -369,7 +381,7 @@ ThemeData hermesTheme(
   );
   final inputTheme = InputDecorationThemeData(
     filled: true,
-    fillColor: tokens.raised,
+    fillColor: glide?.color(brightness, 'muted') ?? tokens.raised,
     labelStyle: TextStyle(color: tokens.muted),
     floatingLabelStyle: TextStyle(color: tokens.accent),
     hintStyle: TextStyle(color: tokens.muted),
@@ -378,35 +390,34 @@ ThemeData hermesTheme(
     prefixIconColor: tokens.muted,
     suffixIconColor: tokens.muted,
     border: OutlineInputBorder(
-      borderRadius: HermesRadius.card,
+      borderRadius: tileRadius,
       borderSide: BorderSide(color: tokens.border),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: HermesRadius.card,
+      borderRadius: tileRadius,
       borderSide: BorderSide(color: tokens.border),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: HermesRadius.card,
+      borderRadius: tileRadius,
       borderSide: BorderSide(color: tokens.accent, width: 2),
     ),
     errorBorder: OutlineInputBorder(
-      borderRadius: HermesRadius.card,
+      borderRadius: tileRadius,
       borderSide: BorderSide(color: tokens.danger),
     ),
     focusedErrorBorder: OutlineInputBorder(
-      borderRadius: HermesRadius.card,
+      borderRadius: tileRadius,
       borderSide: BorderSide(color: tokens.danger, width: 2),
     ),
   );
 
+  TextTheme applyType(TextTheme t) => glide?.textTheme(t) ?? t;
   return base.copyWith(
     scaffoldBackgroundColor: tokens.surface,
     canvasColor: tokens.surface,
     disabledColor: tokens.muted,
-    textTheme: tokens.typography.applyTo(
-      base.textTheme,
-      tokens.onSurface,
-      tokens.muted,
+    textTheme: applyType(
+      tokens.typography.applyTo(base.textTheme, tokens.onSurface, tokens.muted),
     ),
     // Keep the base IconTheme: globally replacing its color overrides the
     // correct onPrimary/onSecondaryContainer defaults of filled IconButtons.
@@ -425,7 +436,7 @@ ThemeData hermesTheme(
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: HermesRadius.card,
+        borderRadius: cardRadius,
         side: BorderSide(color: tokens.border),
       ),
     ),
@@ -697,7 +708,7 @@ ThemeData hermesTheme(
         );
       }),
     ),
-    extensions: <ThemeExtension<dynamic>>[tokens],
+    extensions: <ThemeExtension<dynamic>>[tokens, ?glide],
   );
 }
 

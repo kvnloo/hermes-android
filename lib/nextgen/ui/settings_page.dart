@@ -6,10 +6,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/widgets/turbo_motion_controls.dart';
 import '../../core/models/connection.dart';
 import '../../core/screens/model_management_screen.dart';
 import '../../core/screens/settings_screen.dart';
 import '../../core/services/app_licenses.dart';
+import '../../shared_ui/card_gallery.dart';
+import '../../shared_ui/glide_theme.dart';
 import '../../core/services/background_work_prefs.dart';
 import '../../core/services/notification_prefs.dart';
 import '../../core/services/turn_notification_service.dart';
@@ -194,6 +197,8 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
     final scope = NgScope.of(context);
     final conn = scope.connection;
     final look = NextGenLook.instance;
+    final glide = Theme.of(context).extension<GlideTheme>();
+    final activeTheme = nextGenLookTheme(look, glide);
     final brightness = Theme.of(context).brightness;
     return NgPage(
       title: ngL.ng_settings,
@@ -398,7 +403,11 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                       ])
                         ChoiceChip(
                           key: ValueKey('ng-theme-${t.id}'),
-                          label: Text(t.name),
+                          label: Text(
+                            t == ngThemePresets.first
+                                ? glide?.brandName ?? t.name
+                                : t.name,
+                          ),
                           selected: look.theme.id == t.id,
                           onSelected: (_) {
                             NgHaptics.select();
@@ -425,14 +434,14 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                         label: Text(ngL.ng_copy_theme),
                         onPressed: () {
                           Clipboard.setData(
-                            ClipboardData(text: look.theme.encode()),
+                            ClipboardData(text: activeTheme.encode()),
                           );
                           ngToast(context, ngL.ng_copied);
                         },
                       ),
                     ],
                   ),
-                  if (!look.theme.ownsAccent) ...[
+                  if (!activeTheme.ownsAccent) ...[
                     const SizedBox(height: 18),
                     Text(
                       ngL.ng_accent,
@@ -538,6 +547,7 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                     onChanged: (v) =>
                         NextGenPreferences.setLiquid(scope.prefs, v),
                   ),
+                  TurboMotionSwitch(preferences: scope.prefs),
                 ],
               ),
             ),
@@ -572,6 +582,11 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                     icon: Icons.privacy_tip_outlined,
                     title: ngL.privacy_policy,
                     onTap: openAresPrivacyPolicy,
+                  ),
+                  NgRow(
+                    icon: Icons.dashboard_customize_outlined,
+                    title: CardGallery.title,
+                    onTap: () => CardGallery.open(context),
                   ),
                   NgRow(
                     icon: Icons.description_outlined,

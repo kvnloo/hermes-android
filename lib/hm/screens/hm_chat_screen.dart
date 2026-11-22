@@ -3,6 +3,7 @@
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
+import '../../core/services/turbo_motion.dart';
 import '../../core/services/voice_composer_adapter.dart';
 import '../../core/services/android_share_intent_service.dart';
 import '../../nextgen/data/chat_controller.dart';
@@ -283,7 +284,10 @@ Future<T?> showHmMenu<T>(
     barrierDismissible: true,
     barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
     barrierColor: Colors.transparent,
-    transitionDuration: const Duration(milliseconds: 160),
+    transitionDuration: TurboMotion.duration(
+      context,
+      const Duration(milliseconds: 160),
+    ),
     pageBuilder: (context, _, _) => Stack(
       children: [
         Positioned(

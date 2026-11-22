@@ -31,6 +31,7 @@ import 'core/services/locale_preference.dart';
 import 'core/services/lan_discovery_service.dart';
 import 'core/services/text_size_preference.dart';
 import 'core/services/theme_preference.dart';
+import 'core/services/turbo_motion.dart';
 import 'core/services/turn_notification_service.dart';
 import 'core/screens/chat_screen.dart';
 import 'core/screens/workspace_screen.dart';
@@ -41,6 +42,7 @@ import 'core/widgets/theme_palette_picker.dart';
 import 'core/widgets/hermes_system_ui.dart';
 import 'core/widgets/served_build_chip.dart';
 import 'core/widgets/setup_interface_choice.dart';
+import 'core/widgets/turbo_motion_controls.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'package:hermes_android/core/l10n/l10n.dart';
@@ -58,19 +60,23 @@ import 'nextgen/theme/glass_window_service.dart';
 import 'nextgen/ui/ng_elemental_pane.dart';
 import 'nextgen/theme/nextgen_theme.dart';
 
+import 'shared_ui/glide_theme.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   // Remove any private key left behind by a cancelled connection import.
   unawaited(ClientCertificateService().cleanupStaging());
   unawaited(GlassWindowService.shared.init());
-  runApp(const StartupApp());
+  runApp(StartupApp(loadTheme: GlideTheme.load));
 }
 
 /// Draws a Flutter frame before reading preferences or Android Keystore.
 /// The connection store must still finish migration and credential hydration
 /// before Home can access any saved connection.
 class StartupApp extends StatefulWidget {
-  const StartupApp({super.key, this.createConnectionManager});
+  const StartupApp({super.key, this.createConnectionManager, this.loadTheme});
+
+  final Future<GlideTheme> Function()? loadTheme;
 
   /// The production path uses [ConnectionManager.create]; tests can hold a
   /// real credential read pending without depending on the platform Keystore.
@@ -87,6 +93,7 @@ class _StartupAppState extends State<StartupApp> {
   SharedPreferences? _prefs;
   ConnectionManager? _connManager;
   Object? _startupError;
+  GlideTheme? _glideTheme;
 
   Future<ConnectionManager> _createConnectionManager(SharedPreferences prefs) =>
       widget.createConnectionManager?.call(prefs) ??
@@ -112,6 +119,7 @@ class _StartupAppState extends State<StartupApp> {
       () async {
         prefs = await SharedPreferences.getInstance();
         NextGenPreferences.load(prefs);
+        TurboMotion.load(prefs);
         HmSettingsPrefs.instance.load(prefs);
         NgChatController.messageCache = const _HmMessageCache();
         try {
@@ -125,6 +133,20 @@ class _StartupAppState extends State<StartupApp> {
           startupError = error;
         }
       }(),
+      if (widget.loadTheme case final load?)
+        () async {
+          try {
+            _glideTheme = await load();
+          } catch (error, stack) {
+            FlutterError.reportError(
+              FlutterErrorDetails(
+                exception: error,
+                stack: stack,
+                context: ErrorDescription('loading the bundled Glide theme'),
+              ),
+            );
+          }
+        }(),
       _shareIntents.initialize(),
       _launchIntents.initialize(),
     ]);
@@ -144,6 +166,7 @@ class _StartupAppState extends State<StartupApp> {
       if (connManager != null) {
         return HermesApp(
           connManager: connManager,
+          glideTheme: _glideTheme,
           shareIntents: _shareIntents,
           launchIntents: _launchIntents,
         );
@@ -151,6 +174,7 @@ class _StartupAppState extends State<StartupApp> {
       return _StartupRecoveryApp(
         prefs: prefs,
         error: _startupError,
+        glideTheme: _glideTheme,
         createConnectionManager: _createConnectionManager,
         onRecovered: (manager) {
           if (mounted) setState(() => _connManager = manager);
@@ -175,12 +199,14 @@ class _StartupRecoveryApp extends StatelessWidget {
   const _StartupRecoveryApp({
     required this.prefs,
     required this.error,
+    this.glideTheme,
     required this.createConnectionManager,
     required this.onRecovered,
   });
 
   final SharedPreferences prefs;
   final Object? error;
+  final GlideTheme? glideTheme;
   final Future<ConnectionManager> Function(SharedPreferences)
   createConnectionManager;
   final ValueChanged<ConnectionManager> onRecovered;
@@ -197,10 +223,12 @@ class _StartupRecoveryApp extends StatelessWidget {
       theme: hermesTheme(
         Brightness.light,
         palette: ThemePreferenceStore(prefs).readPalette(),
+        glide: glideTheme,
       ),
       darkTheme: hermesTheme(
         Brightness.dark,
         palette: ThemePreferenceStore(prefs).readPalette(),
+        glide: glideTheme,
       ),
       builder: (context, child) => HermesSystemUi(child: child!),
       home: Builder(
@@ -274,6 +302,7 @@ class _StartupRecoveryApp extends StatelessWidget {
 
 class HermesApp extends StatefulWidget {
   final ConnectionManager connManager;
+  final GlideTheme? glideTheme;
   final AndroidShareIntentService? shareIntents;
   final AndroidLaunchIntentService? launchIntents;
   // Optional boundaries keep root tests on the real owner and dispatchers.
@@ -288,6 +317,7 @@ class HermesApp extends StatefulWidget {
   testNotificationSessionLookup;
   const HermesApp({
     required this.connManager,
+    this.glideTheme,
     this.shareIntents,
     this.launchIntents,
     this.turnApplicationController,
@@ -1233,6 +1263,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
     return ListenableBuilder(
       listenable: Listenable.merge([
         nextGenEnabled,
+        TurboMotion.enabled,
         NextGenLook.instance,
         GlassWindowService.shared,
       ]),
@@ -1257,18 +1288,25 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
       look,
       transparentWindow: window.transparent,
       blurredWindow: window.blurred,
+      glide: widget.glideTheme,
     );
     return MaterialApp(
       // Avoid interpolating colours across tints with different contrast floors.
       themeAnimationDuration:
-          nextGen && look.surface == NgSurface.glass && window.transparent
+          (MediaQuery.maybeDisableAnimationsOf(context) ?? false) ||
+              (nextGen && look.surface == NgSurface.glass && window.transparent)
           ? Duration.zero
-          : kThemeAnimationDuration,
+          : widget.glideTheme?.duration(
+                  'base',
+                  turbo: TurboMotion.enabled.value,
+                ) ??
+                kThemeAnimationDuration,
       // Switching interfaces swaps the whole route stack.
       key: ValueKey(nextGen),
       navigatorKey: _navigatorKey,
       navigatorObservers: [handsFreeRouteObserver],
-      onGenerateTitle: (context) => context.l10n.hermes_agent,
+      onGenerateTitle: (context) =>
+          widget.glideTheme?.brandName ?? context.l10n.hermes_agent,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: preferredSupportedLocales(),
       locale: LocalePreference.read(widget.connManager.prefs),
@@ -1276,18 +1314,26 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
       themeMode: nextGen
           ? look.themeMode
           : HermesApp.getThemeMode(widget.connManager.prefs),
-      theme: nextGen
-          ? ngTheme(Brightness.light)
-          : hermesTheme(
-              Brightness.light,
-              palette: HermesApp.getThemePalette(widget.connManager.prefs),
-            ),
-      darkTheme: nextGen
-          ? ngTheme(Brightness.dark)
-          : hermesTheme(
-              Brightness.dark,
-              palette: HermesApp.getThemePalette(widget.connManager.prefs),
-            ),
+      theme: TurboMotion.applyToTheme(
+        context,
+        nextGen
+            ? ngTheme(Brightness.light)
+            : hermesTheme(
+                Brightness.light,
+                palette: HermesApp.getThemePalette(widget.connManager.prefs),
+                glide: widget.glideTheme,
+              ),
+      ),
+      darkTheme: TurboMotion.applyToTheme(
+        context,
+        nextGen
+            ? ngTheme(Brightness.dark)
+            : hermesTheme(
+                Brightness.dark,
+                palette: HermesApp.getThemePalette(widget.connManager.prefs),
+                glide: widget.glideTheme,
+              ),
+      ),
       builder: (context, child) {
         final systemMediaQuery = MediaQuery.of(context);
         final preference = HermesApp.getTextSizePreference(
@@ -1311,9 +1357,11 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
             ),
           ),
         );
-        return scene == null
-            ? app
-            : NgScene(color: scene, material: look.material, child: app);
+        return TurboMotionScope(
+          child: scene == null
+              ? app
+              : NgScene(color: scene, material: look.material, child: app),
+        );
       },
       home: nextGen
           ? NextGenHome(
@@ -1498,6 +1546,7 @@ class HomeScreenState extends State<HomeScreen> {
 
     final choice = await showModalBottomSheet<ImportChoice>(
       context: context,
+      sheetAnimationStyle: TurboMotion.sheetStyle(context),
       isScrollControlled: true,
       builder: (_) => const ImportOptionsSheet(),
     );
@@ -1524,6 +1573,7 @@ class HomeScreenState extends State<HomeScreen> {
     final app = context.findAncestorStateOfType<HermesAppState>();
     showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: TurboMotion.sheetStyle(context),
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
@@ -1542,6 +1592,7 @@ class HomeScreenState extends State<HomeScreen> {
               preferences: widget.connManager.prefs,
               onChanged: app?.refreshAppearancePreferences,
             ),
+            TurboMotionSwitch(preferences: widget.connManager.prefs),
           ],
         ),
       ),
@@ -1561,6 +1612,7 @@ class HomeScreenState extends State<HomeScreen> {
     final service = LanDiscoveryService();
     final discovered = await showModalBottomSheet<List<DiscoveredHermesServer>>(
       context: context,
+      sheetAnimationStyle: TurboMotion.sheetStyle(context),
       isScrollControlled: true,
       builder: (context) => LanDiscoverySheet(service: service),
     );
@@ -1681,6 +1733,7 @@ class HomeScreenState extends State<HomeScreen> {
   Future<void> _showAddDialog() async {
     final choice = await showModalBottomSheet<String>(
       context: context,
+      sheetAnimationStyle: TurboMotion.sheetStyle(context),
       showDragHandle: true,
       builder: (sheet) => SafeArea(
         child: Column(
@@ -1717,7 +1770,11 @@ class HomeScreenState extends State<HomeScreen> {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (route) => Theme(
-          data: nextGenTheme(Theme.of(route).brightness, NextGenLook.instance),
+          data: nextGenTheme(
+            Theme.of(route).brightness,
+            NextGenLook.instance,
+            glide: Theme.of(route).extension<GlideTheme>(),
+          ),
           child: NgConnectScreen(
             connManager: widget.connManager,
             existing: existing,
@@ -2287,6 +2344,7 @@ class HomeScreenState extends State<HomeScreen> {
         ),
         centerTitle: true,
         actions: [
+          const Center(child: TurboMotionBadge()),
           IconButton(
             key: const Key('home_appearance_button'),
             tooltip: context.l10n.appearance,

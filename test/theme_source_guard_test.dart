@@ -7,6 +7,7 @@ void main() {
     // Palette seeds and semantic ramps belong in the single design-system root.
     const paletteSources = {
       'lib/core/theme/hermes_theme.dart',
+      'lib/shared_ui/glide_theme.dart', // decode shared CSS color tokens
       'lib/nextgen/theme/nextgen_theme.dart',
       'lib/nextgen/theme/ng_theme_spec.dart', // preset seeds and theme JSON
       'lib/hm/avatar/avatar_palette.dart', // bot identity and animation ink

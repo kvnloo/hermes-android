@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../core/services/dashboard_api_client.dart';
+import '../../../core/services/turbo_motion.dart';
 import '../../../nextgen/theme/nextgen_theme.dart';
 import '../../hm_ui.dart';
 
@@ -165,6 +166,7 @@ Future<T?> showHmWorkSheet<T>(
   final c = NgColors.of(context);
   return showModalBottomSheet<T>(
     context: context,
+    sheetAnimationStyle: TurboMotion.sheetStyle(context),
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: c.sheet,
