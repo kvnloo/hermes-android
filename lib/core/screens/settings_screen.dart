@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../shared_ui/card_gallery.dart';
+import '../ephemeral/ephemeral_gallery_screen.dart';
 import '../services/app_licenses.dart';
 import '../services/locale_preference.dart';
 import 'provider_oauth_screen.dart';
@@ -227,11 +227,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // ---- Section: About ----
         _buildSectionHeader(context.l10n.about),
         _AboutCard(),
-        ListTile(
-          leading: const Icon(Icons.dashboard_customize_outlined),
-          title: const Text(CardGallery.title),
-          onTap: () => CardGallery.open(context),
-        ),
       ],
     );
   }
@@ -443,6 +438,18 @@ class _AboutCardState extends State<_AboutCard> {
               title: Text(context.l10n.privacy_policy),
               trailing: const Icon(Icons.open_in_new),
               onTap: openAresPrivacyPolicy,
+            ),
+            ListTile(
+              key: const ValueKey('card-gallery-link'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Card gallery'),
+              subtitle: const Text('Every ephemeral-ui card kind'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const EphemeralGalleryScreen(),
+                ),
+              ),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,

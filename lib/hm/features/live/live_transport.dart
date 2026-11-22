@@ -18,7 +18,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/services/connection_manager.dart';
 import '../../../core/services/dashboard_api_client.dart';
 import '../../../core/services/voice_composer_adapter.dart';
-import '../../../core/widgets/ephemeral_ui_card.dart';
+import '../../../core/ephemeral/ephemeral_fence.dart';
 import '../../../nextgen/data/chat_controller.dart';
 import '../../../nextgen/data/read_aloud.dart';
 import 'live_strings.dart';

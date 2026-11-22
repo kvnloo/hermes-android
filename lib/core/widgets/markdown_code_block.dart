@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:highlight/highlight.dart' as syntax;
 
+import '../ephemeral/ephemeral_fence.dart';
 import '../theme/hermes_theme.dart';
-import 'ephemeral_ui_card.dart';
 import 'openui_board.dart';
 
 import 'package:hermes_android/core/l10n/l10n.dart';
@@ -103,18 +103,11 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
   // recolour an already-mounted block without reparsing its source.
   late List<syntax.Node>? _nodes = _parseCode();
 
-  /// The card an ephemeral-ui fence holds; null shows the fence as code.
-  late EphemeralUiCardData? _card = _parseCard();
-
-  EphemeralUiCardData? _parseCard() => widget.language == ephemeralUiLanguage
-      ? EphemeralUiCardData.tryParse(widget.code)
-      : null;
-
   List<syntax.Node>? _parseCode() {
     final language = widget.language;
     if (language == null ||
         language == 'openui-v2' ||
-        language == ephemeralUiLanguage ||
+        language == ephemeralFenceLanguage ||
         widget.code.length > 60000) {
       return null;
     }
@@ -132,7 +125,6 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
     if (oldWidget.code != widget.code ||
         oldWidget.language != widget.language) {
       _nodes = _parseCode();
-      _card = _parseCard();
     }
   }
 
@@ -186,8 +178,9 @@ class _MarkdownCodeBlockState extends State<MarkdownCodeBlock> {
     if (widget.language == 'openui-v2') {
       return OpenUiBoard(source: widget.code);
     }
-    final card = _card;
-    if (card != null) return EphemeralUiCard(card: card);
+    if (widget.language == ephemeralFenceLanguage) {
+      return EphemeralUiFence(source: widget.code);
+    }
     final tokens = HermesTokens.of(context);
     final scheme = Theme.of(context).colorScheme;
     final span = TextSpan(

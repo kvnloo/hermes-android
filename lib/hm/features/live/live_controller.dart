@@ -33,7 +33,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../../../core/widgets/ephemeral_ui_card.dart';
+import '../../../core/ephemeral/ephemeral_fence.dart';
 
 import 'live_lanes.dart';
 import 'live_strings.dart';

@@ -7,11 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/widgets/turbo_motion_controls.dart';
+import '../../core/ephemeral/ephemeral_gallery_screen.dart';
 import '../../core/models/connection.dart';
 import '../../core/screens/model_management_screen.dart';
 import '../../core/screens/settings_screen.dart';
 import '../../core/services/app_licenses.dart';
-import '../../shared_ui/card_gallery.dart';
 import '../../shared_ui/glide_theme.dart';
 import '../../core/services/background_work_prefs.dart';
 import '../../core/services/notification_prefs.dart';
@@ -584,9 +584,16 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                     onTap: openAresPrivacyPolicy,
                   ),
                   NgRow(
+                    key: const ValueKey('ng-card-gallery-link'),
                     icon: Icons.dashboard_customize_outlined,
-                    title: CardGallery.title,
-                    onTap: () => CardGallery.open(context),
+                    title: 'Card gallery',
+                    subtitle:
+                        'Every ephemeral-ui card kind, from the shared catalog',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const EphemeralGalleryScreen(),
+                      ),
+                    ),
                   ),
                   NgRow(
                     icon: Icons.description_outlined,

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:hermes_android/core/widgets/ephemeral_ui_card.dart';
+import 'package:hermes_android/core/ephemeral/ephemeral_fence.dart';
 import 'package:hermes_android/hm/features/live/live_controller.dart';
 import 'package:hermes_android/hm/features/live/live_lanes.dart';
 import 'package:hermes_android/hm/features/live/live_transport.dart';

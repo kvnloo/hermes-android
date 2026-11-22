@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import '../../../core/services/android_voice_composer_adapter.dart';
-import '../../../core/widgets/ephemeral_ui_card.dart';
+import '../../../core/ephemeral/ephemeral_fence.dart';
 import '../../../core/widgets/markdown_code_block.dart';
 import '../../../nextgen/data/chat_controller.dart';
 import '../../../nextgen/nextgen_preferences.dart';
@@ -632,8 +632,7 @@ class _LiveWorkState extends State<LiveWork> {
 }
 
 /// One ephemeral-ui card in the call's transcript, through the chat's own
-/// fenced-block renderer (so it draws exactly as in the chat, and an invalid
-/// card shows as code there and here alike).
+/// fenced-block renderer, including the same source and error states.
 class LiveCard extends StatelessWidget {
   const LiveCard({super.key, required this.source});
   final String source;
@@ -642,7 +641,7 @@ class LiveCard extends StatelessWidget {
   Widget build(BuildContext context) => MarkdownCodeBlock(
     key: const ValueKey('live-card'),
     code: source,
-    language: ephemeralUiLanguage,
+    language: ephemeralFenceLanguage,
     selectable: false,
   );
 }

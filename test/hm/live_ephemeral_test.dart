@@ -7,7 +7,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hermes_android/core/widgets/ephemeral_ui_card.dart';
+import 'package:hermes_android/core/ephemeral/ephemeral_card.dart';
+import 'package:hermes_android/core/ephemeral/ephemeral_catalog.dart';
+import 'package:hermes_android/core/ephemeral/ephemeral_fence.dart';
 import 'package:hermes_android/core/widgets/markdown_code_block.dart';
 import 'package:hermes_android/hm/features/live/hm_live.dart';
 import 'package:hermes_android/hm/features/live/live_transport.dart';
@@ -20,12 +22,13 @@ import 'package:hermes_android/nextgen/ui/chat_view.dart';
 
 import 'live_fakes.dart';
 
+final _catalog = EphemeralCatalog.parse(
+  File(EphemeralCatalogAssets.catalog).readAsStringSync(),
+);
+
 const _card =
-    '{"kind": "merge", "app": "github", "title": "Merge #42", '
-    '"subject": "fix(live): redial dropped calls", "status": "checks passing", '
-    '"summary": "3 commits, 2 approvals.", '
-    '"fields": {"base": "staging", "head": "boat/ha-live/reconnect"}, '
-    '"buttons": [{"label": "Merge", "action": "merge"}, "Close"]}';
+    '{"kind":"merge","app":"github","input":{"number":42,'
+    '"title":"Merge #42","base":"staging","head":"live-fix"}}';
 
 const _reply =
     'Here is the pull request.\n\n```ephemeral-ui\n$_card\n```\n\nWant me to merge it?';
@@ -94,34 +97,31 @@ Future<LiveRig> _delegated(WidgetTester tester) async {
 }
 
 void main() {
+  setUp(() => EphemeralCatalog.debugUse(_catalog));
+  tearDown(() => EphemeralCatalog.debugUse(null));
+
   group('card.v0 parsing', () {
-    test('reads the display fields and keeps only button labels', () {
-      final card = EphemeralUiCardData.tryParse(_card)!;
+    test('resolves live input through the same catalog as chat', () {
+      final document = EphemeralFence.parse(_card).cards.single;
+      final card = resolveEphemeralCard(_catalog, document).data!;
       expect(card.kind, 'merge');
-      expect(card.app, 'github');
-      expect(card.title, 'Merge #42');
-      expect(card.subject, 'fix(live): redial dropped calls');
-      expect(card.status, 'checks passing');
-      expect(card.texts, ['3 commits, 2 approvals.']);
-      expect(card.fields, [
-        ('base', 'staging'),
-        ('head', 'boat/ha-live/reconnect'),
-      ]);
-      expect(card.buttons, ['Merge', 'Close']);
+      expect(card.appId, 'github');
+      expect(card.props['input'], {
+        'number': 42,
+        'title': 'Merge #42',
+        'base': 'staging',
+        'head': 'live-fix',
+      });
     });
 
-    test('anything that is not a valid card is refused', () {
+    test('an invalid card document cannot resolve to a native card', () {
       for (final bad in [
-        'not json',
-        '[1, 2]',
-        '{"app": "github"}',
-        '{"kind": "merge"}',
-        '{"kind": "Merge!", "app": "github"}',
-        '{"kind": "merge", "app": "git hub"}',
-        '{"kind": "merge", "app": "github", "title": "evil\u202Etxt"}',
-        '{"kind": "merge", "app": "github", "title": "${'x' * 70000}"}',
+        '{"kind":1}',
+        '{"kind":"unknown"}',
+        '{"app":"github"}',
       ]) {
-        expect(EphemeralUiCardData.tryParse(bad), isNull, reason: bad);
+        final document = EphemeralFence.parse(bad).cards.single;
+        expect(resolveEphemeralCard(_catalog, document).problem, isNotNull);
       }
     });
 
@@ -145,13 +145,13 @@ void main() {
       final classic = splitMarkdownCodeBlocks(
         _reply,
       ).whereType<MarkdownCodeBlock>().single;
-      expect(classic.language, ephemeralUiLanguage);
+      expect(classic.language, ephemeralFenceLanguage);
       final fence = ngSplitCodeFences(_reply).where((r) => r.$2).single.$1;
-      expect(ngCodeFenceParts(fence).language, ephemeralUiLanguage);
+      expect(ngCodeFenceParts(fence).language, ephemeralFenceLanguage);
     });
   });
 
-  testWidgets('the chat renderer draws a card, and code for a bad one', (
+  testWidgets('the chat renderer draws a card and explains an invalid one', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -161,31 +161,29 @@ void main() {
         home: Scaffold(
           body: ListView(
             children: const [
-              MarkdownCodeBlock(code: _card, language: ephemeralUiLanguage),
+              MarkdownCodeBlock(code: _card, language: ephemeralFenceLanguage),
               MarkdownCodeBlock(
                 code: '{"kind": 1}',
-                language: ephemeralUiLanguage,
+                language: ephemeralFenceLanguage,
               ),
             ],
           ),
         ),
       ),
     );
-    expect(find.byKey(const Key('ephemeral-ui-card')), findsOneWidget);
+    expect(find.byType(EphemeralCardView), findsOneWidget);
     expect(find.text('Merge #42'), findsOneWidget);
-    expect(find.text('github · merge'), findsOneWidget);
-    expect(find.text('Merge'), findsOneWidget);
     // Labels only: nothing in the card is a button.
     expect(
       find.descendant(
-        of: find.byKey(const Key('ephemeral-ui-card')),
+        of: find.byType(EphemeralCardView),
         matching: find.byWidgetPredicate(
           (w) => w is ButtonStyleButton || w is InkWell || w is GestureDetector,
         ),
       ),
       findsNothing,
     );
-    expect(find.textContaining('{"kind": 1}'), findsOneWidget);
+    expect(find.byKey(const Key('ephemeral-fence-problem')), findsOneWidget);
   });
 
   testWidgets(
@@ -195,7 +193,7 @@ void main() {
       rig.brain.reply(_reply);
       await _frames(tester);
       expect(find.byKey(const ValueKey('live-card')), findsOneWidget);
-      expect(find.byKey(const Key('ephemeral-ui-card')), findsOneWidget);
+      expect(find.byType(EphemeralCardView), findsOneWidget);
       expect(find.text('Merge #42'), findsOneWidget);
       final said = rig.peer!.sent
           .where((f) => f['type'] == 'session.commentary.append')
@@ -210,7 +208,7 @@ void main() {
     final rig = await _delegated(tester);
     rig.brain.reply('```ephemeral-ui\n$_card\n```');
     await _frames(tester);
-    expect(find.byKey(const Key('ephemeral-ui-card')), findsOneWidget);
+    expect(find.byType(EphemeralCardView), findsOneWidget);
     final frames = rig.peer!.sent;
     expect(
       frames.where((f) => f['type'] == 'session.commentary.append'),
@@ -233,7 +231,7 @@ void main() {
     await _frames(tester);
     rig.brain.reply(_reply);
     await _frames(tester);
-    expect(find.byKey(const Key('ephemeral-ui-card')), findsOneWidget);
+    expect(find.byType(EphemeralCardView), findsOneWidget);
     expect(
       find.text('Here is the pull request.\n\nWant me to merge it?'),
       findsOneWidget,
