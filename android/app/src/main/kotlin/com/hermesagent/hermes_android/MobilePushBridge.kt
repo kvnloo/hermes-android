@@ -422,7 +422,7 @@ internal object MobilePushBridge {
             .setContentTitle("Hermes").setContentText("Server activity is available. Open Hermes to check.")
             .setVisibility(android.app.Notification.VISIBILITY_SECRET).setAutoCancel(true).setContentIntent(pending)
             .addAction(android.app.Notification.Action.Builder(
-                null, context.getString(R.string.mobile_push_open), pending
+                null, "Open Hermes", pending
             ).build()).build())
         changed()
     }

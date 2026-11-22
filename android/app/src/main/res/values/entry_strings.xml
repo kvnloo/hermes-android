@@ -11,5 +11,4 @@
     <string name="shortcut_sessions_short">Sessions</string>
     <string name="shortcut_sessions_long">Open Sessions</string>
     <string name="shortcut_disabled">Open Hermes Agent to continue.</string>
-    <string name="mobile_push_open">Open Hermes</string>
 </resources>

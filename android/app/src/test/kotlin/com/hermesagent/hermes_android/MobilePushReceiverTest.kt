@@ -69,7 +69,7 @@ class MobilePushReceiverTest {
         deliver()
         val notification = manager.activeNotifications.single().notification
         val action = notification.actions.single()
-        assertEquals(context.getString(R.string.mobile_push_open), action.title.toString())
+        assertEquals("Open Hermes", action.title.toString())
         assertEquals(notification.contentIntent, action.actionIntent)
         val intent = shadowOf(action.actionIntent).savedIntent
         MobilePushBridge.captureTap(context, intent)
