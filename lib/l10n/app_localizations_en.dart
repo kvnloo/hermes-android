@@ -5982,4 +5982,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ng_bot_import_add => 'Add bot';
+
+  @override
+  String get preview_channel => 'Preview channel';
+
+  @override
+  String get preview_channel_subtitle =>
+      'Follow the newest green staging build and show which build is running.';
+
+  @override
+  String preview_chip_running(String label) {
+    return 'Running build $label. Tap to hide.';
+  }
+
+  @override
+  String preview_chip_newer(String label) {
+    return 'Newer preview build served: $label. Tap to open it.';
+  }
 }

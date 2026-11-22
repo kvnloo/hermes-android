@@ -39,6 +39,7 @@ import 'core/utils/responsive.dart';
 import 'core/widgets/config_backup_card.dart';
 import 'core/widgets/theme_palette_picker.dart';
 import 'core/widgets/hermes_system_ui.dart';
+import 'core/widgets/served_build_chip.dart';
 import 'core/widgets/setup_interface_choice.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -1293,18 +1294,20 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
         );
         final scene = nextGen ? NgColors.of(context).glassScene : null;
         final app = HermesSystemUi(
-          child: MediaQuery(
-            data: systemMediaQuery.copyWith(
-              textScaler: preference.applyTo(systemMediaQuery.textScaler),
+          child: ServedBuildChipHost(
+            child: MediaQuery(
+              data: systemMediaQuery.copyWith(
+                textScaler: preference.applyTo(systemMediaQuery.textScaler),
+              ),
+              child: nextGen
+                  ? NgLocalizationScope(
+                      child: HmLockGate(
+                        prefs: widget.connManager.prefs,
+                        child: child!,
+                      ),
+                    )
+                  : child!,
             ),
-            child: nextGen
-                ? NgLocalizationScope(
-                    child: HmLockGate(
-                      prefs: widget.connManager.prefs,
-                      child: child!,
-                    ),
-                  )
-                : child!,
           ),
         );
         return scene == null ? app : ColoredBox(color: scene, child: app);

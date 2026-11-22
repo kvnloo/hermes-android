@@ -5863,4 +5863,21 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get ng_bot_import_add => '봇 추가';
+
+  @override
+  String get preview_channel => '미리보기 채널';
+
+  @override
+  String get preview_channel_subtitle =>
+      '최신 성공 staging 빌드를 따라가고 실행 중인 빌드를 표시합니다.';
+
+  @override
+  String preview_chip_running(String label) {
+    return '실행 중인 빌드 $label. 탭하여 숨기기.';
+  }
+
+  @override
+  String preview_chip_newer(String label) {
+    return '새 미리보기 빌드가 있습니다: $label. 탭하여 열기.';
+  }
 }

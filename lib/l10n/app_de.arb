@@ -1644,5 +1644,9 @@
   "ng_copy_theme": "Design-JSON kopieren",
   "ng_paste_theme_json": "Design-JSON einfügen",
   "ng_theme_applied": "Design angewendet",
-  "ng_apply": "Anwenden"
+  "ng_apply": "Anwenden",
+  "preview_channel": "Vorschaukanal",
+  "preview_channel_subtitle": "Dem neuesten grünen Staging-Build folgen und anzeigen, welcher Build läuft.",
+  "preview_chip_running": "Laufender Build {label}. Zum Ausblenden tippen.",
+  "preview_chip_newer": "Neuerer Vorschau-Build verfügbar: {label}. Zum Öffnen tippen."
 }

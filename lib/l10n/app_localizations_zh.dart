@@ -5772,6 +5772,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get ng_bot_import_add => '添加机器人';
+
+  @override
+  String get preview_channel => '预览渠道';
+
+  @override
+  String get preview_channel_subtitle => '跟随最新通过的 staging 构建，并显示正在运行的构建。';
+
+  @override
+  String preview_chip_running(String label) {
+    return '正在运行的构建 $label。轻点隐藏。';
+  }
+
+  @override
+  String preview_chip_newer(String label) {
+    return '有更新的预览构建：$label。轻点打开。';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -11311,4 +11327,20 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get ng_bot_import_add => '添加机器人';
+
+  @override
+  String get preview_channel => '预览渠道';
+
+  @override
+  String get preview_channel_subtitle => '跟随最新通过的 staging 构建，并显示正在运行的构建。';
+
+  @override
+  String preview_chip_running(String label) {
+    return '正在运行的构建 $label。轻点隐藏。';
+  }
+
+  @override
+  String preview_chip_newer(String label) {
+    return '有更新的预览构建：$label。轻点打开。';
+  }
 }

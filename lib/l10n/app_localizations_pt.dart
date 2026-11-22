@@ -6028,6 +6028,23 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get ng_bot_import_add => 'Adicionar bot';
+
+  @override
+  String get preview_channel => 'Canal de pré-visualização';
+
+  @override
+  String get preview_channel_subtitle =>
+      'Seguir o build de staging aprovado mais recente e mostrar qual build está em execução.';
+
+  @override
+  String preview_chip_running(String label) {
+    return 'Build em execução $label. Toque para ocultar.';
+  }
+
+  @override
+  String preview_chip_newer(String label) {
+    return 'Há um build de pré-visualização mais recente: $label. Toque para abrir.';
+  }
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -11815,4 +11832,21 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get ng_bot_import_add => 'Adicionar bot';
+
+  @override
+  String get preview_channel => 'Canal de pré-visualização';
+
+  @override
+  String get preview_channel_subtitle =>
+      'Seguir o build de staging aprovado mais recente e mostrar qual build está em execução.';
+
+  @override
+  String preview_chip_running(String label) {
+    return 'Build em execução $label. Toque para ocultar.';
+  }
+
+  @override
+  String preview_chip_newer(String label) {
+    return 'Há um build de pré-visualização mais recente: $label. Toque para abrir.';
+  }
 }

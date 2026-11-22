@@ -1644,5 +1644,9 @@
   "ng_copy_theme": "テーマのJSONをコピー",
   "ng_paste_theme_json": "テーマのJSONを貼り付け",
   "ng_theme_applied": "テーマを適用しました",
-  "ng_apply": "適用"
+  "ng_apply": "適用",
+  "preview_channel": "プレビューチャンネル",
+  "preview_channel_subtitle": "最新の成功した staging ビルドを追跡し、実行中のビルドを表示します。",
+  "preview_chip_running": "実行中のビルド {label}。タップで非表示。",
+  "preview_chip_newer": "新しいプレビュービルドがあります: {label}。タップで開きます。"
 }

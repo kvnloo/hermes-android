@@ -24,6 +24,7 @@ import '../../main.dart';
 import '../../nextgen/nextgen_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../services/app_update_service.dart';
+import '../services/preview_channel.dart';
 import '../services/legal_links.dart';
 import '../widgets/update_available_dialog.dart';
 
@@ -337,6 +338,7 @@ class _AboutCardState extends State<_AboutCard> {
     super.initState();
     _loadVersion();
     _loadUpdatePreference();
+    unawaited(PreviewChannel.instance.load());
   }
 
   Future<void> _loadVersion() async {
@@ -444,6 +446,21 @@ class _AboutCardState extends State<_AboutCard> {
                   applicationVersion: _version,
                 );
               },
+            ),
+            ListenableBuilder(
+              listenable: PreviewChannel.instance,
+              builder: (context, _) => SwitchListTile(
+                key: const ValueKey('preview-channel-switch'),
+                contentPadding: EdgeInsets.zero,
+                title: Text(context.l10n.preview_channel),
+                subtitle: Text(context.l10n.preview_channel_subtitle),
+                value: PreviewChannel.instance.isPreview,
+                onChanged: (enabled) => unawaited(
+                  PreviewChannel.instance.setChannel(
+                    enabled ? UpdateChannel.preview : UpdateChannel.stable,
+                  ),
+                ),
+              ),
             ),
             if (!AppUpdateService.isPlayBuild) ...[
               ListTile(

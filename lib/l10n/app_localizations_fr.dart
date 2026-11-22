@@ -6036,4 +6036,21 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get ng_bot_import_add => 'Ajouter le bot';
+
+  @override
+  String get preview_channel => 'Canal de préversion';
+
+  @override
+  String get preview_channel_subtitle =>
+      'Suivre le dernier build staging validé et afficher le build en cours d\'exécution.';
+
+  @override
+  String preview_chip_running(String label) {
+    return 'Build en cours $label. Touchez pour masquer.';
+  }
+
+  @override
+  String preview_chip_newer(String label) {
+    return 'Nouveau build de préversion disponible : $label. Touchez pour l\'ouvrir.';
+  }
 }

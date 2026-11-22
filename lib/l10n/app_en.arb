@@ -2541,5 +2541,23 @@
   "ng_bot_import_title": "Import bot",
   "ng_bot_import_invalid": "This bot file could not be read or uses an unsupported format.",
   "ng_bot_import_open_chat": "Open chat",
-  "ng_bot_import_add": "Add bot"
+  "ng_bot_import_add": "Add bot",
+  "preview_channel": "Preview channel",
+  "preview_channel_subtitle": "Follow the newest green staging build and show which build is running.",
+  "preview_chip_running": "Running build {label}. Tap to hide.",
+  "@preview_chip_running": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "preview_chip_newer": "Newer preview build served: {label}. Tap to open it.",
+  "@preview_chip_newer": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  }
 }
