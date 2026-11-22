@@ -22,12 +22,17 @@ plugins {
 val keystoreProperties = Properties()
 val keystorePath = rootProject.projectDir.parentFile.resolve("key.properties")
 val minimumInstalledVersionCode = 2127
-// Google Play builds use Play-managed updates. The ordinary GitHub release keeps
-// its verified APK updater. CI sets this only for the separate Play AAB.
 val appFunctions = System.getenv("ARES_APP_FUNCTIONS") == "true"
 if (appFunctions) apply(plugin = "com.google.devtools.ksp")
 
+// Google Play builds use Play-managed updates and keep App Functions disabled
+// in release. apk.yml opts in independently of its Dart Play-build define.
 val playBuild = System.getenv("ARES_PLAY_BUILD") == "true"
+val appFunctionBuildTypes = when {
+    !appFunctions -> emptyList()
+    playBuild -> listOf("debug")
+    else -> listOf("debug", "release")
+}
 if (keystorePath.exists()) {
    keystoreProperties.load(FileInputStream(keystorePath))
 }
@@ -35,8 +40,8 @@ if (keystorePath.exists()) {
 android {
    namespace = "com.hermesagent.hermes_android"
    compileSdk = if (appFunctions) 37 else 36
-   if (appFunctions) {
-       sourceSets.getByName("debug").apply {
+   appFunctionBuildTypes.forEach { buildType ->
+       sourceSets.getByName(buildType).apply {
            manifest.srcFile("src/appFunctions/AndroidManifest.xml")
            java.srcDir("src/appFunctions/kotlin")
            res.srcDir("src/appFunctions/res")
@@ -186,9 +191,10 @@ tasks.matching { it.name == "preBuild" || it.name.startsWith("merge") && it.name
 }
 
 dependencies {
-   if (appFunctions) {
-       debugImplementation("androidx.appfunctions:appfunctions:1.0.0")
-       add("kspDebug", "androidx.appfunctions:appfunctions-compiler:1.0.0")
+   appFunctionBuildTypes.forEach { buildType ->
+       add("${buildType}Implementation", "androidx.appfunctions:appfunctions:1.0.0")
+       add("ksp${buildType.replaceFirstChar { it.uppercaseChar() }}",
+           "androidx.appfunctions:appfunctions-compiler:1.0.0")
    }
    implementation(voiceAar)
    implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0")
