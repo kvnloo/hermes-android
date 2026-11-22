@@ -10,6 +10,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart' as rive;
 
+import 'avatar_palette.dart';
 import 'hm_avatar_state.dart';
 
 const _inputs = ['listening', 'thinking', 'speaking', 'asleep'];
@@ -136,7 +137,7 @@ class _PersonaOrbState extends State<PersonaOrb> {
       };
     }
     _vm?.color('color')?.value = widget.state == HmAvatarState.error
-        ? const Color(0xFFE5522D)
+        ? AvatarPalette.error
         : widget.color;
     c.active = widget.animate;
   }
