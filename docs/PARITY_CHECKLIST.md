@@ -93,3 +93,4 @@ Built in PR #27 unless a reason is given.
 ## Boat validation
 
 - [ ] Staging upstream merge: retains fork identity and test seam for screenshot fixtures; needs emulator/S25 screenshot and end-to-end sign-in/cron-list verification.
+- [ ] Refresh store goldens with Nunito: three Flutter goldens regenerated and matched on rerun; needs emulator/S25 screenshot.
