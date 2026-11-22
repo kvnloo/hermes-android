@@ -3,6 +3,16 @@ name: Release APK (z0 Agent)
 # Same build and upload key as play.yml, as an arm64 APK for adb installs.
 on:
   workflow_dispatch:
+    inputs:
+      build_number:
+        # Test installs only. Leave empty for the pubspec build number. Set it
+        # above the phone's installed versionCode / 10 when a newer local build
+        # blocks `adb install -r` with INSTALL_FAILED_VERSION_DOWNGRADE. The
+        # override never edits the pubspec, play.yml or release.yml.
+        description: 'Test build number (optional; arm64 versionCode = n*10+2)'
+        required: false
+        default: ''
+        type: string
   push:
     branches: [feat/official-parity]
 
@@ -31,8 +41,26 @@ jobs:
             "$RUNNER_TEMP/upload.jks" "$PW" "$PW" > key.properties
       - name: Build APK
         # HERMES_BUILD_SHA/TIME let the preview-channel chip name this build.
+        # TEST_BUILD_NUMBER is empty on push and on a plain dispatch, so the
+        # build keeps the pubspec build number.
+        env:
+          TEST_BUILD_NUMBER: ${{ inputs.build_number }}
         run: |
-          flutter build apk --release --split-per-abi --target-platform android-arm64 \
+          set -- --release --split-per-abi --target-platform android-arm64
+          if [ -n "$TEST_BUILD_NUMBER" ]; then
+            # 2128..209999999: above the Gradle upgrade floor (2127), and
+            # n*10+3 stays under Android's 2100000000 versionCode ceiling.
+            case "$TEST_BUILD_NUMBER" in
+              *[!0-9]*|0*) echo "build_number must be a plain positive integer" >&2; exit 1 ;;
+            esac
+            if [ "${#TEST_BUILD_NUMBER}" -gt 9 ] || [ "$TEST_BUILD_NUMBER" -le 2127 ] \
+              || [ "$TEST_BUILD_NUMBER" -gt 209999999 ]; then
+              echo "build_number must be between 2128 and 209999999" >&2; exit 1
+            fi
+            set -- "$@" --build-number "$TEST_BUILD_NUMBER"
+            echo "Test build: arm64 versionCode $((TEST_BUILD_NUMBER * 10 + 2))"
+          fi
+          flutter build apk "$@" \
             --dart-define=ARES_PLAY_BUILD=true --split-debug-info=symbols-apk \
             --dart-define=HERMES_BUILD_SHA="$GITHUB_SHA" \
             --dart-define=HERMES_BUILD_TIME="$(date -u +%s)"
@@ -46,7 +74,19 @@ jobs:
           # v2/v3 signatures only (minSdk 24), so keytool's v1 check sees none.
           "$bt/apksigner" verify --verbose --print-certs "$apk"
           "$bt/aapt2" dump badging "$apk" | head -1
+      - name: Check test build versionCode
+        if: ${{ inputs.build_number != '' }}
+        env:
+          TEST_BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          apk=build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          sdk="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          bt=$(ls -d "$sdk"/build-tools/* | sort -V | tail -1)
+          code=$("$bt/aapt2" dump badging "$apk" | head -1 | sed -nE "s/.*versionCode='([0-9]+)'.*/\1/p")
+          [ "$code" = "$((TEST_BUILD_NUMBER * 10 + 2))" ] || { echo "versionCode $code"; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
-          name: z0-agent-apk
+          # Test builds get their own name so nothing that reads
+          # z0-agent-apk (the S25 updater, release tooling) picks them up.
+          name: ${{ inputs.build_number != '' && format('z0-agent-test-{0}', inputs.build_number) || 'z0-agent-apk' }}
           path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
