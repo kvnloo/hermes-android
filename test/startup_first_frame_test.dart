@@ -115,6 +115,11 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
     final home = tester.widget<NextGenHome>(find.byType(NextGenHome));
     expect(home.connManager.getConnections().single.apiKey, 'test-credential');
+
+    // A saved connection starts NextGen's gateway. Unmount before advancing
+    // its outstanding offline handshake/backoff timers on the fake clock.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 20));
   });
 
   testWidgets(
