@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -204,6 +205,85 @@ void main() {
             );
         expect(result.runtimeType, type);
       }
+    });
+  });
+
+  group('HermesSignIn.browserSignIn', () {
+    test('shows the callback page and redeems only after resume', () async {
+      final url = GatewayUrl.parse('https://example.invalid');
+      final resumed = Completer<void>();
+      final waitingForResume = Completer<void>();
+      late String challenge;
+      var tokenRequests = 0;
+      var browserDone = 0;
+      final browser = http.Client();
+      addTearDown(browser.close);
+      final client = MockClient((request) async {
+        tokenRequests++;
+        expect(request.url.path, '/auth/native/token');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['code'], 'fixture-code');
+        expect(pkceChallengeFor(body['code_verifier'] as String), challenge);
+        return http.Response('{"access_token":"fixture-token"}', 200);
+      });
+      addTearDown(client.close);
+      final signIn = HermesSignIn(client: client).browserSignIn(
+        url,
+        timeout: const Duration(seconds: 5),
+        openBrowser: (authorize) async {
+          final params = authorize.queryParameters;
+          challenge = params['code_challenge']!;
+          expect(params['code_challenge_method'], 'S256');
+          final callback = Uri.parse(params['redirect_uri']!);
+          final rejected = await browser.get(
+            callback.replace(
+              queryParameters: {'state': 'wrong', 'code': 'wrong'},
+            ),
+          );
+          expect(rejected.body, contains('Waiting for sign-in'));
+          expect(browserDone, 0);
+          final accepted = await browser.get(
+            callback.replace(
+              queryParameters: {
+                'state': params['state']!,
+                'code': 'fixture-code',
+              },
+            ),
+          );
+          expect(accepted.body, contains('Signed in'));
+          return true;
+        },
+        onBrowserDone: () => browserDone++,
+        untilForeground: () {
+          waitingForResume.complete();
+          return resumed.future;
+        },
+      );
+      await Future.any<void>([
+        waitingForResume.future,
+        signIn.then((result) => fail('Completed before resume: $result')),
+      ]);
+      expect(browserDone, 1);
+      expect(tokenRequests, 0);
+      expect(HermesSignInVault.instance.sessionFor(url.canonical), isNull);
+      resumed.complete();
+      expect(await signIn, isA<SignInOk>());
+      expect(tokenRequests, 1);
+      expect(
+        HermesSignInVault.instance.sessionFor(url.canonical)?.accessToken,
+        'fixture-token',
+      );
+    });
+
+    test('closing without a callback does not redeem a code', () async {
+      final client = MockClient((_) async => fail('Unexpected token request'));
+      addTearDown(client.close);
+      final result = await HermesSignIn(client: client).browserSignIn(
+        GatewayUrl.parse('https://example.invalid'),
+        openBrowser: (_) async => true,
+        cancelled: Future<void>.value(),
+      );
+      expect(result, isA<SignInCancelled>());
     });
   });
 
