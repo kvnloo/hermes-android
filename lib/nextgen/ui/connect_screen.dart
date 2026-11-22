@@ -355,59 +355,44 @@ class _NgConnectScreenState extends State<NgConnectScreen> {
     // Android still freezes this process behind the Custom Tab (measured on
     // a Galaxy S25: an OIDC sign-in hung on "Loading" with the app frozen),
     // so the app root holds its foreground service until the code is back.
+    final returned = Completer<void>();
+    var left = false;
+    Completer<void>? foreground;
+    final listener = AppLifecycleListener(
+      onHide: () => left = true,
+      onResume: () {
+        if (left && !returned.isCompleted) returned.complete();
+        final waiter = foreground;
+        if (waiter != null && !waiter.isCompleted) waiter.complete();
+      },
+    );
     browserSignInPending.value = true;
     final SignInResult result;
     try {
       result = await HermesSignIn().browserSignIn(
         _url!,
         certificate: _certificate.config,
-        openBrowser: (uri) =>
-            launchUrl(uri, mode: LaunchMode.inAppBrowserView),
+        openBrowser: (uri) => launchUrl(uri, mode: LaunchMode.inAppBrowserView),
         onBrowserDone: () => unawaited(closeInAppWebView()),
-        untilForeground: _untilResumed,
+        untilForeground: () {
+          if (WidgetsBinding.instance.lifecycleState ==
+              AppLifecycleState.resumed) {
+            return Future<void>.value();
+          }
+          return (foreground ??= Completer<void>()).future;
+        },
         // Back in the app with no code: the browser was closed. Give a late
         // redirect a moment to land first.
-        cancelled: _nextReturn().then(
+        cancelled: returned.future.then(
           (_) => Future<void>.delayed(const Duration(seconds: 2)),
         ),
       );
     } finally {
+      listener.dispose();
       browserSignInPending.value = false;
     }
     if (!mounted) return;
     await _handle(result, 'browser');
-  }
-
-  /// Completes the next time the app comes back after leaving.
-  static Future<void> _nextReturn() {
-    final done = Completer<void>();
-    var left = false;
-    late final AppLifecycleListener listener;
-    listener = AppLifecycleListener(
-      onHide: () => left = true,
-      onResume: () {
-        if (!left) return;
-        listener.dispose();
-        if (!done.isCompleted) done.complete();
-      },
-    );
-    return done.future;
-  }
-
-  static Future<void> _untilResumed() {
-    final binding = WidgetsBinding.instance;
-    if (binding.lifecycleState == AppLifecycleState.resumed) {
-      return Future.value();
-    }
-    final done = Completer<void>();
-    late final AppLifecycleListener listener;
-    listener = AppLifecycleListener(
-      onResume: () {
-        listener.dispose();
-        if (!done.isCompleted) done.complete();
-      },
-    );
-    return done.future;
   }
 
   Future<void> _handle(SignInResult result, String method) async {
