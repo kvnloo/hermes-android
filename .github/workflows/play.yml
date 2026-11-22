@@ -3,7 +3,12 @@ name: Play AAB (z0 Agent)
 on:
   workflow_dispatch:
   push:
-    branches: [z0/play-release]
+    branches: [z0/play-release, staging]
+
+# One build per branch at a time; a newer staging merge queues behind the last.
+concurrency:
+  group: play-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   aab:
@@ -20,7 +25,7 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter gen-l10n
-      - run: flutter test test/ng_theme_spec_test.dart test/nextgen_test.dart
+      - run: flutter test test/ng_theme_spec_test.dart test/nextgen_test.dart test/store_screenshots_test.dart
       - name: Upload key
         env:
           KS: ${{ secrets.Z0_KEYSTORE_BASE64 }}
@@ -38,6 +43,43 @@ jobs:
           aab=build/app/outputs/bundle/release/app-release.aab
           keytool -printcert -jarfile "$aab" | grep -E 'Owner|SHA256:'
           grep -q 'io.github.kvnloo.z0agent' build/app/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml
+      # Kevin's S25 installs this APK with `adb install -r` (groot s25-update
+      # timer). The arm64 split code is base * 10 + 2, so every staging build
+      # would repeat 30652. The sideload build number is the pubspec base plus
+      # this workflow's run number, so each green run installs as an update.
+      # The AAB above keeps the pubspec code.
+      - name: Build sideload APK (arm64, upload key)
+        run: |
+          base=$(sed -nE 's/^version: *[^+]+\+([0-9]+).*/\1/p' pubspec.yaml)
+          echo "BUILD_NUMBER=$((base + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+          flutter build apk --release --no-pub --split-per-abi --target-platform android-arm64 \
+            --build-number=$((base + GITHUB_RUN_NUMBER)) \
+            --dart-define=ARES_PLAY_BUILD=true --split-debug-info=symbols-apk
+      - name: Check APK signer, package and versionCode
+        env:
+          EXPECTED_CERT: 3b396476cb1991279447266a413c1540b3cee57f2f0eb78b6bc0e66bb8e3c628
+        run: |
+          apk=build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          sdk="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          bt=$(ls -d "$sdk"/build-tools/* | sort -V | tail -1)
+          certs=$("$bt/apksigner" verify --print-certs "$apk" | sed -nE 's/.*certificate SHA-256 digest: //p' | sort -u)
+          [ "$certs" = "$EXPECTED_CERT" ] || { echo "signer $certs != $EXPECTED_CERT"; exit 1; }
+          badging=$("$bt/aapt2" dump badging "$apk" | head -1)
+          echo "$badging"
+          code=$(echo "$badging" | sed -nE "s/.*versionCode='([0-9]+)'.*/\1/p")
+          name=$(echo "$badging" | sed -nE "s/.*versionName='([^']+)'.*/\1/p")
+          [ "$code" = "$((BUILD_NUMBER * 10 + 2))" ] || { echo "versionCode $code"; exit 1; }
+          echo "$badging" | grep -q "name='io.github.kvnloo.z0agent'"
+          printf '{"sha":"%s","ref":"%s","run_id":%s,"versionCode":%s,"versionName":"%s","cert":"%s"}\n' \
+            "$GITHUB_SHA" "$GITHUB_REF_NAME" "$GITHUB_RUN_ID" "$code" "$name" "$certs" > apk.json
+          cat apk.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: z0-agent-apk
+          path: |
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            apk.json
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         with:
           name: z0-agent-aab
