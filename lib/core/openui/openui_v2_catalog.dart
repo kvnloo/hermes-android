@@ -47,6 +47,26 @@ final class OpenUiV2Catalog {
     'MailList',
     'Route',
     'PullRequest',
+    'EphemeralCards',
+  };
+
+  /// Cards one `EphemeralCards` panel may carry.
+  static const maxEphemeralCards = 8;
+
+  /// Plain Dart value of a literal (objects, arrays, scalars), for panels
+  /// that hand their data to a renderer outside this library.
+  static Object? plain(OpenUiValue node) => switch (node) {
+    OpenUiString(:final value) => value,
+    OpenUiNumber(:final value) =>
+      value == value.truncateToDouble() && value.abs() < 9e15
+          ? value.toInt()
+          : value,
+    OpenUiBoolean(:final value) => value,
+    OpenUiArray(:final items) => [for (final item in items) plain(item)],
+    OpenUiObject(:final fields) => {
+      for (final MapEntry(:key, :value) in fields.entries) key: plain(value),
+    },
+    _ => null,
   };
 
   static OpenUiCatalogResult inspect(String source) =>
@@ -530,6 +550,28 @@ final class _Check {
             optionalText(item, 'branch', 200);
             final conflict = item['conflict'];
             if (conflict != null) boolean(conflict, 'conflict');
+          }
+        }
+      case 'EphemeralCards':
+        // EphemeralCards(title, [{kind, app?, input?}]): ephemeral-ui card
+        // documents (card.v0.json), resolved against the vendored catalog.
+        arity(node, 2);
+        string(node.args[0], 'title', max: 200);
+        for (final entry in array(
+          node.args[1],
+          'cards',
+          min: 1,
+          max: OpenUiV2Catalog.maxEphemeralCards,
+        )) {
+          final card = object(entry, 'card');
+          textField(card, 'kind', entry, min: 1, max: 64);
+          optionalText(card, 'app', 200);
+          final input = card['input'];
+          if (input != null &&
+              input is! OpenUiObject &&
+              input is! OpenUiArray &&
+              input is! OpenUiString) {
+            bad(input, 'Card input must be an object, array or string.');
           }
         }
       default:

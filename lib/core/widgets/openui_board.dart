@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:hermes_android/core/ephemeral/ephemeral_fence.dart';
 import 'package:hermes_android/core/l10n/l10n.dart';
 import 'package:hermes_android/core/openui/openui_lang.dart';
 import 'package:hermes_android/core/openui/openui_v2_catalog.dart';
@@ -32,6 +33,7 @@ class _OpenUiBoardState extends State<OpenUiBoard> {
     'StackedArea',
     'Treemap',
     'Heatmap',
+    'EphemeralCards',
   };
 
   @override
@@ -271,6 +273,10 @@ class _OpenUiPanelState extends State<_OpenUiPanel> {
         content = _treemap(context, call);
       case 'Heatmap':
         content = _heatmap(context, call);
+      case 'EphemeralCards':
+        content = EphemeralCardList(
+          cards: OpenUiV2Catalog.plain(call.args[1]) as List<Object?>,
+        );
       default:
         // The board gate excludes unknown and action-bearing catalog panels.
         content = const SizedBox.shrink();
