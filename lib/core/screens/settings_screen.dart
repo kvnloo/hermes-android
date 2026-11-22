@@ -135,8 +135,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        TurboMotionSwitch(preferences: app.widget.connManager.prefs),
-        const SizedBox(height: 16),
         // ---- Section: Theme ----
         _buildSectionHeader(context.l10n.appearance, classicOnly: true),
         ThemeAppearanceSettings(
@@ -161,6 +159,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               .findAncestorStateOfType<HermesAppState>()!
               .setTextSizePreference(preference),
         ),
+        const SizedBox(height: 16),
+
+        TurboMotionSwitch(preferences: app.widget.connManager.prefs),
         const SizedBox(height: 16),
 
         // ---- Section: Notifications ----
