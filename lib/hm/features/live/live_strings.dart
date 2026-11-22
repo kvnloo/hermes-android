@@ -43,4 +43,15 @@ abstract final class LiveText {
   static const muted = 'Muted';
   static const mute = 'Mute';
   static const unmute = 'Unmute';
+
+  // Lanes (HA-035, fork wording; Dash's lane timeline words where it has them).
+  static const lanes = 'Lanes';
+  static const lanesTitle = 'Lanes on this thread';
+  static const lanesHint =
+      'Attached lanes orbit the bot. Tap one to send it your next turn; '
+      'tap the bot to talk to it again.';
+  static const lanesFixture = 'Fixture lanes: answers are scripted on device.';
+  static String toLane(String name) => 'Talking to $name';
+  static String laneSpeaker(String name) => '$name lane';
+  static String youToLane(String name) => 'You → $name';
 }

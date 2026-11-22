@@ -92,10 +92,14 @@ class LiveLine {
     required this.key,
     required this.fromUser,
     required this.text,
+    this.lane,
   });
   final String key;
   final bool fromUser;
   final String text;
+
+  /// The lane this turn went to; null for the bot's own chat.
+  final String? lane;
 }
 
 /// The host has no voice routes (older Hermes): 404 on `/api/audio/*`.

@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:hermes_android/hm/features/live/live_controller.dart';
+import 'package:hermes_android/hm/features/live/live_lanes.dart';
 import 'package:hermes_android/hm/features/live/live_transport.dart';
 import 'package:hermes_android/hm/features/live/live_webrtc.dart';
 
@@ -12,7 +13,10 @@ class FakeHost implements LiveHost {
     this.statusError,
     this.mode = 'chained',
     this.available = false,
-    this.answer = const LiveSessionAnswer(sessionId: 'live_1', sdp: 'v=0 answer\r\n'),
+    this.answer = const LiveSessionAnswer(
+      sessionId: 'live_1',
+      sdp: 'v=0 answer\r\n',
+    ),
     this.sessionError,
   });
   Object? statusError;
@@ -216,9 +220,14 @@ class FakeVoice implements LiveVoice {
 }
 
 class LiveRig {
-  LiveRig({FakeHost? host, FakeEar? ear, this.peer, this.setupLimit})
-    : host = host ?? FakeHost(),
-      ear = ear ?? FakeEar();
+  LiveRig({
+    FakeHost? host,
+    FakeEar? ear,
+    this.peer,
+    this.setupLimit,
+    this.lanes,
+  }) : host = host ?? FakeHost(),
+       ear = ear ?? FakeEar();
   final FakeHost host;
   final FakeEar ear;
   final FakeBrain brain = FakeBrain();
@@ -227,6 +236,9 @@ class LiveRig {
   /// Set to give the call a GPT-Live (WebRTC) transport.
   final FakePeer? peer;
   final Duration? setupLimit;
+
+  /// Set to offer lanes on the call.
+  final LiveLanes? lanes;
   LiveCall? call;
 
   LiveController build() => LiveController(
@@ -237,6 +249,7 @@ class LiveRig {
     call: peer == null
         ? null
         : () => call = LiveCall(host: host, peer: () => peer!),
+    lanes: lanes,
     setupLimit: setupLimit ?? const Duration(seconds: 35),
   );
 }

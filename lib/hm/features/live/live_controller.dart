@@ -16,10 +16,16 @@
 // chat (thinking) whose final message goes back on the data channel. A setup
 // failure, or a setup slower than 35 s, falls back to the chained loop with
 // a notice.
+//
+// Lanes (HA-035): with [lanes] set, fast / large / council lanes can be
+// attached to the call's thread. [route] picks where the next turn goes: the
+// bot's own chat (null) or one attached lane. Lane turns show in the
+// transcript tagged with their lane, placed where they were asked.
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'live_lanes.dart';
 import 'live_strings.dart';
 import 'live_transport.dart';
 import 'live_webrtc.dart';
@@ -41,11 +47,13 @@ class LiveController extends ChangeNotifier {
     required this.brain,
     required this.voice,
     this.call,
+    this.lanes,
     this.setupLimit = const Duration(seconds: 35),
     this.callLimit = const Duration(minutes: 30),
     this.speakingHold = const Duration(milliseconds: 1500),
   }) {
     brain.addListener(_changed);
+    lanes?.addListener(_lanesChanged);
   }
 
   final LiveHost host;
@@ -56,6 +64,9 @@ class LiveController extends ChangeNotifier {
   /// Builds the GPT-Live call when the host offers it; null keeps the call
   /// on the chained loop.
   final LiveCall Function()? call;
+
+  /// The lanes this call can attach to its thread; null offers none.
+  final LiveLanes? lanes;
 
   /// A GPT-Live call not up by then falls back to the chained loop.
   final Duration setupLimit;
@@ -108,7 +119,85 @@ class LiveController extends ChangeNotifier {
   String? _activeDelegation;
   Future<void>? _turn;
 
-  List<LiveLine> get lines => webRtc ? List.of(_callLines) : brain.lines;
+  List<LiveLine> get lines =>
+      _merge(webRtc ? List.of(_callLines) : brain.lines);
+
+  // ── Lanes ──
+  String? _target;
+
+  /// The lane the next turn goes to; null is the bot's own chat.
+  String? get target => _target;
+
+  /// Lane turns, each placed after the first `at` lines of the main
+  /// transcript.
+  final List<({int at, LiveLine line})> _routed = [];
+  int _routedSeq = 0;
+
+  int get _mainCount => webRtc ? _callLines.length : brain.lines.length;
+
+  List<LiveLine> _merge(List<LiveLine> main) {
+    if (_routed.isEmpty) return main;
+    final out = <LiveLine>[];
+    var r = 0;
+    for (var i = 0; i <= main.length; i++) {
+      while (r < _routed.length && _routed[r].at <= i) {
+        out.add(_routed[r++].line);
+      }
+      if (i < main.length) out.add(main[i]);
+    }
+    return out;
+  }
+
+  /// Name of attached lane [id], else [id].
+  String laneName(String id) =>
+      lanes?.lanes.where((l) => l.id == id).firstOrNull?.name ?? id;
+
+  /// Sends the next turns to lane [id] (attached), or back to the bot (null).
+  void route(String? id) {
+    final next = id != null && lanes!.lanes.any((l) => l.id == id) ? id : null;
+    if (next == _target) return;
+    _target = next;
+    _changed();
+  }
+
+  void _lanesChanged() {
+    final t = _target;
+    if (t != null && !lanes!.lanes.any((l) => l.id == t)) _target = null;
+    _changed();
+  }
+
+  /// One turn to wherever [target] points. [echo] adds the asked text to the
+  /// transcript (the chained loop; GPT-Live already shows what was said).
+  Future<String> _ask(String text, {bool echo = true}) async {
+    final lane = _target;
+    if (lane == null) return brain.ask(text);
+    if (echo) {
+      _routed.add((
+        at: _mainCount,
+        line: LiveLine(
+          key: 'lane-${_routedSeq++}',
+          fromUser: true,
+          text: text,
+          lane: lane,
+        ),
+      ));
+      _changed();
+    }
+    final reply = await lanes!.ask(lane, text);
+    if (reply.trim().isNotEmpty) {
+      _routed.add((
+        at: _mainCount,
+        line: LiveLine(
+          key: 'lane-${_routedSeq++}',
+          fromUser: false,
+          text: reply.trim(),
+          lane: lane,
+        ),
+      ));
+      _changed();
+    }
+    return reply;
+  }
 
   bool get isOver => _phase == LivePhase.ended || _phase == LivePhase.failed;
 
@@ -217,7 +306,7 @@ class LiveController extends ChangeNotifier {
     _set(LivePhase.thinking);
     String reply;
     try {
-      reply = await brain.ask(said);
+      reply = await _ask(said);
     } catch (e) {
       if (epoch != _epoch) return;
       notice = '$e';
@@ -336,7 +425,11 @@ class LiveController extends ChangeNotifier {
       final text = delta.trimLeft();
       if (text.isEmpty) return;
       _callLines.add(
-        LiveLine(key: 'live-${_callLines.length}', fromUser: fromUser, text: text),
+        LiveLine(
+          key: 'live-${_callLines.length}',
+          fromUser: fromUser,
+          text: text,
+        ),
       );
     }
   }
@@ -358,7 +451,7 @@ class LiveController extends ChangeNotifier {
       }
       final String reply;
       try {
-        reply = await brain.ask(d.prompt);
+        reply = await _ask(d.prompt, echo: false);
       } catch (e) {
         if (_activeDelegation != d.id) return;
         notice = '$e';
@@ -500,6 +593,8 @@ class LiveController extends ChangeNotifier {
     _stopCallTimers();
     unawaited(_call?.close());
     brain.removeListener(_changed);
+    lanes?.removeListener(_lanesChanged);
+    lanes?.dispose();
     ear.dispose();
     voice.dispose();
     brain.dispose();
