@@ -5820,6 +5820,37 @@ class AppLocalizationsKo extends AppLocalizations {
   String get theme_surface_reload_action => '다시 그리기';
 
   @override
+  String get theme_material => '재질';
+
+  @override
+  String get theme_material_none => '없음';
+
+  @override
+  String get theme_material_basalt => '현무암';
+
+  @override
+  String get theme_material_slate => '점판암';
+
+  @override
+  String get theme_material_limestone => '석회암';
+
+  @override
+  String get theme_material_water => '물';
+
+  @override
+  String get theme_material_quartz => '석영';
+
+  @override
+  String get theme_material_hint =>
+      '천천히 움직이는 빛이 비추는 elemental-ui의 돌, 물, 수정입니다.';
+
+  @override
+  String get theme_liquid => 'Liquid Glass 입력창';
+
+  @override
+  String get theme_liquid_hint => '메시지 입력창이 뒤의 화면을 렌즈처럼 굴절시킵니다.';
+
+  @override
   String ng_worked_for(String duration) {
     return '$duration 동안 작업함';
   }

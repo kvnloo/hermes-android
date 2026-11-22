@@ -55,6 +55,7 @@ import 'nextgen/ui/connect_screen.dart';
 import 'nextgen/nextgen_l10n.dart';
 import 'nextgen/nextgen_preferences.dart';
 import 'nextgen/theme/glass_window_service.dart';
+import 'nextgen/ui/ng_elemental_pane.dart';
 import 'nextgen/theme/nextgen_theme.dart';
 
 void main() {
@@ -1310,7 +1311,9 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
             ),
           ),
         );
-        return scene == null ? app : ColoredBox(color: scene, child: app);
+        return scene == null
+            ? app
+            : NgScene(color: scene, material: look.material, child: app);
       },
       home: nextGen
           ? NextGenHome(

@@ -18,6 +18,7 @@ import '../../core/services/legal_links.dart';
 import '../data/connection_check.dart';
 import '../nextgen_preferences.dart';
 import '../theme/glass_window_service.dart';
+import '../theme/ng_elemental.dart';
 import '../theme/nextgen_theme.dart';
 import '../theme/ng_theme_spec.dart';
 import '../haptics.dart';
@@ -48,6 +49,15 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
     }
     if (mounted) ngToast(context, 'This Android feature is unavailable.');
   }
+
+  String _materialLabel(NgMaterial material) => switch (material) {
+    NgMaterial.none => ngL.theme_material_none,
+    NgMaterial.basalt => ngL.theme_material_basalt,
+    NgMaterial.slate => ngL.theme_material_slate,
+    NgMaterial.limestone => ngL.theme_material_limestone,
+    NgMaterial.water => ngL.theme_material_water,
+    NgMaterial.quartz => ngL.theme_material_quartz,
+  };
 
   Future<void> _changeSurface(NgScope scope, NgSurface surface) async {
     final window = GlassWindowService.shared;
@@ -480,6 +490,53 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                     value: look.glow,
                     onChanged: (v) =>
                         NextGenPreferences.setGlow(scope.prefs, v),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    ngL.theme_material,
+                    style: NgType.label.copyWith(color: c.text2),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    key: const ValueKey('ng-theme-material'),
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final m in NgMaterial.values)
+                        ChoiceChip(
+                          key: ValueKey('ng-material-${m.name}'),
+                          avatar: m.visible
+                              ? DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: m.body,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: c.strokeStrong),
+                                  ),
+                                  child: const SizedBox.square(dimension: 14),
+                                )
+                              : null,
+                          label: Text(_materialLabel(m)),
+                          selected: look.material == m,
+                          onSelected: (_) {
+                            NgHaptics.select();
+                            NextGenPreferences.setMaterial(scope.prefs, m);
+                          },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    ngL.theme_material_hint,
+                    style: NgType.caption.copyWith(color: c.text3),
+                  ),
+                  SwitchListTile(
+                    key: const ValueKey('ng-theme-liquid'),
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(ngL.theme_liquid),
+                    subtitle: Text(ngL.theme_liquid_hint),
+                    value: look.liquid,
+                    onChanged: (v) =>
+                        NextGenPreferences.setLiquid(scope.prefs, v),
                   ),
                 ],
               ),

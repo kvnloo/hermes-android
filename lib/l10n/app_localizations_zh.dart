@@ -5730,6 +5730,36 @@ class AppLocalizationsZh extends AppLocalizations {
   String get theme_surface_reload_action => '重绘';
 
   @override
+  String get theme_material => '材质';
+
+  @override
+  String get theme_material_none => '无';
+
+  @override
+  String get theme_material_basalt => '玄武岩';
+
+  @override
+  String get theme_material_slate => '板岩';
+
+  @override
+  String get theme_material_limestone => '石灰岩';
+
+  @override
+  String get theme_material_water => '水';
+
+  @override
+  String get theme_material_quartz => '石英';
+
+  @override
+  String get theme_material_hint => '来自 elemental-ui 的石头、水或水晶，由缓慢移动的光照亮。';
+
+  @override
+  String get theme_liquid => 'Liquid Glass 输入框';
+
+  @override
+  String get theme_liquid_hint => '消息框像透镜一样折射其后的画面。';
+
+  @override
   String ng_worked_for(String duration) {
     return '處理時間 $duration';
   }
@@ -11283,6 +11313,36 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get theme_surface_reload_action => '重绘';
+
+  @override
+  String get theme_material => '材质';
+
+  @override
+  String get theme_material_none => '无';
+
+  @override
+  String get theme_material_basalt => '玄武岩';
+
+  @override
+  String get theme_material_slate => '板岩';
+
+  @override
+  String get theme_material_limestone => '石灰岩';
+
+  @override
+  String get theme_material_water => '水';
+
+  @override
+  String get theme_material_quartz => '石英';
+
+  @override
+  String get theme_material_hint => '来自 elemental-ui 的石头、水或水晶，由缓慢移动的光照亮。';
+
+  @override
+  String get theme_liquid => 'Liquid Glass 输入框';
+
+  @override
+  String get theme_liquid_hint => '消息框像透镜一样折射其后的画面。';
 
   @override
   String ng_worked_for(String duration) {

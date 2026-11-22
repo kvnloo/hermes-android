@@ -5937,6 +5937,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get theme_surface_reload_action => 'Redraw';
 
   @override
+  String get theme_material => 'Material';
+
+  @override
+  String get theme_material_none => 'None';
+
+  @override
+  String get theme_material_basalt => 'Basalt';
+
+  @override
+  String get theme_material_slate => 'Slate';
+
+  @override
+  String get theme_material_limestone => 'Limestone';
+
+  @override
+  String get theme_material_water => 'Water';
+
+  @override
+  String get theme_material_quartz => 'Quartz';
+
+  @override
+  String get theme_material_hint =>
+      'Stone, water or crystal from elemental-ui, lit by a slowly moving light.';
+
+  @override
+  String get theme_liquid => 'Liquid Glass composer';
+
+  @override
+  String get theme_liquid_hint =>
+      'The message box bends the scene behind it like a lens.';
+
+  @override
   String ng_worked_for(String duration) {
     return 'Worked for $duration';
   }

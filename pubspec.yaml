@@ -62,6 +62,7 @@ dependencies:
   # Notifications
   flutter_local_notifications: ^18.0.0
   cryptography: ^2.7.0
+  liquid_glass_renderer: 0.2.0-dev.4
   rive: 0.14.11
   xterm: ^4.0.0
   local_auth: ^3.0.2
@@ -105,8 +106,14 @@ flutter:
           weight: 400
         - asset: assets/fonts/geist/GeistMono-Medium.ttf
           weight: 500
+  shaders:
+    - shaders/elemental_glass.frag
   assets:
     - assets/
+    - assets/elemental/geo.basalt.vesicular.v1/
+    - assets/elemental/geo.limestone.porous.v1/
+    - assets/elemental/geo.slate.layered.v1/
+    - third_party/elemental-ui/LICENSE
     - LICENSE
     - assets/fonts/OFL.txt
     - assets/fonts/geist/OFL.txt

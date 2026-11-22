@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../hm/avatar/hm_avatar_state.dart';
 import 'theme/glass_window_service.dart';
+import 'theme/ng_elemental.dart';
 import 'theme/ng_theme_spec.dart';
 
 /// Whether the app runs the NextGen interface. Toggled from Settings in either
@@ -91,6 +92,12 @@ class NextGenLook extends ChangeNotifier {
   /// Soft coloured light behind the top of each screen.
   bool glow = true;
 
+  /// The elemental-ui material the scene is made of (none by default).
+  NgMaterial material = NgMaterial.none;
+
+  /// Whether the composer is drawn as Liquid Glass, refracting the scene.
+  bool liquid = false;
+
   /// The selected theme: a preset id, or 'custom' for [customTheme].
   String themeId = ngThemePresets.first.id;
 
@@ -119,6 +126,8 @@ abstract final class NextGenPreferences {
   static const accentKey = 'nextgen_accent';
   static const pureBlackKey = 'nextgen_pure_black';
   static const glowKey = 'nextgen_glow';
+  static const materialKey = 'nextgen_material';
+  static const liquidKey = 'nextgen_liquid';
   static const themeKey = 'nextgen_theme';
   static const customThemeKey = 'nextgen_custom_theme';
   static const starredModelsKey = 'nextgen_starred_models';
@@ -147,6 +156,9 @@ abstract final class NextGenPreferences {
     );
     look.pureBlack = prefs.getBool(pureBlackKey) ?? false;
     look.glow = prefs.getBool(glowKey) ?? true;
+    // A damaged or foreign value falls back to the plain scene.
+    look.material = NgMaterial.parse(prefs.get(materialKey));
+    look.liquid = prefs.get(liquidKey) == true;
     look.customTheme = _readCustom(prefs.getString(customThemeKey));
     look.themeId = prefs.getString(themeKey) ?? ngThemePresets.first.id;
     look.avatarStyle = HmAvatarStyle.values.firstWhere(
@@ -279,6 +291,19 @@ abstract final class NextGenPreferences {
   static Future<void> setGlow(SharedPreferences prefs, bool value) async {
     NextGenLook.instance._apply(() => NextGenLook.instance.glow = value);
     await prefs.setBool(glowKey, value);
+  }
+
+  static Future<void> setMaterial(
+    SharedPreferences prefs,
+    NgMaterial material,
+  ) async {
+    NextGenLook.instance._apply(() => NextGenLook.instance.material = material);
+    await prefs.setString(materialKey, material.name);
+  }
+
+  static Future<void> setLiquid(SharedPreferences prefs, bool value) async {
+    NextGenLook.instance._apply(() => NextGenLook.instance.liquid = value);
+    await prefs.setBool(liquidKey, value);
   }
 
   static List<String> starredModels(SharedPreferences prefs) =>

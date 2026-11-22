@@ -10014,6 +10014,66 @@ abstract class AppLocalizations {
   /// **'Redraw'**
   String get theme_surface_reload_action;
 
+  /// No description provided for @theme_material.
+  ///
+  /// In en, this message translates to:
+  /// **'Material'**
+  String get theme_material;
+
+  /// No description provided for @theme_material_none.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get theme_material_none;
+
+  /// No description provided for @theme_material_basalt.
+  ///
+  /// In en, this message translates to:
+  /// **'Basalt'**
+  String get theme_material_basalt;
+
+  /// No description provided for @theme_material_slate.
+  ///
+  /// In en, this message translates to:
+  /// **'Slate'**
+  String get theme_material_slate;
+
+  /// No description provided for @theme_material_limestone.
+  ///
+  /// In en, this message translates to:
+  /// **'Limestone'**
+  String get theme_material_limestone;
+
+  /// No description provided for @theme_material_water.
+  ///
+  /// In en, this message translates to:
+  /// **'Water'**
+  String get theme_material_water;
+
+  /// No description provided for @theme_material_quartz.
+  ///
+  /// In en, this message translates to:
+  /// **'Quartz'**
+  String get theme_material_quartz;
+
+  /// No description provided for @theme_material_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Stone, water or crystal from elemental-ui, lit by a slowly moving light.'**
+  String get theme_material_hint;
+
+  /// No description provided for @theme_liquid.
+  ///
+  /// In en, this message translates to:
+  /// **'Liquid Glass composer'**
+  String get theme_liquid;
+
+  /// No description provided for @theme_liquid_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'The message box bends the scene behind it like a lens.'**
+  String get theme_liquid_hint;
+
   /// No description provided for @ng_worked_for.
   ///
   /// In en, this message translates to:

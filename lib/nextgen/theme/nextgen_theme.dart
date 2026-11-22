@@ -60,6 +60,24 @@ _AccentColors _accentColors(NgAccent accent, Brightness brightness) {
         );
 }
 
+/// elemental-ui material swatches, and the inks the material contrast checks
+/// and Liquid Glass sheen use.
+abstract final class NgMaterialInk {
+  static const clear = Color(0x00000000);
+  static const basalt = Color(0xFF2A2624);
+  static const slate = Color(0xFF3B4148);
+  static const limestone = Color(0xFFCFC6B4);
+  static const water = Color(0xFF2C6F8F);
+  static const quartz = Color(0xFFD9D4EC);
+
+  /// The shader's specular light, and the darkest shading of a body.
+  static const light = Color(0xFFFFFFFF);
+  static const shade = Color(0xFF000000);
+
+  /// Wallpapers Glass is checked over: black, white and mid-grey.
+  static const wallpapers = [shade, light, Color(0xFF808080)];
+}
+
 /// The swatch shown for an accent in Settings.
 Color ngAccentSwatch(NgAccent accent, Brightness brightness) =>
     _accentColors(accent, brightness).accent;
@@ -237,6 +255,14 @@ class NgColors extends ThemeExtension<NgColors> {
         warningSoft: t['warningSoft'] ?? warningSoft,
         glow: glow,
       );
+
+  /// Solid with a material: the opaque background moves to the root scene,
+  /// so the material pane painted over it shows behind every route.
+  NgColors _onScene() => _withTokens(
+    {'background': background.withValues(alpha: 0)},
+    glow,
+    background.withValues(alpha: 1),
+  );
 
   NgColors _withGlass({required bool blurred}) {
     final tint = background.withValues(alpha: 1);
@@ -494,9 +520,10 @@ ThemeData nextGenTheme(
     look.glow,
     look.theme,
   );
-  final c = look.surface == NgSurface.glass && transparentWindow
+  final glass = look.surface == NgSurface.glass && transparentWindow
       ? solid._withGlass(blurred: blurredWindow)
-      : solid;
+      : null;
+  final c = glass ?? (look.material.visible ? solid._onScene() : solid);
   final base = hermesTheme(brightness);
   final scheme = base.colorScheme.copyWith(
     brightness: brightness,
@@ -661,7 +688,9 @@ ThemeData nextGenTheme(
       contentTextStyle: t(NgType.bodySmall, c.text2),
     ),
     drawerTheme: DrawerThemeData(
-      backgroundColor: c.glassScene == null ? c.sidebar : c.sheet,
+      backgroundColor: c.glassScene == null || c.sidebar.a == 1
+          ? c.sidebar
+          : c.sheet,
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(),
     ),

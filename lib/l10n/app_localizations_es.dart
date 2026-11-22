@@ -5980,6 +5980,38 @@ class AppLocalizationsEs extends AppLocalizations {
   String get theme_surface_reload_action => 'Redibujar';
 
   @override
+  String get theme_material => 'Material';
+
+  @override
+  String get theme_material_none => 'Ninguno';
+
+  @override
+  String get theme_material_basalt => 'Basalto';
+
+  @override
+  String get theme_material_slate => 'Pizarra';
+
+  @override
+  String get theme_material_limestone => 'Caliza';
+
+  @override
+  String get theme_material_water => 'Agua';
+
+  @override
+  String get theme_material_quartz => 'Cuarzo';
+
+  @override
+  String get theme_material_hint =>
+      'Piedra, agua o cristal de elemental-ui, iluminados por una luz que se mueve despacio.';
+
+  @override
+  String get theme_liquid => 'Redactor Liquid Glass';
+
+  @override
+  String get theme_liquid_hint =>
+      'El cuadro de mensaje curva la escena de detrás como una lente.';
+
+  @override
   String ng_worked_for(String duration) {
     return 'Trabajó durante $duration';
   }

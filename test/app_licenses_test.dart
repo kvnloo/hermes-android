@@ -19,6 +19,7 @@ const _noticeAssets = <String>[
   'third_party/licenses/flutter-BSD-3-Clause.txt',
   'third_party/licenses/Apache-2.0.txt',
   'third_party/licenses/gradle-NOTICE.txt',
+  'third_party/elemental-ui/LICENSE',
 ];
 
 void main() {
@@ -80,6 +81,7 @@ void main() {
       'Flutter iOS scaffold (source material)',
       'Gradle wrapper (Library build material)',
       'Gradle wrapper (Library build material)',
+      'elemental-ui materials and lighting (GPL-3.0-only)',
     ]);
     for (var index = 0; index < _noticeAssets.length; index++) {
       final entry = entries[index + 1] as LicenseEntryWithLineBreaks;
