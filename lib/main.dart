@@ -58,19 +58,23 @@ import 'nextgen/theme/glass_window_service.dart';
 import 'nextgen/ui/ng_elemental_pane.dart';
 import 'nextgen/theme/nextgen_theme.dart';
 
+import 'shared_ui/glide_theme.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   // Remove any private key left behind by a cancelled connection import.
   unawaited(ClientCertificateService().cleanupStaging());
   unawaited(GlassWindowService.shared.init());
-  runApp(const StartupApp());
+  runApp(StartupApp(loadTheme: GlideTheme.load));
 }
 
 /// Draws a Flutter frame before reading preferences or Android Keystore.
 /// The connection store must still finish migration and credential hydration
 /// before Home can access any saved connection.
 class StartupApp extends StatefulWidget {
-  const StartupApp({super.key, this.createConnectionManager});
+  const StartupApp({super.key, this.createConnectionManager, this.loadTheme});
+
+  final Future<GlideTheme> Function()? loadTheme;
 
   /// The production path uses [ConnectionManager.create]; tests can hold a
   /// real credential read pending without depending on the platform Keystore.
@@ -87,6 +91,7 @@ class _StartupAppState extends State<StartupApp> {
   SharedPreferences? _prefs;
   ConnectionManager? _connManager;
   Object? _startupError;
+  GlideTheme? _glideTheme;
 
   Future<ConnectionManager> _createConnectionManager(SharedPreferences prefs) =>
       widget.createConnectionManager?.call(prefs) ??
@@ -125,6 +130,20 @@ class _StartupAppState extends State<StartupApp> {
           startupError = error;
         }
       }(),
+      if (widget.loadTheme case final load?)
+        () async {
+          try {
+            _glideTheme = await load();
+          } catch (error, stack) {
+            FlutterError.reportError(
+              FlutterErrorDetails(
+                exception: error,
+                stack: stack,
+                context: ErrorDescription('loading the bundled Glide theme'),
+              ),
+            );
+          }
+        }(),
       _shareIntents.initialize(),
       _launchIntents.initialize(),
     ]);
@@ -144,6 +163,7 @@ class _StartupAppState extends State<StartupApp> {
       if (connManager != null) {
         return HermesApp(
           connManager: connManager,
+          glideTheme: _glideTheme,
           shareIntents: _shareIntents,
           launchIntents: _launchIntents,
         );
@@ -151,6 +171,7 @@ class _StartupAppState extends State<StartupApp> {
       return _StartupRecoveryApp(
         prefs: prefs,
         error: _startupError,
+        glideTheme: _glideTheme,
         createConnectionManager: _createConnectionManager,
         onRecovered: (manager) {
           if (mounted) setState(() => _connManager = manager);
@@ -175,12 +196,14 @@ class _StartupRecoveryApp extends StatelessWidget {
   const _StartupRecoveryApp({
     required this.prefs,
     required this.error,
+    this.glideTheme,
     required this.createConnectionManager,
     required this.onRecovered,
   });
 
   final SharedPreferences prefs;
   final Object? error;
+  final GlideTheme? glideTheme;
   final Future<ConnectionManager> Function(SharedPreferences)
   createConnectionManager;
   final ValueChanged<ConnectionManager> onRecovered;
@@ -197,10 +220,12 @@ class _StartupRecoveryApp extends StatelessWidget {
       theme: hermesTheme(
         Brightness.light,
         palette: ThemePreferenceStore(prefs).readPalette(),
+        glide: glideTheme,
       ),
       darkTheme: hermesTheme(
         Brightness.dark,
         palette: ThemePreferenceStore(prefs).readPalette(),
+        glide: glideTheme,
       ),
       builder: (context, child) => HermesSystemUi(child: child!),
       home: Builder(
@@ -274,6 +299,7 @@ class _StartupRecoveryApp extends StatelessWidget {
 
 class HermesApp extends StatefulWidget {
   final ConnectionManager connManager;
+  final GlideTheme? glideTheme;
   final AndroidShareIntentService? shareIntents;
   final AndroidLaunchIntentService? launchIntents;
   // Optional boundaries keep root tests on the real owner and dispatchers.
@@ -288,6 +314,7 @@ class HermesApp extends StatefulWidget {
   testNotificationSessionLookup;
   const HermesApp({
     required this.connManager,
+    this.glideTheme,
     this.shareIntents,
     this.launchIntents,
     this.turnApplicationController,
@@ -1257,18 +1284,29 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
       look,
       transparentWindow: window.transparent,
       blurredWindow: window.blurred,
+      glide: widget.glideTheme,
     );
     return MaterialApp(
       // Avoid interpolating colours across tints with different contrast floors.
       themeAnimationDuration:
-          nextGen && look.surface == NgSurface.glass && window.transparent
+          (MediaQuery.maybeDisableAnimationsOf(context) ?? false) ||
+              (nextGen && look.surface == NgSurface.glass && window.transparent)
           ? Duration.zero
-          : kThemeAnimationDuration,
+          : widget.glideTheme?.duration(
+                  'base',
+                  turbo:
+                      widget.connManager.prefs.getBool(
+                        GlideTheme.turboPreferenceKey,
+                      ) ??
+                      false,
+                ) ??
+                kThemeAnimationDuration,
       // Switching interfaces swaps the whole route stack.
       key: ValueKey(nextGen),
       navigatorKey: _navigatorKey,
       navigatorObservers: [handsFreeRouteObserver],
-      onGenerateTitle: (context) => context.l10n.hermes_agent,
+      onGenerateTitle: (context) =>
+          widget.glideTheme?.brandName ?? context.l10n.hermes_agent,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: preferredSupportedLocales(),
       locale: LocalePreference.read(widget.connManager.prefs),
@@ -1281,12 +1319,14 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
           : hermesTheme(
               Brightness.light,
               palette: HermesApp.getThemePalette(widget.connManager.prefs),
+              glide: widget.glideTheme,
             ),
       darkTheme: nextGen
           ? ngTheme(Brightness.dark)
           : hermesTheme(
               Brightness.dark,
               palette: HermesApp.getThemePalette(widget.connManager.prefs),
+              glide: widget.glideTheme,
             ),
       builder: (context, child) {
         final systemMediaQuery = MediaQuery.of(context);

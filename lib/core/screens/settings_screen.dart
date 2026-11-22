@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../shared_ui/card_gallery.dart';
 import '../services/app_licenses.dart';
 import '../services/locale_preference.dart';
 import 'provider_oauth_screen.dart';
@@ -222,6 +223,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // ---- Section: About ----
         _buildSectionHeader(context.l10n.about),
         _AboutCard(),
+        ListTile(
+          leading: const Icon(Icons.dashboard_customize_outlined),
+          title: const Text(CardGallery.title),
+          onTap: () => CardGallery.open(context),
+        ),
       ],
     );
   }

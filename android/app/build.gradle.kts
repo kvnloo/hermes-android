@@ -59,7 +59,7 @@ android {
        targetSdk = 36
        versionCode = flutter.versionCode
        versionName = flutter.versionName
-       manifestPlaceholders["appLabel"] = "z0 Agent"
+       manifestPlaceholders["appLabel"] = "Glide"
        buildConfigField("boolean", "PLAY_BUILD", playBuild.toString())
        }
 
@@ -85,7 +85,7 @@ android {
            // verifies the packaged arm64 code against that scheme.
            applicationIdSuffix = ".dev"
            versionNameSuffix = "-dev"
-           manifestPlaceholders["appLabel"] = "z0 Agent Dev"
+           manifestPlaceholders["appLabel"] = "Glide Dev"
        }
        release {
            isMinifyEnabled = true

@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../core/theme/hermes_theme.dart';
+import '../../shared_ui/glide_theme.dart';
 import '../nextgen_preferences.dart';
 import 'ng_theme_spec.dart';
 
@@ -264,7 +265,7 @@ class NgColors extends ThemeExtension<NgColors> {
     background.withValues(alpha: 1),
   );
 
-  NgColors _withGlass({required bool blurred}) {
+  NgColors _withGlass({required bool blurred, double? minTint}) {
     final tint = background.withValues(alpha: 1);
     final body = _glassText(text, tint);
     final secondary = _glassText(text2, tint);
@@ -276,7 +277,7 @@ class NgColors extends ThemeExtension<NgColors> {
       subtle,
       muted,
     ], blurred: blurred);
-    final scene = tint.withValues(alpha: alpha);
+    final scene = tint.withValues(alpha: math.max(alpha, minTint ?? 0));
     Color veil(double opacity) => tint.withValues(alpha: opacity);
     final edge = tint.computeLuminance() < 0.5 ? Colors.white : Colors.black;
     return _withTokens(
@@ -504,6 +505,55 @@ abstract final class NgType {
   );
 }
 
+/// The actual NextGen preset, also used when exporting it from Settings.
+NgThemeSpec nextGenLookTheme(NextGenLook look, GlideTheme? glide) {
+  final preset = look.theme;
+  if (glide == null || preset.id != ngThemePresets.first.id) return preset;
+
+  Map<String, Color> tokens(Brightness brightness) {
+    Color c(String role, [String? fallback]) =>
+        glide.color(brightness, role, fallback: fallback);
+    return {
+      'background': look.pureBlack && brightness == Brightness.dark
+          ? Colors.black
+          : c('bg'),
+      'surface': c('card'),
+      'surface2': c('muted'),
+      'surface3': c('accent'),
+      'well': c('muted'),
+      'thumb': c('card'),
+      'sheet': brightness == Brightness.dark ? c('popover', 'card') : c('card'),
+      'input': c('muted'),
+      'sidebar': c('sidebar', 'card'),
+      'userBubble': c('message', 'muted'),
+      'onUserBubble': c('fg'),
+      'text': c('fg'),
+      'text2': c('fg'),
+      'text3': c('mutedFg'),
+      'textMuted': c('mutedFg'),
+      'stroke': c('border'),
+      'strokeStrong': c('input'),
+      'danger': c('dangerFg', 'danger'),
+      'success': c('successFg', 'success'),
+      'accent': c('primary'),
+      'onAccent': c('primaryFg'),
+      'accentText': c('primary'),
+      'accentSoft': Color.alphaBlend(
+        c('primary').withValues(alpha: 0.10),
+        c('card'),
+      ),
+    };
+  }
+
+  return NgThemeSpec(
+    id: preset.id,
+    name: glide.brandName,
+    glow: preset.glow,
+    light: tokens(Brightness.light),
+    dark: tokens(Brightness.dark),
+  );
+}
+
 /// Builds the NextGen [ThemeData] for [brightness]. It keeps the classic
 /// [HermesTokens] extension (re-tinted to NextGen's palette) so every classic
 /// screen opened from NextGen still renders correctly.
@@ -512,19 +562,23 @@ ThemeData nextGenTheme(
   NextGenLook look, {
   bool transparentWindow = false,
   bool blurredWindow = false,
+  GlideTheme? glide,
 }) {
   final solid = NgColors.build(
     brightness,
     look.accent,
     look.pureBlack,
     look.glow,
-    look.theme,
+    nextGenLookTheme(look, glide),
   );
   final glass = look.surface == NgSurface.glass && transparentWindow
-      ? solid._withGlass(blurred: blurredWindow)
+      ? solid._withGlass(
+          blurred: blurredWindow,
+          minTint: glide?.glass('bar').tint,
+        )
       : null;
   final c = glass ?? (look.material.visible ? solid._onScene() : solid);
-  final base = hermesTheme(brightness);
+  final base = hermesTheme(brightness, glide: glide);
   final scheme = base.colorScheme.copyWith(
     brightness: brightness,
     primary: c.accent,
@@ -547,7 +601,9 @@ ThemeData nextGenTheme(
     outline: c.strokeStrong,
     outlineVariant: c.stroke,
     error: c.danger,
-    onError: Colors.white,
+    onError: glide == null || c.danger.computeLuminance() <= 0.179
+        ? Colors.white
+        : Colors.black,
     inverseSurface: c.inverse,
     onInverseSurface: c.onInverse,
   );
@@ -556,7 +612,7 @@ ThemeData nextGenTheme(
   final fullBase = base.textTheme.bodyMedium!;
   TextStyle t(TextStyle s, [Color? color]) =>
       fullBase.merge(s).copyWith(color: color ?? c.text);
-  final textTheme = base.textTheme
+  final legacyText = base.textTheme
       .apply(fontFamily: NgType.family, bodyColor: c.text, displayColor: c.text)
       .copyWith(
         displaySmall: t(NgType.display),
@@ -571,8 +627,11 @@ ThemeData nextGenTheme(
         labelMedium: t(NgType.caption),
         labelSmall: t(NgType.eyebrow, c.text3),
       );
+  final textTheme = glide?.textTheme(legacyText) ?? legacyText;
+  final tileRadius = glide?.radius('tile') ?? NgRadii.md;
+  final cardRadius = glide?.radius('card') ?? NgRadii.lg;
   final pill = RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(NgRadii.full),
+    borderRadius: BorderRadius.circular(glide?.radius('pill') ?? NgRadii.full),
   );
   final List<ThemeExtension<dynamic>> extensions = [
     ...base.extensions.values.where((e) => e is! NgColors),
@@ -594,14 +653,14 @@ ThemeData nextGenTheme(
       foregroundColor: c.text,
       elevation: 0,
       scrolledUnderElevation: 0,
-      titleTextStyle: t(NgType.heading),
+      titleTextStyle: textTheme.titleMedium,
     ),
     cardTheme: CardThemeData(
       color: c.surface,
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(NgRadii.lg),
+        borderRadius: BorderRadius.circular(cardRadius),
         side: BorderSide(color: c.stroke),
       ),
     ),
@@ -609,28 +668,28 @@ ThemeData nextGenTheme(
     listTileTheme: ListTileThemeData(
       iconColor: c.text3,
       textColor: c.text,
-      titleTextStyle: t(NgType.body),
-      subtitleTextStyle: t(NgType.caption, c.text3),
+      titleTextStyle: textTheme.bodyLarge,
+      subtitleTextStyle: textTheme.bodySmall!.copyWith(color: c.text3),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(NgRadii.md),
+        borderRadius: BorderRadius.circular(tileRadius),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: c.input,
-      hintStyle: t(NgType.body, c.textMuted),
-      labelStyle: t(NgType.bodySmall, c.text3),
+      hintStyle: textTheme.bodyLarge!.copyWith(color: c.textMuted),
+      labelStyle: textTheme.bodyMedium!.copyWith(color: c.text3),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(NgRadii.md),
+        borderRadius: BorderRadius.circular(tileRadius),
         borderSide: BorderSide(color: c.stroke),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(NgRadii.md),
+        borderRadius: BorderRadius.circular(tileRadius),
         borderSide: BorderSide(color: c.stroke),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(NgRadii.md),
+        borderRadius: BorderRadius.circular(tileRadius),
         borderSide: BorderSide(color: c.accent, width: 1.4),
       ),
     ),
@@ -640,7 +699,9 @@ ThemeData nextGenTheme(
         foregroundColor: c.onAccent,
         shape: pill,
         minimumSize: const Size(0, 48),
-        textStyle: t(NgType.label.copyWith(fontSize: 15)),
+        textStyle: glide == null
+            ? t(NgType.label.copyWith(fontSize: 15))
+            : textTheme.bodyLarge,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -649,14 +710,14 @@ ThemeData nextGenTheme(
         side: BorderSide(color: c.strokeStrong),
         shape: pill,
         minimumSize: const Size(0, 44),
-        textStyle: t(NgType.label),
+        textStyle: textTheme.labelLarge,
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: c.accentText,
         shape: pill,
-        textStyle: t(NgType.label),
+        textStyle: textTheme.labelLarge,
       ),
     ),
     switchTheme: SwitchThemeData(
@@ -674,18 +735,20 @@ ThemeData nextGenTheme(
       modalBackgroundColor: c.sheet,
       showDragHandle: true,
       dragHandleColor: c.strokeStrong,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(NgRadii.xl)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(glide?.radius('card') ?? NgRadii.xl),
+        ),
       ),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: c.sheet,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(NgRadii.lg),
+        borderRadius: BorderRadius.circular(cardRadius),
       ),
-      titleTextStyle: t(NgType.heading),
-      contentTextStyle: t(NgType.bodySmall, c.text2),
+      titleTextStyle: textTheme.titleMedium,
+      contentTextStyle: textTheme.bodyMedium!.copyWith(color: c.text2),
     ),
     drawerTheme: DrawerThemeData(
       backgroundColor: c.glassScene == null || c.sidebar.a == 1
@@ -698,17 +761,17 @@ ThemeData nextGenTheme(
       color: c.sheet,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(NgRadii.md),
+        borderRadius: BorderRadius.circular(tileRadius),
         side: BorderSide(color: c.stroke),
       ),
-      textStyle: t(NgType.bodySmall),
+      textStyle: textTheme.bodyMedium,
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: c.inverse,
-      contentTextStyle: t(NgType.bodySmall, c.onInverse),
+      contentTextStyle: textTheme.bodyMedium!.copyWith(color: c.onInverse),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(NgRadii.md),
+        borderRadius: BorderRadius.circular(tileRadius),
       ),
     ),
     chipTheme: ChipThemeData(
@@ -716,11 +779,15 @@ ThemeData nextGenTheme(
       // Never pair the near-white dark-mode inverse surface with the default
       // light label. Selected chips use a tinted surface and explicit text.
       selectedColor: c.accentSoft,
-      labelStyle: t(NgType.label, c.text),
-      secondaryLabelStyle: t(NgType.label, c.text),
+      labelStyle: textTheme.labelLarge,
+      secondaryLabelStyle: textTheme.labelLarge,
       checkmarkColor: c.text,
       side: BorderSide(color: c.stroke),
-      shape: pill,
+      shape: glide == null
+          ? pill
+          : RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(glide.radius('chip')),
+            ),
     ),
     progressIndicatorTheme: ProgressIndicatorThemeData(
       color: c.accent,
@@ -729,9 +796,11 @@ ThemeData nextGenTheme(
     tooltipTheme: TooltipThemeData(
       decoration: BoxDecoration(
         color: c.inverse,
-        borderRadius: BorderRadius.circular(NgRadii.sm),
+        borderRadius: BorderRadius.circular(
+          glide?.radius('chip') ?? NgRadii.sm,
+        ),
       ),
-      textStyle: t(NgType.caption, c.onInverse),
+      textStyle: textTheme.bodySmall!.copyWith(color: c.onInverse),
     ),
   );
 }
