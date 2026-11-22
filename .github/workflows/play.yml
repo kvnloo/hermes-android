@@ -46,14 +46,19 @@ jobs:
       # Kevin's S25 installs this APK with `adb install -r` (groot s25-update
       # timer). The arm64 split code is base * 10 + 2, so every staging build
       # would repeat 30652. The sideload build number is the pubspec base plus
-      # this workflow's run number, so each green run installs as an update.
+      # a fixed sideload offset plus this workflow's run number, so each green
+      # run installs as an update. The offset (1000) keeps the stream above
+      # the hand-installed apk.yml test builds (n up to base + 999): one at
+      # n=3127 (vc 31272) left staging's 309xx builds as downgrades on 11-22.
       # The AAB above keeps the pubspec code.
       - name: Build sideload APK (arm64, upload key)
+        env:
+          SIDELOAD_OFFSET: '1000'
         run: |
           base=$(sed -nE 's/^version: *[^+]+\+([0-9]+).*/\1/p' pubspec.yaml)
-          echo "BUILD_NUMBER=$((base + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$((base + SIDELOAD_OFFSET + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
           flutter build apk --release --no-pub --split-per-abi --target-platform android-arm64 \
-            --build-number=$((base + GITHUB_RUN_NUMBER)) \
+            --build-number=$((base + SIDELOAD_OFFSET + GITHUB_RUN_NUMBER)) \
             --dart-define=ARES_PLAY_BUILD=true --split-debug-info=symbols-apk
       - name: Check APK signer, package and versionCode
         env:

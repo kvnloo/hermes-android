@@ -3,7 +3,8 @@
 Every green `Play AAB (z0 Agent)` run on `staging` reaches Kevin's S25 without a human.
 
 1. `play.yml` builds an arm64 APK signed with the upload key. Its versionCode is
-   `(pubspec build + run number) * 10 + 2`, so each run installs over the last. The
+   `(pubspec build + 1000 + run number) * 10 + 2`, so each run installs over the
+   last and over any `apk.yml` test build with `n` below `pubspec build + 1000`. The
    APK and `apk.json` (sha, run id, versionCode, signer) are uploaded as the
    `z0-agent-apk` artifact. Nothing is uploaded to Play.
 2. On groot, `s25-z0-update.timer` (systemd user, every 5 min) runs
@@ -27,8 +28,9 @@ Do not bump the pubspec build number for this: it is the release identity
 tests all key off it).
 
 1. Read the installed code: `adb shell dumpsys package io.github.kvnloo.z0agent | grep versionCode`.
-2. Pick `n` greater than that code / 10. For an installed `30862`, `3087` works
-   (arm64 versionCode `30872`).
+2. Pick `n` greater than that code / 10 and below `pubspec build + 1000` (4066
+   today), so the next staging build still installs over it. For an installed
+   `30862`, `3087` works (arm64 versionCode `30872`).
 3. Run "Release APK (z0 Agent)" (`apk.yml`) with `build_number` = `n`, e.g.
    `gh workflow run apk.yml --ref staging -f build_number=3087`.
 4. Download the `z0-agent-test-<n>` artifact and `adb install -r` it.
@@ -38,5 +40,5 @@ artifact `z0-agent-apk`). The input exists only on `apk.yml`; `play.yml` and
 `release.yml` declare no dispatch inputs, so GitHub rejects a dispatch that
 passes one. Test artifacts are named `z0-agent-test-<n>`, so the groot updater,
 which reads `play.yml`'s `z0-agent-apk`, never installs them. Note the reverse:
-until `play.yml`'s `(pubspec build + run number) * 10 + 2` passes `n * 10 + 2`,
-the auto-updater's installs on that phone fail as downgrades.
+a test build with `n` at or above `pubspec build + 1000 + run number` makes the
+auto-updater skip staging builds as downgrades until the run number catches up.
