@@ -5877,22 +5877,22 @@ class AppLocalizationsUk extends AppLocalizations {
   String get ng_notify_master_off => 'Сповіщення вимкнено';
 
   @override
-  String get ng_look => 'Look';
+  String get ng_look => 'Вигляд';
 
   @override
-  String get ng_import_theme => 'Import theme';
+  String get ng_import_theme => 'Імпортувати тему';
 
   @override
-  String get ng_copy_theme => 'Copy theme JSON';
+  String get ng_copy_theme => 'Копіювати JSON теми';
 
   @override
-  String get ng_paste_theme_json => 'Paste a theme\'s JSON';
+  String get ng_paste_theme_json => 'Вставити JSON теми';
 
   @override
-  String get ng_theme_applied => 'Theme applied';
+  String get ng_theme_applied => 'Тему застосовано';
 
   @override
-  String get ng_apply => 'Apply';
+  String get ng_apply => 'Застосувати';
 
   @override
   String get openui_show_source => 'Show source';

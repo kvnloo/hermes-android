@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hermes_android/hm/features/terminal/ssh_config.dart';
 import 'package:hermes_android/hm/features/terminal/terminal_connection_page.dart';
 
-import 'terminal-ssh_fakes.dart';
+import 'terminal_ssh_fakes.dart';
 
 const _id = 'conn-1';
 

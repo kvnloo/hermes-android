@@ -1638,5 +1638,11 @@
   "ng_bot_import_title": "Импорт бота",
   "ng_bot_import_invalid": "Не удалось прочитать файл бота или его формат не поддерживается.",
   "ng_bot_import_open_chat": "Открыть чат",
-  "ng_bot_import_add": "Добавить бота"
+  "ng_bot_import_add": "Добавить бота",
+  "ng_look": "Внешний вид",
+  "ng_import_theme": "Импортировать тему",
+  "ng_copy_theme": "Скопировать JSON темы",
+  "ng_paste_theme_json": "Вставить JSON темы",
+  "ng_theme_applied": "Тема применена",
+  "ng_apply": "Применить"
 }

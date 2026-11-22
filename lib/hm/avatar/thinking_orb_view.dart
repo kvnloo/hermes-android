@@ -3,6 +3,7 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
+import 'avatar_palette.dart';
 import 'hm_avatar_state.dart';
 import 'thinking_orbs.dart';
 
@@ -87,7 +88,7 @@ class _ThinkingOrbViewState extends State<ThinkingOrbView>
           design.toDouble(),
           widget.dark,
           widget.tint,
-          widget.state == HmAvatarState.error ? const Color(0xFFE5522D) : null,
+          widget.state == HmAvatarState.error ? AvatarPalette.error : null,
         ),
       ),
     );
@@ -101,22 +102,8 @@ class _OrbPainter extends CustomPainter {
   final bool dark;
   final Color? tint, forced;
 
-  // thinking-orbs inkColor: grayscale ramp, or the same ramp on a tint.
-  Color _ink(double white, double alpha) {
-    final w = white.clamp(0.0, 1.0);
-    final t = forced ?? tint;
-    if (t == null) {
-      final g = ((dark ? 1 - w : w) * 255).round();
-      return Color.fromRGBO(g, g, g, alpha);
-    }
-    int ramp(double c) => (dark ? c * (1 - w) : c + (255 - c) * w).round();
-    return Color.fromRGBO(
-      ramp(t.r * 255),
-      ramp(t.g * 255),
-      ramp(t.b * 255),
-      alpha,
-    );
-  }
+  Color _ink(double white, double alpha) =>
+      AvatarPalette.orbInk(white, alpha, dark, forced ?? tint);
 
   @override
   void paint(Canvas canvas, Size size) {

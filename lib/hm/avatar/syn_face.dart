@@ -12,6 +12,7 @@ import 'dart:math' as math;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
+import 'avatar_palette.dart';
 import 'hm_avatar_state.dart';
 
 @immutable
@@ -341,7 +342,7 @@ class SynFace extends StatefulWidget {
     required this.state,
     required this.size,
     required this.color,
-    this.eyeColor = const Color(0xFFF6F1E6),
+    this.eyeColor = AvatarPalette.eye,
     this.seed = 0,
     this.animate = true,
   });
@@ -554,11 +555,11 @@ class _SynFaceState extends State<SynFace> with SingleTickerProviderStateMixin {
   );
 
   static Color _light(HmAvatarState s) => switch (s) {
-    HmAvatarState.thinking => const Color(0xFFFFB020),
+    HmAvatarState.thinking => AvatarPalette.thinking,
     HmAvatarState.speaking ||
-    HmAvatarState.listening => const Color(0xFFD8FF65),
-    HmAvatarState.error => const Color(0xFFE5522D),
-    _ => const Color(0x00000000),
+    HmAvatarState.listening => AvatarPalette.active,
+    HmAvatarState.error => AvatarPalette.error,
+    _ => AvatarPalette.inactive,
   };
 }
 

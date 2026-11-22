@@ -977,9 +977,7 @@ class _NgChatViewState extends State<NgChatView> {
         !_preparing && (hasText || (_drafts.isNotEmpty && !chat.running));
     final shadow = [
       BoxShadow(
-        color: Colors.black.withValues(
-          alpha: c.background.computeLuminance() > 0.5 ? 0.08 : 0.35,
-        ),
+        color: c.floatingShadow,
         blurRadius: 12,
         offset: const Offset(0, 3),
       ),
@@ -1001,7 +999,7 @@ class _NgChatViewState extends State<NgChatView> {
           color: bg,
           shape: const CircleBorder(),
           elevation: lifted ? 3 : 0,
-          shadowColor: Colors.black.withValues(alpha: 0.35),
+          shadowColor: c.controlShadow,
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,

@@ -1638,5 +1638,11 @@
   "ng_bot_import_title": "봇 가져오기",
   "ng_bot_import_invalid": "이 봇 파일을 읽을 수 없거나 지원하지 않는 형식입니다.",
   "ng_bot_import_open_chat": "채팅 열기",
-  "ng_bot_import_add": "봇 추가"
+  "ng_bot_import_add": "봇 추가",
+  "ng_look": "모양",
+  "ng_import_theme": "테마 가져오기",
+  "ng_copy_theme": "테마 JSON 복사",
+  "ng_paste_theme_json": "테마 JSON 붙여넣기",
+  "ng_theme_applied": "테마가 적용되었습니다",
+  "ng_apply": "적용"
 }

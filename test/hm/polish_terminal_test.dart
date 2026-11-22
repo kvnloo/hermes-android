@@ -15,7 +15,7 @@ import 'package:hermes_android/hm/features/terminal/terminal_transport.dart';
 import 'package:http/http.dart' as http;
 import 'package:xterm/xterm.dart';
 
-import 'terminal-ssh_fakes.dart';
+import 'terminal_ssh_fakes.dart';
 
 class _Session implements HmTerminalSession {
   _Session(this.cwd);

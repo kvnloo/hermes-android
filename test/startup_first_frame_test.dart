@@ -9,6 +9,7 @@ import 'package:hermes_android/core/services/android_launch_intent_service.dart'
 import 'package:hermes_android/core/services/android_share_intent_service.dart';
 import 'package:hermes_android/core/services/connection_manager.dart';
 import 'package:hermes_android/main.dart';
+import 'package:hermes_android/nextgen/nextgen_home.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _PendingCredentialStore implements CredentialStore {
@@ -112,8 +113,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(HermesApp), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
-    final home = tester.widget<HomeScreen>(find.byType(HomeScreen));
+    final home = tester.widget<NextGenHome>(find.byType(NextGenHome));
     expect(home.connManager.getConnections().single.apiKey, 'test-credential');
+
+    // A saved connection starts NextGen's gateway. Unmount before advancing
+    // its outstanding offline handshake/backoff timers on the fake clock.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 20));
   });
 
   testWidgets(
@@ -150,7 +156,7 @@ void main() {
       expect(find.byType(HermesApp), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(find.text('Reset saved connections'), findsNothing);
-      final home = tester.widget<HomeScreen>(find.byType(HomeScreen));
+      final home = tester.widget<NextGenHome>(find.byType(NextGenHome));
       expect(home.launchIntents!.takePendingQuickChat(), isTrue);
       expect(home.shareIntents!.pendingShare.value, isNull);
       // Initial-share failure must not unregister the warm-share handler.
@@ -254,7 +260,7 @@ void main() {
         expect(find.byType(HermesApp), findsOneWidget);
         expect(
           tester
-              .widget<HomeScreen>(find.byType(HomeScreen))
+              .widget<NextGenHome>(find.byType(NextGenHome))
               .connManager
               .getConnections(),
           isEmpty,
@@ -281,11 +287,11 @@ void main() {
     await tester.pumpWidget(const StartupApp());
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     await tester.pump();
-    expect(find.byType(HomeScreen), findsNothing);
+    expect(find.byType(NextGenHome), findsNothing);
     initialShare.complete('Shared draft');
     await tester.pumpAndSettle();
 
-    final home = tester.widget<HomeScreen>(find.byType(HomeScreen));
+    final home = tester.widget<NextGenHome>(find.byType(NextGenHome));
     expect(home.shareIntents?.pendingShare.value?.text, 'Shared draft');
     expect(home.launchIntents?.pendingQuickChat.value, isTrue);
   });

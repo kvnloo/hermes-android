@@ -82,9 +82,7 @@ abstract final class HmType {
 /// Soft shadow under floating controls and groups.
 List<BoxShadow> hmShadow(NgColors c) => [
   BoxShadow(
-    color: Colors.black.withValues(
-      alpha: c.background.computeLuminance() > 0.5 ? 0.08 : 0.35,
-    ),
+    color: c.floatingShadow,
     blurRadius: 12,
     offset: const Offset(0, 3),
   ),
@@ -126,7 +124,7 @@ class HmRoundButton extends StatelessWidget {
             color: bg,
             shape: const CircleBorder(),
             elevation: filled ? 0 : 3,
-            shadowColor: Colors.black.withValues(alpha: 0.35),
+            shadowColor: c.controlShadow,
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: onPressed == null

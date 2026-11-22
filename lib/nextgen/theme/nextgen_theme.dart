@@ -145,6 +145,13 @@ class NgColors extends ThemeExtension<NgColors> {
   final Color warningSoft;
   final bool glow;
 
+  /// Depth treatments shared by the chat composers and floating controls.
+  Color get floatingShadow => Colors.black.withValues(
+    alpha: background.computeLuminance() > 0.5 ? 0.08 : 0.35,
+  );
+  Color get controlShadow => Colors.black.withValues(alpha: 0.35);
+  Color get menuShadow => Colors.black26;
+
   const NgColors({
     required this.background,
     this.glassScene,
