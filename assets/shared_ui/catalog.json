@@ -4666,7 +4666,8 @@
       "base": "agent-main",
       "billing": "per second, free when stopped",
       "forks": 3,
-      "kind": "sandbox"
+      "kind": "sandbox",
+      "result": "keep_fork { keep, stop[], evidence }"
      }
     },
     {
@@ -4682,7 +4683,8 @@
       "base": "agent-main",
       "billing": "per second, free when stopped",
       "forks": 3,
-      "kind": "sandbox"
+      "kind": "sandbox",
+      "result": "keep_fork { keep, stop[], evidence }"
      }
     },
     {
@@ -4698,7 +4700,8 @@
       "base": "agent-main",
       "billing": "per second, free when stopped",
       "forks": 3,
-      "kind": "sandbox"
+      "kind": "sandbox",
+      "result": "keep_fork { keep, stop[], evidence }"
      }
     }
    ]

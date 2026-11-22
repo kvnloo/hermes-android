@@ -1,6 +1,11 @@
+import contextlib
 import copy
+import io
 import json
+import os
+import tempfile
 import unittest
+from unittest import mock
 
 from scripts import ephemeral_ui_catalog as eui
 
@@ -67,6 +72,53 @@ class EphemeralCatalogPinTest(unittest.TestCase):
         upstream["kinds"][0]["fixtures"][0]["props"] = {"value": 2}
         problems = eui.compare(self.catalog, self.data, _bytes(upstream), "main")
         self.assertEqual(problems, ["catalog.json changed at main (fixtures or props)"])
+
+
+class EphemeralCatalogModeSplitTest(unittest.TestCase):
+    """PR mode reads only the pinned commit; freshness mode reads upstream."""
+
+    def _run(self, argv, upstream):
+        local = eui.CATALOG.read_bytes()
+        revision = json.loads(eui.PIN.read_text())["revision"]
+
+        def fetch(url):
+            if f"/{revision}/" in url:
+                return local
+            return upstream
+
+        err = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp:
+            summary = os.path.join(tmp, "summary.md")
+            env = {"GITHUB_STEP_SUMMARY": summary}
+            with mock.patch.object(eui, "fetch", fetch), mock.patch.dict(os.environ, env), \
+                    contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+                code = eui.main(argv)
+            text = open(summary).read() if os.path.exists(summary) else ""
+        return code, err.getvalue(), text
+
+    def _stale_upstream(self):
+        upstream = json.loads(eui.CATALOG.read_bytes())
+        upstream["kinds"].append({"kind": "zz-new", "fixtures": [{"id": "zz-new/a"}]})
+        upstream["count"]["kinds"] += 1
+        upstream["count"]["fixtures"] += 1
+        return _bytes(upstream)
+
+    def test_stale_upstream_passes_pr_mode(self):
+        code, err, _ = self._run(["--check-pinned"], self._stale_upstream())
+        self.assertEqual((code, err), (0, ""))
+
+    def test_stale_upstream_fails_freshness_mode_naming_uncovered_kind(self):
+        code, err, summary = self._run(["--check-upstream", "main"], self._stale_upstream())
+        self.assertEqual(code, 1)
+        self.assertIn("uncovered kinds at kvnloo/ephemeral-ui@main: zz-new", err)
+        self.assertIn("zz-new", summary)
+
+    def test_edited_copy_fails_pr_mode(self):
+        revision = json.loads(eui.PIN.read_text())["revision"]
+        with mock.patch.object(eui, "fetch", lambda url: b"{}"), \
+                contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(eui.main(["--check-pinned"]), 1)
+        self.assertIn(revision[:7], err.getvalue())
 
 
 if __name__ == "__main__":
