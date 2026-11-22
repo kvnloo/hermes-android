@@ -51,9 +51,9 @@ class NativeCiConfigurationTest(unittest.TestCase):
     def test_native_job_supplies_the_pinned_gradle_without_an_ignored_wrapper(self):
         workflow = (ROOT / ".github/workflows/native-server.yml").read_text()
         wrapper = (ROOT / "android/gradle/wrapper/gradle-wrapper.properties").read_text()
-        self.assertIn("gradle-9.1.0-all.zip", wrapper)
+        self.assertIn("gradle-9.3.1-all.zip", wrapper)
         self.assertIn("gradle/actions/setup-gradle@v4", workflow)
-        self.assertIn("gradle-version: '9.1.0'", workflow)
+        self.assertIn("gradle-version: '9.3.1'", workflow)
         self.assertIn("run: gradle :app:testDebugUnitTest", workflow)
         self.assertNotIn("run: ./gradlew", workflow)
 

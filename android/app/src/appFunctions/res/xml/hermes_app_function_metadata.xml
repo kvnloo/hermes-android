@@ -1,0 +1,2 @@
+<AppFunctionAppMetadata xmlns:appfn="http://schemas.android.com/apk/androidx.appfunctions"
+    appfn:instructions="Prepare Hermes chat drafts and open routines for the user to review. No function sends a message or runs a routine without user action." />

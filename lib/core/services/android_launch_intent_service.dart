@@ -3,7 +3,13 @@ import 'package:flutter/services.dart';
 
 import '../models/bot_directory_document.dart';
 
-enum AndroidEntryDestination { newChat, liveVoice, sessions, botImport }
+enum AndroidEntryDestination {
+  newChat,
+  liveVoice,
+  sessions,
+  botImport,
+  routines,
+}
 
 AndroidEntryDestination? androidEntryDestination(Object? action) =>
     switch (action) {
@@ -13,6 +19,8 @@ AndroidEntryDestination? androidEntryDestination(Object? action) =>
         AndroidEntryDestination.liveVoice,
       'com.hermesagent.hermes_android.action.SESSIONS' =>
         AndroidEntryDestination.sessions,
+      'com.hermesagent.hermes_android.action.ROUTINES' =>
+        AndroidEntryDestination.routines,
       'botDirectory' => AndroidEntryDestination.botImport,
       _ => null,
     };
