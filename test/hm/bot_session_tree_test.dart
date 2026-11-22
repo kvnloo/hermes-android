@@ -13,6 +13,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hermes_android/core/services/connection_manager.dart';
 import 'package:hermes_android/core/services/ws_client.dart';
+import 'package:hermes_android/hm/features/council/council_run.dart';
 import 'package:hermes_android/hm/features/sessions/bot_session_tree.dart';
 import 'package:hermes_android/hm/hm_bots.dart';
 import 'package:hermes_android/hm/screens/hm_chat_screen.dart';
@@ -84,8 +85,17 @@ Map<String, dynamic> _row(
 class _Host {
   final requests = <Uri>[];
   bool novaFails = true;
+  bool includeCouncil = false;
+  bool councilSaved = false;
 
   List<Map<String, dynamic>> atlas() => [
+    if (includeCouncil)
+      _row(
+        'glide-council-1',
+        'Release decision',
+        const Duration(minutes: 6),
+        source: 'council',
+      ),
     // Server order is not trusted: the tree sorts newest first.
     _row('a3', 'Plan the launch', const Duration(minutes: 9)),
     _row('a1', 'Fix the flaky test', const Duration(minutes: 2), active: true),
@@ -141,6 +151,33 @@ class _Host {
       if ((offset ?? 0) > 0) rows = [];
       return http.Response(
         jsonEncode({'sessions': rows, 'total': rows.length}),
+        200,
+      );
+    }
+    if (path.endsWith('/sessions/glide-council-1/messages')) {
+      expect(request.method, 'GET');
+      return http.Response(
+        jsonEncode({
+          'messages': [
+            if (councilSaved)
+              {
+                'role': 'assistant',
+                'content': jsonEncode({
+                  'schema': councilSchema,
+                  'brief': 'Which release should go first?',
+                  'rounds': 1,
+                  'seats': [
+                    {'id': 'a', 'name': 'Quartz', 'family': 'Anthropic'},
+                    {'id': 'b', 'name': 'Jade', 'family': 'Google'},
+                  ],
+                  'events': [],
+                  'verdicts': [
+                    {'seat': 'a', 'stance': 'agree', 'text': 'Ship the patch.'},
+                  ],
+                }),
+              },
+          ],
+        }),
         200,
       );
     }
@@ -323,6 +360,51 @@ void main() {
       await _settle(tester, 4);
       expect(find.byType(HmBotSessionTree), findsNothing);
     });
+
+    testWidgets(
+      'opens the same Glide council in its bot and retries in place',
+      (tester) async {
+        final host = _Host()..includeCouncil = true;
+        await _pumpHome(tester, host);
+        await _expand(tester, 'Atlas');
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('hm-tree-atlas')),
+            matching: find.text('Council · Release decision'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          host.requests.where((uri) => uri.path.endsWith('/messages')),
+          isEmpty,
+        );
+        await tester.tap(find.text('Council · Release decision'));
+        await _settle(tester);
+        expect(
+          find.text('No council snapshot has been saved yet.'),
+          findsOneWidget,
+        );
+        expect(find.text('DEMO'), findsNothing);
+
+        host.councilSaved = true;
+        await tester.tap(find.text('Retry'));
+        await _settle(tester);
+        expect(find.text('SAVED'), findsOneWidget);
+        expect(find.text('Session: glide-council-1'), findsOneWidget);
+        expect(find.text('Which release should go first?'), findsOneWidget);
+        expect(find.text('Ship the patch.'), findsOneWidget);
+        expect(find.byType(HmChatScreen), findsNothing);
+        final reads = host.requests.where(
+          (uri) => uri.path.endsWith('/messages'),
+        );
+        expect(reads, hasLength(2));
+        for (final uri in reads) {
+          expect(uri.path, endsWith('/sessions/glide-council-1/messages'));
+          expect(uri.queryParameters, containsPair('profile', 'atlas'));
+          expect(uri.queryParameters, containsPair('order', 'latest'));
+        }
+      },
+    );
 
     testWidgets('empty: a bot without sessions says so', (tester) async {
       await _pumpHome(tester, _Host());
