@@ -42,6 +42,7 @@ import '../utils/activity_feed.dart';
 import '../utils/operational_activity_feed.dart';
 import '../utils/home_turn_signals.dart';
 import '../utils/new_chat_options.dart';
+import '../widgets/turbo_motion_controls.dart';
 import '../widgets/activity_pane.dart';
 import '../widgets/cron_upcoming_pane.dart';
 import '../widgets/crons_pane.dart';
@@ -2147,6 +2148,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         title: Text(widget.connection.label),
         centerTitle: false,
         actions: [
+          const Center(child: TurboMotionBadge()),
           if (_destination == HermesDestination.chats) ...[
             IconButton(
               tooltip: _inboxActionCount == 0

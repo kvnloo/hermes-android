@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/services/turbo_motion.dart';
 import '../../../nextgen/data/nextgen_gateway.dart';
 import '../../../nextgen/theme/nextgen_theme.dart';
 import '../../avatar/hm_avatar.dart';
@@ -172,6 +173,7 @@ Future<HmNewSessionResult?> showHmNewSessionSheet(
   final c = NgColors.of(context);
   return showModalBottomSheet<HmNewSessionResult>(
     context: context,
+    sheetAnimationStyle: TurboMotion.sheetStyle(context),
     isScrollControlled: true,
     useSafeArea: true,
     showDragHandle: true,

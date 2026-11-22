@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/widgets/turbo_motion_controls.dart';
 import '../../core/models/connection.dart';
 import '../../core/screens/model_management_screen.dart';
 import '../../core/screens/settings_screen.dart';
@@ -538,6 +539,7 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                     onChanged: (v) =>
                         NextGenPreferences.setLiquid(scope.prefs, v),
                   ),
+                  TurboMotionSwitch(preferences: scope.prefs),
                 ],
               ),
             ),

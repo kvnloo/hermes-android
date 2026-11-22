@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/widgets/turbo_motion_controls.dart';
 import '../../core/models/session.dart';
 import '../../core/services/android_launch_intent_service.dart';
 import '../../core/services/android_share_intent_service.dart';
@@ -465,7 +466,7 @@ class _HmHomeState extends State<HmHome> with WidgetsBindingObserver {
                 ),
               ),
             ),
-            center: _searching ? _searchField(c) : null,
+            center: _searching ? _searchField(c) : const TurboMotionBadge(),
             trailing: [
               if (!_searching)
                 Builder(

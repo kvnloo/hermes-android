@@ -12,6 +12,7 @@ import '../services/config_backup_service.dart';
 import '../services/connection_manager.dart';
 import '../services/hands_free_preference.dart';
 import '../services/notification_prefs.dart';
+import '../widgets/turbo_motion_controls.dart';
 import '../widgets/background_work_settings.dart';
 import '../services/turn_notification_service.dart';
 import '../widgets/config_backup_card.dart';
@@ -186,6 +187,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // ---- Section: Session Sources ----
         _buildSectionHeader(context.l10n.session_sources, classicOnly: true),
         _SessionSourcesFilter(connectionId: widget.connection.id),
+        const SizedBox(height: 16),
+
+        TurboMotionSwitch(preferences: app.widget.connManager.prefs),
         const SizedBox(height: 16),
 
         // ---- Section: Connection ----

@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/services/turbo_motion.dart';
 import '../theme/nextgen_theme.dart';
 import '../nextgen_l10n.dart';
 
@@ -472,7 +473,10 @@ class NgSegmented<T> extends StatelessWidget {
                 behavior: HitTestBehavior.opaque,
                 onTap: () => onChanged(v),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
+                  duration: TurboMotion.duration(
+                    context,
+                    const Duration(milliseconds: 160),
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   decoration: BoxDecoration(
                     color: v == selected ? c.thumb : Colors.transparent,
@@ -550,6 +554,7 @@ Future<T?> showNgSheet<T>(
   final c = NgColors.of(context);
   return showModalBottomSheet<T>(
     context: context,
+    sheetAnimationStyle: TurboMotion.sheetStyle(context),
     isScrollControlled: scrollControlled,
     useSafeArea: true,
     showDragHandle: true,

@@ -20,6 +20,7 @@ import '../../core/utils/delivered_files.dart';
 import '../../core/utils/media_tags.dart';
 import '../../core/widgets/markdown_code_block.dart';
 import '../../core/widgets/media_artifact_card.dart';
+import '../../core/widgets/turbo_motion_controls.dart';
 import '../../core/services/android_voice_composer_adapter.dart';
 import '../../core/services/attachment_controller.dart' show attachmentMimeType;
 import '../../core/services/attachment_draft_service.dart';
@@ -620,6 +621,10 @@ class _NgChatViewState extends State<NgChatView> {
               ),
           body: Column(
             children: [
+              const Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TurboMotionBadge(),
+              ),
               if (!state.isConnected) _connectionBanner(c, gateway),
               Expanded(child: _transcript(c)),
               NgSessionDock(chat: chat),
