@@ -5,35 +5,36 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
 import '../../core/theme/hermes_theme.dart' show contrastRatio;
+import 'nextgen_theme.dart' show NgMaterialInk;
 
 enum NgMaterialKind { pack, water, quartz }
 
 /// A material the app scene can be made of. Persist [name], never [index].
 enum NgMaterial {
-  none(NgMaterialKind.pack, null, Color(0x00000000), 0, 0),
+  none(NgMaterialKind.pack, null, NgMaterialInk.clear, 0, 0),
   basalt(
     NgMaterialKind.pack,
     'geo.basalt.vesicular.v1',
-    Color(0xFF2A2624),
+    NgMaterialInk.basalt,
     0.16,
     0.30,
   ),
   slate(
     NgMaterialKind.pack,
     'geo.slate.layered.v1',
-    Color(0xFF3B4148),
+    NgMaterialInk.slate,
     0.14,
     0.30,
   ),
   limestone(
     NgMaterialKind.pack,
     'geo.limestone.porous.v1',
-    Color(0xFFCFC6B4),
+    NgMaterialInk.limestone,
     0.14,
     0.26,
   ),
-  water(NgMaterialKind.water, null, Color(0xFF2C6F8F), 0.10, 0.30),
-  quartz(NgMaterialKind.quartz, null, Color(0xFFD9D4EC), 0.08, 0.26);
+  water(NgMaterialKind.water, null, NgMaterialInk.water, 0.10, 0.30),
+  quartz(NgMaterialKind.quartz, null, NgMaterialInk.quartz, 0.08, 0.26);
 
   const NgMaterial(
     this.kind,
@@ -121,8 +122,8 @@ List<Color> ngMaterialExtremes(
   // body; bracket it around the swatch.
   final bodies = [
     material.body,
-    Color.lerp(material.body, const Color(0xFF000000), 0.5)!,
-    Color.lerp(material.body, const Color(0xFFFFFFFF), 0.35)!,
+    Color.lerp(material.body, NgMaterialInk.shade, 0.5)!,
+    Color.lerp(material.body, NgMaterialInk.light, 0.35)!,
   ];
   final out = <Color>[];
   for (final body in bodies) {
@@ -134,7 +135,7 @@ List<Color> ngMaterialExtremes(
     // The shader adds sheen as white light over the uncovered part.
     out.add(
       Color.alphaBlend(
-        const Color(0xFFFFFFFF).withValues(alpha: sheen * (1 - bodyAlpha)),
+        NgMaterialInk.light.withValues(alpha: sheen * (1 - bodyAlpha)),
         veiled,
       ),
     );

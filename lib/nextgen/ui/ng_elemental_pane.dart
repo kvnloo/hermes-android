@@ -23,11 +23,7 @@ List<Color> ngSceneBackdrops(NgColors c) {
   final scene = c.glassScene ?? c.background;
   if (scene.a >= 1) return [scene];
   return [
-    for (final wallpaper in const [
-      Color(0xFF000000),
-      Color(0xFFFFFFFF),
-      Color(0xFF808080),
-    ])
+    for (final wallpaper in NgMaterialInk.wallpapers)
       Color.alphaBlend(scene, wallpaper),
   ];
 }
@@ -244,8 +240,8 @@ class NgRimPainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.center,
           colors: [
-            Colors.white.withValues(alpha: dark ? 0.06 : 0.16),
-            Colors.white.withValues(alpha: 0),
+            NgMaterialInk.light.withValues(alpha: dark ? 0.06 : 0.16),
+            NgMaterialInk.light.withValues(alpha: 0),
           ],
         ).createShader(rect),
     );
