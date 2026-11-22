@@ -512,6 +512,12 @@ void main() {
       tester.view.physicalSize = const Size(1080, 2340);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.reset);
+      // The avatars blink at random; a still frame keeps the golden stable.
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
       NextGenLook.instance.themeId = 'onyx';
       await _pumpHome(
         tester,
