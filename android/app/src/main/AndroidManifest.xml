@@ -55,7 +55,7 @@
         <activity android:name=".ScreenCaptureActivity" android:exported="false" />
         <service android:name=".ScreenShareService" android:exported="false"
             android:foregroundServiceType="mediaProjection" />
-        <activity android:name=".DeviceAccessActivity" android:exported="false" />
+        <activity android:name=".DeviceAccessActivity" android:exported="false" android:theme="@style/NormalTheme" />
         <receiver android:name=".DeviceAlarmReceiver" android:exported="false" />
         <activity android:name=".HealthPermissionRationaleActivity" android:exported="false" />
         <activity-alias android:name=".HealthPermissionUsageActivity" android:exported="true"

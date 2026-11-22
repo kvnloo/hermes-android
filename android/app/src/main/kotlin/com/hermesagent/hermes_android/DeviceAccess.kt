@@ -30,8 +30,11 @@ import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -224,13 +227,22 @@ class DeviceAccessActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         access = DeviceAccess(this)
         list = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             val padding = (20 * resources.displayMetrics.density).toInt()
             setPadding(padding, padding, padding, padding)
         }
-        setContentView(ScrollView(this).apply { addView(list) })
+        val scroll = ScrollView(this).apply { addView(list) }
+        ViewCompat.setOnApplyWindowInsetsListener(scroll) { view, windowInsets ->
+            val safe = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            view.setPadding(safe.left, safe.top, safe.right, safe.bottom)
+            windowInsets
+        }
+        setContentView(scroll)
     }
 
     override fun onResume() { super.onResume(); refresh() }
@@ -255,6 +267,7 @@ class DeviceAccessActivity : ComponentActivity() {
             for ((source, state) in states) {
                 list.addView(Switch(this@DeviceAccessActivity).apply {
                     text = "${source.label} · $state"
+                    minHeight = (48 * resources.displayMetrics.density).toInt()
                     isChecked = access.enabled(source)
                     setOnCheckedChangeListener { _, checked -> access.setEnabled(source, checked); refresh() }
                 })
