@@ -48,6 +48,7 @@ Device: **S25** is Kevin's Galaxy S25 Ultra running the signed CI build of `11f4
 
 - [x] Live Mode call surface (bot pill, orb, prompt, mic, close): `parity/r3-010-live.jpg` (emu).
 - [ ] GPT-Live over WebRTC on a real device. Built, never run against a host that offers it. Reason: no host Kevin runs is known to offer GPT-Live, and the S25 was unreachable this round.
+- [ ] Live Mode lanes (HA-035, Dash z0live lanes): fast, large and council lanes attach to the thread's call and orbit the bot's orb; a tap on a lane orb routes the next turns to it. Widget tests only. The gateway has no multi-lane RPC, so lanes run on a fixture in builds made with `--dart-define=HERMES_LIVE_LANES_FIXTURE=true`. See [`parity/ha-035-live-lanes.md`](parity/ha-035-live-lanes.md). Open until an S25 run.
 - [x] Avatar styles a user picks: faces, voice orb (Persona looks), thinking orb: `parity/053-picker-persona.jpg`, `parity/055-picker-orbs.jpg`, `parity/054-persona-rest.jpg` (emu).
 
 ## Groups

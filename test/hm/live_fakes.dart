@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:hermes_android/core/widgets/ephemeral_ui_card.dart';
 import 'package:hermes_android/hm/features/live/live_controller.dart';
+import 'package:hermes_android/hm/features/live/live_lanes.dart';
 import 'package:hermes_android/hm/features/live/live_transport.dart';
 import 'package:hermes_android/hm/features/live/live_webrtc.dart';
 
@@ -13,7 +14,10 @@ class FakeHost implements LiveHost {
     this.statusError,
     this.mode = 'chained',
     this.available = false,
-    this.answer = const LiveSessionAnswer(sessionId: 'live_1', sdp: 'v=0 answer\r\n'),
+    this.answer = const LiveSessionAnswer(
+      sessionId: 'live_1',
+      sdp: 'v=0 answer\r\n',
+    ),
     this.sessionError,
   });
   Object? statusError;
@@ -241,6 +245,7 @@ class LiveRig {
     this.redialPeer,
     this.progressEvery,
     this.reconnectDelays,
+    this.lanes,
   }) : host = host ?? FakeHost(),
        ear = ear ?? FakeEar();
   final FakeHost host;
@@ -257,6 +262,9 @@ class LiveRig {
   final FakePeer Function()? redialPeer;
   final Duration? progressEvery;
   final List<Duration>? reconnectDelays;
+
+  /// Set to offer lanes on the call.
+  final LiveLanes? lanes;
   LiveCall? call;
 
   /// Every call the controller built, oldest first.
@@ -286,6 +294,7 @@ class LiveRig {
             calls.add(c);
             return c;
           },
+    lanes: lanes,
     setupLimit: setupLimit ?? const Duration(seconds: 35),
     progressEvery: progressEvery ?? const Duration(seconds: 20),
     reconnectDelays:

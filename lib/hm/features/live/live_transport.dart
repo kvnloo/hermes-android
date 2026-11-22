@@ -96,6 +96,7 @@ class LiveLine {
     this.tools = const [],
     this.cards = const [],
     this.work = false,
+    this.lane,
   });
   final String key;
   final bool fromUser;
@@ -111,6 +112,9 @@ class LiveLine {
 
   /// The agent's work on a delegated request (its tool rows), not speech.
   final bool work;
+
+  /// The lane this turn went to; null for the bot's own chat.
+  final String? lane;
 }
 
 /// The host has no voice routes (older Hermes): 404 on `/api/audio/*`.
