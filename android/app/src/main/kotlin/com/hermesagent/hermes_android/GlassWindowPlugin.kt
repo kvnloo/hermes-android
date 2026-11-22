@@ -63,13 +63,13 @@ class GlassWindowPlugin(private val activity: Activity) {
         activity.overridePendingTransition(0, 0)
     }
 
-    private fun currentDisplayId(): Int =
-        if (Build.VERSION.SDK_INT >= 30) {
-            activity.display?.displayId ?: Display.DEFAULT_DISPLAY
-        } else {
-            @Suppress("DEPRECATION")
-            activity.windowManager.defaultDisplay.displayId
-        }
+    private fun currentDisplayId(): Int {
+        // Activity.display throws when its context isn't tied to a display;
+        // the activity's own WindowManager still reports the display it is on.
+        val display = if (Build.VERSION.SDK_INT >= 30) runCatching { activity.display }.getOrNull() else null
+        @Suppress("DEPRECATION")
+        return (display ?: activity.windowManager.defaultDisplay).displayId
+    }
 
     fun detach() {
         channel?.setMethodCallHandler(null)
