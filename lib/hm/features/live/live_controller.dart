@@ -1033,8 +1033,9 @@ class LiveController extends ChangeNotifier {
     final generation = _pauseGeneration;
     unawaited(
       _pausedShutdown.then((_) {
-        if (generation != _pauseGeneration || !_paused || isOver || _disposed)
+        if (generation != _pauseGeneration || !_paused || isOver || _disposed) {
           return;
+        }
         _paused = false;
         if (notice == LiveText.paused) notice = null;
         if (webRtc) {
