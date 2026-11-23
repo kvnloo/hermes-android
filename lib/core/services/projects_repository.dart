@@ -375,6 +375,8 @@ class ProjectsRepository {
         final newer = _newerOverview(generation);
         if (newer != null) return newer;
         if (placementRevision != _sessionPlacementRevision) {
+          // The retry's own errors must not reach this try's handlers.
+          // ignore: unawaited_return_in_try_block
           return this.overview(refresh: true);
         }
         throw StateError('Project membership read was superseded');
@@ -1140,6 +1142,8 @@ class ProjectsRepository {
     try {
       final tree = await client.projectSessions(id);
       if (!_closed && placementRevision != _sessionPlacementRevision) {
+        // The retry's own errors must not reach this try's handlers.
+        // ignore: unawaited_return_in_try_block
         return projectSessions(id, refresh: true);
       }
       final view = ProjectSessionsView(
