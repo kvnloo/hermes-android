@@ -19,6 +19,7 @@ import '../../core/services/turn_notification_service.dart';
 import '../../core/services/hermes_sign_in.dart';
 import '../../core/services/legal_links.dart';
 import '../data/connection_check.dart';
+import '../data/nextgen_gateway.dart';
 import '../nextgen_preferences.dart';
 import '../theme/glass_window_service.dart';
 import '../theme/ng_elemental.dart';
@@ -151,21 +152,52 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
   bool _checking = false;
   String? _signedInAs;
 
+  NextGenGateway? _watched;
+  NgConnectionPhase? _lastPhase;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadMe());
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final gateway = NgScope.of(context).gateway;
+    if (identical(gateway, _watched)) return;
+    _watched?.removeListener(_onGateway);
+    _watched = gateway..addListener(_onGateway);
+    _lastPhase = gateway.state.phase;
+  }
+
+  @override
+  void dispose() {
+    _watched?.removeListener(_onGateway);
+    super.dispose();
+  }
+
+  // The socket stopping on an expired ticket re-asks who is signed in, so the
+  // Gateway card's pill and "Signed in" row read the same answer.
+  void _onGateway() {
+    final phase = _watched?.state.phase;
+    if (phase == _lastPhase) return;
+    _lastPhase = phase;
+    if (phase == NgConnectionPhase.sessionExpired) _loadMe();
+  }
+
   Future<void> _loadMe() async {
     final gateway = NgScope.of(context).gateway;
     try {
       final res = await gateway.dashboard.apiRequest('GET', 'auth/me');
-      if (res.statusCode == 200 && mounted) {
+      if (!mounted) return;
+      if (res.statusCode == 200) {
         final user = AuthUser.fromJson(
           Map<String, dynamic>.from(jsonDecode(res.body) as Map),
         );
         setState(() => _signedInAs = user.label);
+      } else if (res.statusCode == 401) {
+        setState(() => _signedInAs = null);
       }
     } catch (_) {
       // Shown as unknown.
@@ -231,14 +263,9 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                           ],
                         ),
                       ),
-                      ListenableBuilder(
-                        listenable: scope.gateway,
-                        builder: (context, _) => NgPill(
-                          scope.gateway.state.label,
-                          tone: scope.gateway.state.isConnected
-                              ? NgTone.success
-                              : NgTone.warning,
-                        ),
+                      NgGatewayStatusPill(
+                        gateway: scope.gateway,
+                        signedIn: _signedInAs != null,
                       ),
                     ],
                   ),
@@ -705,6 +732,34 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
 
 /// Kyllene's notification settings: replies and requests while the app is
 /// out of sight, and keeping a running reply connected in the background.
+/// The Gateway card's status pill. [signedIn] is the dashboard's own answer
+/// (`auth/me`) that the card's "Signed in" row shows; while it confirms a
+/// user, a socket that stopped on a rejected ticket reads as a failed
+/// connection rather than "Signed out".
+class NgGatewayStatusPill extends StatelessWidget {
+  const NgGatewayStatusPill({
+    super.key,
+    required this.gateway,
+    required this.signedIn,
+  });
+
+  final NextGenGateway gateway;
+  final bool signedIn;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: gateway,
+    builder: (context, _) {
+      final state = gateway.state;
+      final expired = state.phase == NgConnectionPhase.sessionExpired;
+      return NgPill(
+        expired && signedIn ? ngL.ng_connection_failed : state.label,
+        tone: state.isConnected ? NgTone.success : NgTone.warning,
+      );
+    },
+  );
+}
+
 class NgNotificationSettings extends StatelessWidget {
   const NgNotificationSettings({super.key});
 

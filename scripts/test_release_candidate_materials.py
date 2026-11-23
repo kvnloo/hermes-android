@@ -246,7 +246,8 @@ class ApkTestInputsTest(unittest.TestCase):
     def test_artifact_name_and_versioncode_check(self):
         upload = self.apk.split("actions/upload-artifact@v4", 1)[1]
         self.assertIn(
-            "name: ${{ inputs.live_lanes_fixture && 'z0-agent-test-live-lanes' || "
+            "name: ${{ inputs.app_functions && 'z0-agent-test-app-functions' || "
+            "inputs.live_lanes_fixture && 'z0-agent-test-live-lanes' || "
             "(inputs.build_number != '' && "
             "format('z0-agent-test-{0}', inputs.build_number) || 'z0-agent-apk') }}",
             upload,
@@ -254,6 +255,43 @@ class ApkTestInputsTest(unittest.TestCase):
         check = _step(self.apk, "Check test build versionCode")
         self.assertIn("if: ${{ inputs.build_number != '' }}", check)
         self.assertIn("TEST_BUILD_NUMBER * 10 + 2", check)
+
+    def _artifact_name(self, app_functions=False, live_lanes_fixture=False,
+                       build_number=""):
+        """Evaluate the upload-artifact name expression for dispatch inputs.
+
+        GitHub's && and || return an operand, like Python's and/or, so the
+        expression maps onto Python once inputs and format() are bound.
+        """
+        upload = self.apk.split("actions/upload-artifact@v4", 1)[1]
+        match = re.search(r"^\s*name: \$\{\{ (.*) \}\}\s*$", upload, re.M)
+        self.assertIsNotNone(match)
+        assert match is not None
+        expression = (match.group(1).replace("&&", " and ")
+                      .replace("||", " or ").replace("inputs.", "inputs_"))
+        self.assertNotRegex(expression, r"!(?!=)")
+        return eval(expression, {"__builtins__": {}}, {
+            "inputs_app_functions": app_functions,
+            "inputs_live_lanes_fixture": live_lanes_fixture,
+            "inputs_build_number": build_number,
+            "format": lambda template, *args: template.format(*args),
+        })
+
+    def test_app_functions_build_never_uploads_z0_agent_apk(self):
+        for live_lanes_fixture in (False, True):
+            for build_number in ("", "3087"):
+                with self.subTest(live_lanes_fixture=live_lanes_fixture,
+                                  build_number=build_number):
+                    self.assertEqual(
+                        self._artifact_name(True, live_lanes_fixture,
+                                            build_number),
+                        "z0-agent-test-app-functions",
+                    )
+        self.assertEqual(self._artifact_name(), "z0-agent-apk")
+        self.assertEqual(self._artifact_name(live_lanes_fixture=True),
+                         "z0-agent-test-live-lanes")
+        self.assertEqual(self._artifact_name(build_number="3087"),
+                         "z0-agent-test-3087")
 
     def test_test_build_cannot_reach_the_play_path(self):
         # apk.yml builds and uploads an APK artifact only: no AAB, no store
