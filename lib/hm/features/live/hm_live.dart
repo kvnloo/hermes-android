@@ -32,7 +32,6 @@ import 'live_controller.dart';
 import 'live_lanes.dart';
 import 'live_strings.dart';
 import 'live_session_host.dart';
-import '../../../core/services/background_work_prefs.dart';
 import 'live_transport.dart';
 import 'live_webrtc.dart';
 
@@ -224,14 +223,16 @@ class HmLiveScope extends StatefulWidget {
 }
 
 class _HmLiveScopeState extends State<HmLiveScope> {
+  final _fallbackPolicy = ValueNotifier(false);
   late final host = LiveSessionHost(
     background: widget.background ?? AndroidLiveBackground(),
-    backgroundAllowed: widget.policy ?? backgroundWorkEnabled,
+    backgroundAllowed: widget.policy ?? _fallbackPolicy,
   );
 
   @override
   void dispose() {
     host.dispose();
+    _fallbackPolicy.dispose();
     super.dispose();
   }
 

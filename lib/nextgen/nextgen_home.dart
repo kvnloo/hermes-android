@@ -24,10 +24,12 @@ class NextGenHome extends StatefulWidget {
     required this.connManager,
     this.launchIntents,
     this.shareIntents,
+    this.liveBackgroundAllowed,
   });
   final AndroidLaunchIntentService? launchIntents;
   final AndroidShareIntentService? shareIntents;
   final ConnectionManager connManager;
+  final ValueNotifier<bool>? liveBackgroundAllowed;
 
   @override
   State<NextGenHome> createState() => _NextGenHomeState();
@@ -222,6 +224,7 @@ class _NextGenHomeState extends State<NextGenHome> {
       signInAgain: () => _connectFlow(existing: gateway.connection),
       child: HmLiveScope(
         key: ObjectKey(gateway),
+        policy: widget.liveBackgroundAllowed,
         child: NavigatorPopHandler(
           onPopWithResult: (_) => _navigator.currentState?.maybePop(),
           child: Navigator(

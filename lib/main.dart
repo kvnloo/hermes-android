@@ -389,6 +389,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
   late final MobilePushService _mobilePush;
   late final void Function(NotificationResponse) _notificationHandler;
   bool? _confirmedBackgroundPolicy;
+  final _liveBackgroundAllowed = ValueNotifier(false);
   bool get _backgroundPolicyReady => _confirmedBackgroundPolicy != null;
   bool _rootFrameReady = false;
   bool _pushRouting = false;
@@ -632,6 +633,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
   void _onBackgroundWorkPolicyChanged() {
     if (_closingTurnOwner) return;
     final enabled = _protectBackgroundWork;
+    _liveBackgroundAllowed.value = enabled;
     _keepAlive.onPolicyChanged(enabled);
     _turnApplicationController.setLifecycle(
       background: _background,
@@ -1366,6 +1368,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
       home: nextGen
           ? NextGenHome(
               connManager: widget.connManager,
+              liveBackgroundAllowed: _liveBackgroundAllowed,
               launchIntents: widget.launchIntents,
               shareIntents: widget.shareIntents,
             )
@@ -1399,6 +1402,7 @@ class HermesAppState extends State<HermesApp> with WidgetsBindingObserver {
     }
     nextGenTurnActive.removeListener(_onTurnActivityChanged);
     browserSignInPending.removeListener(_onTurnActivityChanged);
+    _liveBackgroundAllowed.dispose();
     backgroundWorkEnabled.removeListener(_onBackgroundWorkPolicyChanged);
     BackgroundWorkPrefsStore.pendingChoice.removeListener(
       _onBackgroundWorkPolicyChanged,
