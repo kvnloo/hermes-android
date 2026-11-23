@@ -7,6 +7,7 @@ import 'package:hermes_android/core/services/app_licenses.dart';
 
 const _noticeAssets = <String>[
   'LICENSE',
+  'NOTICE.md',
   'assets/fonts/OFL.txt',
   'assets/fonts/geist/OFL.txt',
   'third_party/licenses/kyllene-MIT.txt',
@@ -20,6 +21,15 @@ const _noticeAssets = <String>[
   'third_party/licenses/Apache-2.0.txt',
   'third_party/licenses/gradle-NOTICE.txt',
   'third_party/elemental-ui/LICENSE',
+  'assets/fonts/nunito/OFL.txt',
+  'third_party/ai-elements-persona/LICENSE.ai-elements',
+  'third_party/ai-elements-persona/LICENSE-2.0.txt',
+  'third_party/thinking-orbs/LICENSE',
+  'third_party/syn-face/LICENSES.md',
+  'third_party/flutter_tts_android/LICENSE',
+  'third_party/voice/NOTICE.md',
+  'third_party/voice/licenses/sherpa-onnx-Apache-2.0.txt',
+  'third_party/voice/licenses/onnxruntime-MIT.txt',
 ];
 
 void main() {
@@ -69,6 +79,7 @@ void main() {
     expect(bundle.requests, _noticeAssets);
     expect(entries.skip(1).map((entry) => entry.packages.single), [
       'z0 Agent, based on Ares by Sam Russell (MIT)',
+      'z0 Agent, based on Ares by Sam Russell (MIT)',
       'Cinzel',
       'Geist and Geist Mono',
       'Kyllene (NextGen design and connection model, source material)',
@@ -82,6 +93,15 @@ void main() {
       'Gradle wrapper (Library build material)',
       'Gradle wrapper (Library build material)',
       'elemental-ui materials and lighting (GPL-3.0-only)',
+      'Nunito',
+      'AI Elements Persona',
+      'AI Elements Persona',
+      'thinking-orbs',
+      'Syn face (Moodie and bloub)',
+      'flutter_tts (Android patch)',
+      'sherpa-onnx and wake model',
+      'sherpa-onnx and wake model',
+      'ONNX Runtime',
     ]);
     for (var index = 0; index < _noticeAssets.length; index++) {
       final entry = entries[index + 1] as LicenseEntryWithLineBreaks;
@@ -97,7 +117,12 @@ void main() {
     expect(mit.text, contains('Permission is hereby granted, free of charge'));
     expect(mit.text, contains('THE SOFTWARE IS PROVIDED "AS IS"'));
     expect(mit.text, endsWith('SOFTWARE.\n'));
-    final lgpl = entries[7] as LicenseEntryWithLineBreaks;
+    final lgpl =
+        entries[_noticeAssets.indexOf(
+                  'third_party/licenses/embedded-fcm-distributor-LGPL-2.1.txt',
+                ) +
+                1]
+            as LicenseEntryWithLineBreaks;
     expect(lgpl.text, contains('Copyright (C) 2022 Simon Gougeon'));
     expect(
       lgpl.text,
