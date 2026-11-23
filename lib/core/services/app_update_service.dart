@@ -1,8 +1,53 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// The GitHub repository whose releases the in-app APK updater follows.
+///
+/// The single source of truth for the release owner/repo on the Dart side:
+/// the API URL and the asset URL check both derive from it. The Android
+/// installer pins the same value in `ApkReleaseRepository`.
+class AppReleaseRepository {
+  const AppReleaseRepository._(this.owner, this.name);
+
+  final String owner;
+  final String name;
+
+  /// `owner/name`, as GitHub writes it.
+  String get slug => '$owner/$name';
+
+  String get latestReleaseApiUrl =>
+      'https://api.github.com/repos/$slug/releases/latest';
+}
+
+/// This app's releases. Never an upstream fork's: its APKs carry a different
+/// signer and could not replace this installation.
+const appReleaseRepository = AppReleaseRepository._('kvnloo', 'hermes-android');
+
+/// The Google Play Store's installer package name.
+const playStoreInstallerPackage = 'com.android.vending';
+
+/// Whether [installerPackage] means Google Play owns this installation's
+/// updates, so the in-app GitHub APK updater must stay out of the way.
+bool isPlayStoreInstaller(String? installerPackage) =>
+    installerPackage == playStoreInstallerPackage;
+
+/// The package that installed this app (`com.android.vending` for Play), or
+/// null when it is unknown: sideloaded, adb, a test, or a non-Android host.
+Future<String?> platformInstallerPackage() async {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return null;
+  try {
+    return await const MethodChannel(
+      'com.hermesagent.hermes_android/apk_update',
+    ).invokeMethod<String>('installerPackage');
+  } catch (_) {
+    return null;
+  }
+}
 
 /// A published Hermes Android release, read from the project's GitHub Releases.
 class AppReleaseInfo {
@@ -104,8 +149,8 @@ class AppReleaseApk {
         url.hasQuery ||
         url.hasFragment ||
         url.pathSegments.length != 6 ||
-        url.pathSegments[0] != 'rusty4444' ||
-        url.pathSegments[1] != 'hermes-android' ||
+        url.pathSegments[0] != appReleaseRepository.owner ||
+        url.pathSegments[1] != appReleaseRepository.name ||
         url.pathSegments[2] != 'releases' ||
         url.pathSegments[3] != 'download' ||
         url.pathSegments[4] != tag ||
@@ -237,16 +282,21 @@ class AppUpdateService {
   /// for an APK. Set with `--dart-define=ARES_PLAY_BUILD=true` for the Play AAB.
   static const isPlayBuild = bool.fromEnvironment('ARES_PLAY_BUILD');
 
-  /// [client] and [preferences] are injectable so tests can drive the check
-  /// against a fake GitHub and a mock store; the app passes neither.
-  AppUpdateService({http.Client? client, SharedPreferences? preferences}) {
+  /// [client], [preferences] and [installerPackage] are injectable so tests
+  /// can drive the check against a fake GitHub, a mock store and a chosen
+  /// installer; the app passes none of them.
+  AppUpdateService({
+    http.Client? client,
+    SharedPreferences? preferences,
+    Future<String?> Function()? installerPackage,
+  }) {
     _client = client;
     _preferences = preferences;
+    _installerPackage = installerPackage ?? platformInstallerPackage;
   }
 
-  /// The upstream project whose releases the app follows.
-  static const releasesApiUrl =
-      'https://api.github.com/repos/rusty4444/hermes-android/releases/latest';
+  /// The project whose releases the app follows: [appReleaseRepository].
+  static final releasesApiUrl = appReleaseRepository.latestReleaseApiUrl;
 
   /// How long a check counts for. GitHub answers unauthenticated callers on a
   /// per-IP budget, and a launch several times an hour must not spend it.
@@ -262,6 +312,18 @@ class AppUpdateService {
 
   http.Client? _client;
   SharedPreferences? _preferences;
+  late final Future<String?> Function() _installerPackage;
+
+  /// Whether Play-managed updates apply: the Play AAB build, or any build that
+  /// the Play Store installed. Either way the APK updater never runs.
+  Future<bool> playManagesUpdates() async {
+    if (isPlayBuild) return true;
+    try {
+      return isPlayStoreInstaller(await _installerPackage());
+    } catch (_) {
+      return false;
+    }
+  }
 
   http.Client get _http => _client ??= http.Client();
 
@@ -274,7 +336,9 @@ class AppUpdateService {
     required String currentVersion,
     bool force = false,
   }) async {
-    if (isPlayBuild) return const AppUpdateResult(AppUpdateOutcome.failed);
+    if (await playManagesUpdates()) {
+      return const AppUpdateResult(AppUpdateOutcome.failed);
+    }
     final preferences = await _prefs;
     if (!force && await _isThrottled(preferences)) {
       return const AppUpdateResult(AppUpdateOutcome.throttled);
@@ -336,7 +400,9 @@ class AppUpdateService {
   Future<AppReleaseInfo?> launchPromptRelease({
     required String currentVersion,
   }) async {
-    if (isPlayBuild || !await checkOnLaunchEnabled()) return null;
+    if (await playManagesUpdates() || !await checkOnLaunchEnabled()) {
+      return null;
+    }
     final result = await checkForUpdate(currentVersion: currentVersion);
     // Throttling applies to the network, not to presentation: "Later" should
     // prompt on the next launch even when no second request is due yet.

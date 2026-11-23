@@ -10,7 +10,7 @@ import java.net.URL
 class ApkUpdateSourceTest {
     private val tag = "v3.2.6"
     private val name = "app-arm64-v8a-release.apk"
-    private val url = "https://github.com/rusty4444/hermes-android/releases/download/$tag/$name"
+    private val url = "https://github.com/kvnloo/hermes-android/releases/download/$tag/$name"
     private val sha = "0037e440f19dad89318902f90a6b8ef29cfe0289304e62fde6b9d4896a6fbff4"
 
     @Test fun acceptsOnlyExactOfficialReleaseMetadata() {

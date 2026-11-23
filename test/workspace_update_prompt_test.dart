@@ -29,8 +29,11 @@ SavedConnection _connection() => SavedConnection(
 
 String _releaseJson(String tag) =>
     '{"tag_name":"$tag","name":"Hermes Android $tag","body":"Notes.","'
-    'html_url":"https://github.com/rusty4444/hermes-android/releases/tag/$tag",'
+    'html_url":"https://github.com/kvnloo/hermes-android/releases/tag/$tag",'
     '"draft":false,"published_at":"2026-10-15T09:30:00Z"}';
+
+/// A sideloaded install: the GitHub APK updater applies.
+Future<String?> _sideloaded() async => null;
 
 /// Pumps the shell as the app opens it for a plain launch.
 Future<void> pumpLaunch(
@@ -80,6 +83,7 @@ void main() {
     tester,
   ) async {
     final service = AppUpdateService(
+      installerPackage: _sideloaded,
       client: MockClient(
         (request) async => http.Response(_releaseJson('v2.1.20'), 200),
       ),
@@ -96,10 +100,31 @@ void main() {
     expect(find.text('Update available'), findsNothing);
   });
 
+  testWidgets('a Play-installed launch never prompts or asks GitHub', (
+    tester,
+  ) async {
+    var requests = 0;
+    final service = AppUpdateService(
+      installerPackage: () async => 'com.android.vending',
+      client: MockClient((request) async {
+        requests++;
+        return http.Response(_releaseJson('v2.1.20'), 200);
+      }),
+    );
+
+    await pumpLaunch(tester, service: service);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Update available'), findsNothing);
+    expect(requests, 0);
+  });
+
   testWidgets('dismissing with Later asks again at the next launch', (
     tester,
   ) async {
     final service = AppUpdateService(
+      installerPackage: _sideloaded,
       client: MockClient(
         (request) async => http.Response(_releaseJson('v2.1.20'), 200),
       ),
@@ -118,6 +143,7 @@ void main() {
     tester,
   ) async {
     final service = AppUpdateService(
+      installerPackage: _sideloaded,
       client: MockClient(
         (request) async => http.Response(_releaseJson('v2.1.20'), 200),
       ),
@@ -134,6 +160,7 @@ void main() {
 
   testWidgets('no prompt when the install is already current', (tester) async {
     final service = AppUpdateService(
+      installerPackage: _sideloaded,
       client: MockClient(
         (request) async => http.Response(_releaseJson('v2.1.19'), 200),
       ),
@@ -148,6 +175,7 @@ void main() {
     tester,
   ) async {
     final service = AppUpdateService(
+      installerPackage: _sideloaded,
       client: MockClient(
         (request) async => http.Response(_releaseJson('v2.1.20'), 200),
       ),
@@ -166,6 +194,7 @@ void main() {
     tester,
   ) async {
     final service = AppUpdateService(
+      installerPackage: _sideloaded,
       client: MockClient(
         (request) async => http.Response(_releaseJson('v2.1.20'), 200),
       ),
@@ -185,6 +214,7 @@ void main() {
   ) async {
     final response = Completer<http.Response>();
     final service = AppUpdateService(
+      installerPackage: _sideloaded,
       client: MockClient((request) => response.future),
     );
     await pumpLaunch(tester, service: service);
