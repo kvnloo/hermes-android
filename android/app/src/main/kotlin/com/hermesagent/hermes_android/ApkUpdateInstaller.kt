@@ -25,6 +25,24 @@ import java.util.concurrent.TimeUnit
 
 // Same public release certificate as scripts/verify_release_apks.py.
 private const val PRODUCTION_SIGNER_SHA256 = "475baf431b16d050c8f658ac838783b273f7c10bba06ed1d16bb0a4239f592fb"
+
+/** The GitHub repository whose release APKs this installer accepts. One place. */
+internal object ApkReleaseRepository {
+    const val OWNER = "kvnloo"
+    const val NAME = "hermes-android"
+
+    fun downloadPath(tag: String, name: String): String = "/$OWNER/$NAME/releases/download/$tag/$name"
+
+    fun downloadUrl(tag: String, name: String): String = "https://github.com" + downloadPath(tag, name)
+}
+
+/** Play-installed builds get their updates from Play, never from GitHub. */
+internal object ApkUpdatePolicy {
+    const val PLAY_STORE_INSTALLER = "com.android.vending"
+
+    fun isPlayInstall(installerPackage: String?): Boolean = installerPackage == PLAY_STORE_INSTALLER
+}
+
 private fun ByteArray.sha256Hex(): String = MessageDigest.getInstance("SHA-256")
     .digest(this).joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
@@ -63,12 +81,13 @@ class ApkUpdateInstaller(
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "canUpdate" -> result.success(canUpdate())
+                "installerPackage" -> result.success(installerPackage())
                 "supportedAbis" -> result.success(Build.SUPPORTED_ABIS.toList())
                 "hasPreparedUpdate" -> {
                     val tag = call.argument<String>("tag")
                     val name = call.argument<String>("name")
                     val source = ApkUpdateSource.parse(
-                        tag, "https://github.com/rusty4444/hermes-android/releases/download/$tag/$name", name,
+                        tag, if (tag != null && name != null) ApkReleaseRepository.downloadUrl(tag, name) else null, name,
                         call.argument("sha256"), call.argument<Number>("size")?.toLong(),
                     )
                     if (source == null || !canUpdate()) result.success(false)
@@ -250,8 +269,19 @@ class ApkUpdateInstaller(
     }
 
     @Suppress("DEPRECATION")
+    private fun installerPackage(): String? = runCatching {
+        val manager = context.packageManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            manager.getInstallSourceInfo(context.packageName).installingPackageName
+        } else {
+            manager.getInstallerPackageName(context.packageName)
+        }
+    }.getOrNull()
+
+    @Suppress("DEPRECATION")
     private fun canUpdate(): Boolean = runCatching {
         if (context.packageName != "com.hermesagent.hermes_android") return@runCatching false
+        if (ApkUpdatePolicy.isPlayInstall(installerPackage())) return@runCatching false
         val info = context.packageManager.getPackageInfo(context.packageName, signingFlags())
         signerDigests(info) == setOf(PRODUCTION_SIGNER_SHA256)
     }.getOrDefault(false)
@@ -383,7 +413,7 @@ internal data class ApkUpdateSource(
             val uri = runCatching { java.net.URI(url) }.getOrNull() ?: return null
             if (uri.scheme != "https" || uri.host != "github.com" || uri.port != -1 || uri.userInfo != null ||
                 uri.query != null || uri.fragment != null ||
-                uri.rawPath != "/rusty4444/hermes-android/releases/download/$tag/$name") return null
+                uri.rawPath != ApkReleaseRepository.downloadPath(tag, name!!)) return null
             return ApkUpdateSource(tag, url, name!!, sha256, size)
         }
 

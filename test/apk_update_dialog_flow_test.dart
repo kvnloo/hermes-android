@@ -12,13 +12,13 @@ import 'support/l10n_test_utils.dart';
 final _release = AppReleaseInfo(
   version: '3.2.6',
   tagName: 'v3.2.6',
-  releaseUrl: 'https://github.com/rusty4444/hermes-android/releases/tag/v3.2.6',
+  releaseUrl: 'https://github.com/kvnloo/hermes-android/releases/tag/v3.2.6',
   apkAssets: [
     AppReleaseApk(
       abi: 'arm64-v8a',
       name: 'app-arm64-v8a-release.apk',
       url: Uri.parse(
-        'https://github.com/rusty4444/hermes-android/releases/download/v3.2.6/app-arm64-v8a-release.apk',
+        'https://github.com/kvnloo/hermes-android/releases/download/v3.2.6/app-arm64-v8a-release.apk',
       ),
       sha256:
           '0037e440f19dad89318902f90a6b8ef29cfe0289304e62fde6b9d4896a6fbff4',

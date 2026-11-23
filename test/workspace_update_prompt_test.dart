@@ -29,7 +29,7 @@ SavedConnection _connection() => SavedConnection(
 
 String _releaseJson(String tag) =>
     '{"tag_name":"$tag","name":"Hermes Android $tag","body":"Notes.","'
-    'html_url":"https://github.com/rusty4444/hermes-android/releases/tag/$tag",'
+    'html_url":"https://github.com/kvnloo/hermes-android/releases/tag/$tag",'
     '"draft":false,"published_at":"2026-10-15T09:30:00Z"}';
 
 /// Pumps the shell as the app opens it for a plain launch.

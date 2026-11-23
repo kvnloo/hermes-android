@@ -18,7 +18,7 @@ Map<String, Object?> _asset(
     'name': file,
     'browser_download_url':
         url ??
-        'https://github.com/rusty4444/hermes-android/releases/download/v3.2.6/$file',
+        'https://github.com/kvnloo/hermes-android/releases/download/v3.2.6/$file',
     'digest': digest ?? 'sha256:$_digest',
     'size': size,
     'state': 'uploaded',
@@ -30,7 +30,7 @@ AppReleaseInfo _release(List<Map<String, Object?>> assets) =>
       jsonEncode({
         'tag_name': 'v3.2.6',
         'html_url':
-            'https://github.com/rusty4444/hermes-android/releases/tag/v3.2.6',
+            'https://github.com/kvnloo/hermes-android/releases/tag/v3.2.6',
         'assets': assets,
       }),
     )!;
@@ -60,14 +60,14 @@ void main() {
         _asset(
           'arm64-v8a',
           url:
-              'http://github.com/rusty4444/hermes-android/releases/download/v3.2.6/app-arm64-v8a-release.apk',
+              'http://github.com/kvnloo/hermes-android/releases/download/v3.2.6/app-arm64-v8a-release.apk',
         ),
       ],
       [
         _asset(
           'arm64-v8a',
           url:
-              'https://github.com/rusty4444/hermes-android/releases/download/v3.2.5/app-arm64-v8a-release.apk',
+              'https://github.com/kvnloo/hermes-android/releases/download/v3.2.5/app-arm64-v8a-release.apk',
         ),
       ],
       [_asset('arm64-v8a', digest: 'sha256:bad')],
@@ -89,7 +89,7 @@ void main() {
       jsonEncode({
         'tag_name': 'v3.2.6',
         'html_url':
-            'https://github.com/rusty4444/hermes-android/releases/tag/v3.2.6',
+            'https://github.com/kvnloo/hermes-android/releases/tag/v3.2.6',
         'prerelease': true,
         'assets': [_asset('arm64-v8a')],
       }),
@@ -102,12 +102,12 @@ void main() {
       jsonEncode({
         'tag_name': 'v3.2.6-beta.1',
         'html_url':
-            'https://github.com/rusty4444/hermes-android/releases/tag/v3.2.6-beta.1',
+            'https://github.com/kvnloo/hermes-android/releases/tag/v3.2.6-beta.1',
         'assets': [
           _asset(
             'arm64-v8a',
             url:
-                'https://github.com/rusty4444/hermes-android/releases/download/v3.2.6-beta.1/app-arm64-v8a-release.apk',
+                'https://github.com/kvnloo/hermes-android/releases/download/v3.2.6-beta.1/app-arm64-v8a-release.apk',
           ),
         ],
       }),
