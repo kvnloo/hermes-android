@@ -161,15 +161,19 @@ class NgLiquidChrome extends StatelessWidget {
         boxShadow: fallback.boxShadow,
       ),
       child: LiquidGlass.withOwnLayer(
+        // liquid_glass_renderer 1.0: optics live on the layer settings, colour
+        // on the per-shape appearance. The 0.2 light angle and ambient term
+        // are gone; the bevel, edge displacement and glint keep the package's
+        // iOS 27 defaults, with the glint a little brighter on light scenes.
         settings: LiquidGlassSettings(
-          thickness: 20,
-          blur: 4,
-          glassColor: tint,
-          lightIntensity: dark ? 0.8 : 1.1,
-          ambientStrength: 0.3,
-          refractiveIndex: 1.22,
-          saturation: 1.2,
-          chromaticAberration: 0.2,
+          refractionHeight: 20,
+          frost: 4,
+          highlight: dark ? 0.6 : 0.8,
+          dispersion: 0.2,
+        ),
+        appearance: LiquidGlassAppearance(
+          tint: tint,
+          colorModel: const LiquidGlassColorModel.direct(saturation: 1.2),
         ),
         shape: LiquidRoundedSuperellipse(borderRadius: radius),
         child: Stack(
