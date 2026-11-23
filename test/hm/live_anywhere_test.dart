@@ -180,6 +180,11 @@ void main() {
       final token = native.starts.single;
       native.callback?.call('end', token - 1);
       expect(host.active, isTrue);
+      await tester.tap(find.bySemanticsLabel('Minimize'));
+      await _frames(tester);
+      native.action('return');
+      await _frames(tester);
+      expect(find.byType(HmLiveScreen), findsOneWidget);
       native.action('mute');
       expect(host.live?.muted, isTrue);
       native.action('end');
@@ -385,4 +390,40 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     },
   );
+  testWidgets('Open shows a clarification over the minimized call', (
+    tester,
+  ) async {
+    final gateway = _gateway();
+    final chat = NgChatController(gateway)..runtimeId = 'mine';
+    final answers = <Map<String, dynamic>>[];
+    final rig = LiveRig();
+    final host = await _mount(
+      tester,
+      rig,
+      LiveRig(),
+      FakeLiveBackground(),
+      chat: chat,
+    );
+    await tester.tap(find.bySemanticsLabel('Minimize'));
+    await _frames(tester);
+    gateway.debugRequest(_request('mine', 'clarify', 'clarify', answers));
+    await _frames(tester);
+    await tester.tap(find.byIcon(Icons.open_in_new));
+    await _frames(tester);
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.text('Which notes?'), findsOneWidget);
+    expect(host.active, isTrue);
+    await tester.enterText(find.byType(TextField), 'The red notebook');
+    await tester.tap(find.text('Answer'));
+    await _frames(tester);
+    expect(answers, [
+      {'answer': 'The red notebook'},
+    ]);
+    expect(find.byType(Dialog), findsNothing);
+    expect(host.active, isTrue);
+    chat.removeListener(rig.brain.refresh);
+    await tester.pumpWidget(const SizedBox());
+    chat.dispose();
+    gateway.dispose();
+  });
 }

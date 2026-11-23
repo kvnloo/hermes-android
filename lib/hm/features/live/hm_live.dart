@@ -611,6 +611,9 @@ class _HmLiveScreenState extends State<HmLiveScreen> {
     final lanes = live.lanes;
     final gap = lanes == null ? orb * 0.45 : 8.0;
     return Scaffold(
+      // Typed clarifications are in their own dialog. Keep the call layout
+      // behind it stable when the keyboard takes up the bottom of the screen.
+      resizeToAvoidBottomInset: false,
       backgroundColor: c.background,
       body: ListenableBuilder(
         listenable: Listenable.merge([live, widget.host]),

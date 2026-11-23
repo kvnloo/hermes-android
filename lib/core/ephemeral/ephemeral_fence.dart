@@ -23,14 +23,24 @@ final _fence = RegExp(
   multiLine: true,
 );
 
+// A stopped or interrupted turn can leave a fence open. Its tail is still
+// card data, not text for a voice to read.
+final _unfinishedFence = RegExp(
+  r'^[ ]{0,3}```ephemeral-ui[ \t]*(?:\r?\n[\s\S]*)?$',
+  multiLine: true,
+);
+
 /// The sources of every closed ephemeral-ui fence in [text], in order.
 List<String> ephemeralUiFences(String text) => [
   for (final m in _fence.allMatches(text)) m.group(1)!,
 ];
 
 /// [text] with its ephemeral-ui fences removed: what is worth saying aloud.
-String withoutEphemeralUi(String text) =>
-    text.replaceAll(_fence, '').replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
+String withoutEphemeralUi(String text) => text
+    .replaceAll(_fence, '')
+    .replaceAll(_unfinishedFence, '')
+    .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+    .trim();
 
 /// Cards drawn from one fence at most.
 const ephemeralFenceMaxCards = 8;

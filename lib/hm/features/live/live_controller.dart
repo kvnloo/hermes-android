@@ -349,7 +349,14 @@ class LiveController extends ChangeNotifier {
     try {
       if (!webRtc) await ear.stop();
       if (_pendingIs(input) && generation == _requestGeneration) {
-        await voice.speak(approval!.prompt(input, again: again));
+        await voice
+            .speak(approval!.prompt(input, again: again))
+            .timeout(
+              const Duration(seconds: 8),
+              onTimeout: () async {
+                if (generation == _requestGeneration) await voice.stop();
+              },
+            );
       }
     } catch (_) {
       // The controls remain available if local speech fails.

@@ -138,6 +138,10 @@ void main() {
         withoutEphemeralUi(_reply),
         'Here is the pull request.\n\nWant me to merge it?',
       );
+      expect(
+        withoutEphemeralUi('Here it is.\n```ephemeral-ui\n{"kind":'),
+        'Here it is.',
+      );
       expect(ephemeralUiFences('```json\n{}\n```'), isEmpty);
     });
 
