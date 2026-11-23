@@ -5,8 +5,8 @@ import java.util.Properties
 buildscript {
     if (System.getenv("ARES_APP_FUNCTIONS") == "true") {
         repositories {
-            mavenCentral()
             google()
+            mavenCentral()
         }
         dependencies {
             classpath("com.google.devtools.ksp:symbol-processing-gradle-plugin:2.3.10")
