@@ -62,7 +62,7 @@ dependencies:
   # Notifications
   flutter_local_notifications: ^18.0.0
   cryptography: ^2.7.0
-  liquid_glass_renderer: 0.2.0-dev.4
+  liquid_glass_renderer: 1.0.0-dev.2
   rive: 0.14.11
   xterm: ^4.0.0
   local_auth: ^3.0.2

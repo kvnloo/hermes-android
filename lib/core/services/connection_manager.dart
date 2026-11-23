@@ -3531,6 +3531,8 @@ class DashboardClient {
       ))().timeout(ApiClient.requestTimeout);
       if (response.statusCode == 401 && !retried) {
         _resetAuth(ifGeneration: generation);
+        // The retry's own errors must not reach this try's handlers.
+        // ignore: unawaited_return_in_try_block
         return _requireRawFallbackConfig(retried: true);
       }
       if (response.statusCode != 200) throw const FormatException();

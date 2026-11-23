@@ -167,6 +167,10 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Liquid Glass uses Flutter GPU when the Impeller backend supports it. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableFlutterGPU"
+            android:value="true" />
         <service android:name=".MobilePushService" android:exported="false">
             <intent-filter>
                 <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
