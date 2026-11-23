@@ -55,7 +55,12 @@ jobs:
             "$RUNNER_TEMP/upload.jks" "$PW" "$PW" > key.properties
       - name: Install App Functions compile SDK
         if: ${{ inputs.app_functions }}
-        run: sdkmanager 'platforms;android-37.0'
+        run: |
+          sdkmanager="${ANDROID_HOME:-${ANDROID_SDK_ROOT:?Android SDK path is not set}}/cmdline-tools/latest/bin/sdkmanager"
+          # sdkmanager closes stdin once it has processed the licenses.
+          # Ignore yes's SIGPIPE but keep sdkmanager's exit status.
+          (set +o pipefail; yes | "$sdkmanager" --licenses)
+          "$sdkmanager" 'platforms;android-37.0'
       - name: Build APK
         # HERMES_BUILD_SHA/TIME let the preview-channel chip name this build.
         # TEST_BUILD_NUMBER is empty on push and on a plain dispatch, so the

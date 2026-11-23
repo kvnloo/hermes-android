@@ -160,10 +160,17 @@ void main() {
     final gateway = NextGenGateway(conn)
       ..debugSetPhase(NgConnectionPhase.connected);
     final chat = NgChatController(gateway, sessionId: 's');
-    final now = DateTime(2026, 11, 22, 9, 41);
+    // ngStamp adds a date to older messages. Keep the golden on today's
+    // local date so the fixed 9:41 AM labels don't change after recording.
+    final today = DateTime.now();
+    final messageTime = DateTime(today.year, today.month, today.day, 9, 41);
     chat.items.addAll([
-      NgUserItem('u1', 'How is the npm package doing, and the PR?', time: now),
-      NgAssistantItem('a1', open: false, time: now)
+      NgUserItem(
+        'u1',
+        'How is the npm package doing, and the PR?',
+        time: messageTime,
+      ),
+      NgAssistantItem('a1', open: false, time: messageTime)
         ..text =
             'Weekly users are up.\n\n'
             '```ephemeral-ui\n'
