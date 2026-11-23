@@ -2,12 +2,14 @@ package com.hermesagent.hermes_android
 
 import android.annotation.TargetApi
 import android.app.Activity
+import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
+import android.view.Display
 import android.view.WindowManager
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -51,13 +53,22 @@ class GlassWindowPlugin(private val activity: Activity) {
         if (glass && Build.VERSION.SDK_INT >= 31) ensureListener()
     }
 
-    private fun relaunch() {
+    /** Starts a fresh task on the display this activity is on, then finishes this one. */
+    internal fun relaunch(displayId: Int = currentDisplayId()) {
         val intent = Intent(activity, activity.javaClass)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-        activity.startActivity(intent)
+        activity.startActivity(intent, relaunchOptions(displayId)?.toBundle())
         activity.finish()
         @Suppress("DEPRECATION")
         activity.overridePendingTransition(0, 0)
+    }
+
+    private fun currentDisplayId(): Int {
+        // Activity.display throws when its context isn't tied to a display;
+        // the activity's own WindowManager still reports the display it is on.
+        val display = if (Build.VERSION.SDK_INT >= 30) runCatching { activity.display }.getOrNull() else null
+        @Suppress("DEPRECATION")
+        return (display ?: activity.windowManager.defaultDisplay).displayId
     }
 
     fun detach() {
@@ -119,4 +130,15 @@ class GlassWindowPlugin(private val activity: Activity) {
             "crossWindowBlurEnabled" to crossWindowBlurEnabled(),
         )
     }
+}
+
+/**
+ * A new task otherwise opens on the default display, so an app running on a
+ * secondary (virtual) display would jump onto the phone's main screen.
+ * Null keeps the default-display launch unchanged.
+ */
+internal fun relaunchOptions(displayId: Int): ActivityOptions? {
+    if (Build.VERSION.SDK_INT < 26) return null
+    if (displayId == Display.DEFAULT_DISPLAY || displayId == Display.INVALID_DISPLAY) return null
+    return ActivityOptions.makeBasic().setLaunchDisplayId(displayId)
 }
