@@ -24,15 +24,18 @@ final _bot = HmBot.fromJson({
 Future<void> _open(WidgetTester tester, LiveRig rig) async {
   await tester.pumpWidget(
     MaterialApp(
+      builder: (_, child) =>
+          HmLiveScope(background: FakeLiveBackground(), child: child!),
       theme: nextGenTheme(Brightness.dark, NextGenLook.instance),
       home: Builder(
         builder: (context) => Scaffold(
           body: Center(
             child: TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => HmLiveScreen(bot: _bot, create: rig.build),
-                ),
+              onPressed: () => presentHmLive(
+                context,
+                host: HmLiveScope.of(context),
+                bot: _bot,
+                create: rig.build,
               ),
               child: const Text('chat'),
             ),
@@ -124,9 +127,7 @@ void main() {
     await _frames(tester);
     expect(rig.voice.playing, isTrue);
 
-    await tester.tap(
-      find.byKey(const ValueKey('live-orb')),
-    );
+    await tester.tap(find.byKey(const ValueKey('live-orb')));
     await _frames(tester);
     expect(rig.voice.stops, 1);
     expect(_status(tester), LiveText.listening);
@@ -183,13 +184,14 @@ void main() {
     expect(rig.ear.listens, 0);
   });
 
-  testWidgets('system back ends the call', (tester) async {
+  testWidgets('system back minimizes the call', (tester) async {
     final rig = LiveRig();
     await _open(tester, rig);
     final nav = tester.state<NavigatorState>(find.byType(Navigator));
     await nav.maybePop();
     await _frames(tester);
     expect(find.byType(HmLiveScreen), findsNothing);
-    expect(rig.ear.stops, greaterThanOrEqualTo(1));
+    expect(rig.ear.stops, 0);
+    expect(find.byKey(const ValueKey('live-mini')), findsOneWidget);
   });
 }

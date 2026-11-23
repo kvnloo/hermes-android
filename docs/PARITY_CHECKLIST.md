@@ -47,6 +47,11 @@ Device: **S25** is Kevin's Galaxy S25 Ultra running the signed CI build of `11f4
 ## Live Mode and avatars
 
 - [x] Live Mode call surface (bot pill, orb, prompt, mic, close): `parity/r3-010-live.jpg` (emu).
+- [x] Live session ownership survives Back, Minimize, and another route's push/pop; the compact pill can End, and a different bot requires Keep or Switch. Widget coverage: `test/hm/live_anywhere_test.dart` and `test/hm/live_screen_test.dart`.
+- [x] The active chat receives its own approval strip while other chats keep their requests. Only exact completed approval utterances are accepted; partial or ambiguous speech cannot grant approval. A minimized card flags the pill without speaking the fence. Fixture coverage: `test/hm/live_anywhere_test.dart`.
+- [ ] Compact pill on Home, Chat, Settings, Sessions, and Council, including gesture navigation, cutout, and keyboard placement: needs S25 screenshot.
+- [ ] Android microphone foreground notification (Return / Mute / End), screen-off audio on a real host, and pause/resume when denied: needs S25 screenshot. Notification dispatch and pause/resume covered by fakes.
+- [ ] Approval, clarification and sudo entry across a real call, including spoken commands on both transports and approved-chat return: needs S25 screenshot.
 - [ ] GPT-Live over WebRTC on a real device. Built, never run against a host that offers it. Reason: no host Kevin runs is known to offer GPT-Live, and the S25 was unreachable this round.
 - [ ] Live Mode lanes (HA-035, Dash z0live lanes): fast, large and council lanes attach to the thread's call and orbit the bot's orb; a tap on a lane orb routes the next turns to it. Widget tests only. The gateway has no multi-lane RPC, so lanes run on a fixture in builds made with `--dart-define=HERMES_LIVE_LANES_FIXTURE=true`. See [`parity/ha-035-live-lanes.md`](parity/ha-035-live-lanes.md). Open until an S25 run.
 - [x] Avatar styles a user picks: faces, voice orb (Persona looks), thinking orb: `parity/053-picker-persona.jpg`, `parity/055-picker-orbs.jpg`, `parity/054-persona-rest.jpg` (emu).

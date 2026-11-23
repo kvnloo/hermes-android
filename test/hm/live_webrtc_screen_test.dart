@@ -28,15 +28,18 @@ LiveRig _gptLive({FakePeer? peer, FakeHost? host}) => LiveRig(
 Future<void> _open(WidgetTester tester, LiveRig rig) async {
   await tester.pumpWidget(
     MaterialApp(
+      builder: (_, child) =>
+          HmLiveScope(background: FakeLiveBackground(), child: child!),
       theme: nextGenTheme(Brightness.dark, NextGenLook.instance),
       home: Builder(
         builder: (context) => Scaffold(
           body: Center(
             child: TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => HmLiveScreen(bot: _bot, create: rig.build),
-                ),
+              onPressed: () => presentHmLive(
+                context,
+                host: HmLiveScope.of(context),
+                bot: _bot,
+                create: rig.build,
               ),
               child: const Text('chat'),
             ),

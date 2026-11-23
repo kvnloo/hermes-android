@@ -25,16 +25,19 @@ final _bot = HmBot.fromJson({
 Future<void> _openLight(WidgetTester tester, LiveRig rig) async {
   await tester.pumpWidget(
     MaterialApp(
+      builder: (_, child) =>
+          HmLiveScope(background: FakeLiveBackground(), child: child!),
       theme: nextGenTheme(Brightness.light, NextGenLook.instance),
       themeMode: ThemeMode.light,
       home: Builder(
         builder: (context) => Scaffold(
           body: Center(
             child: TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => HmLiveScreen(bot: _bot, create: rig.build),
-                ),
+              onPressed: () => presentHmLive(
+                context,
+                host: HmLiveScope.of(context),
+                bot: _bot,
+                create: rig.build,
               ),
               child: const Text('chat'),
             ),
@@ -84,33 +87,34 @@ void main() {
   });
 
   for (final preset in ngThemePresets.take(3)) {
-    testWidgets('light app theme "${preset.id}": call paints its dark surface', (
-      tester,
-    ) async {
-      NextGenLook.instance.themeId = preset.id;
-      await _openLight(tester, LiveRig());
+    testWidgets(
+      'light app theme "${preset.id}": call paints its dark surface',
+      (tester) async {
+        NextGenLook.instance.themeId = preset.id;
+        await _openLight(tester, LiveRig());
 
-      final dark = _dark();
-      expect(_scaffoldColor(tester), dark.background);
-      expect(_scaffoldColor(tester), isNot(_light().background));
+        final dark = _dark();
+        expect(_scaffoldColor(tester), dark.background);
+        expect(_scaffoldColor(tester), isNot(_light().background));
 
-      final status = tester.widget<Text>(
-        find.byKey(const ValueKey('live-status')),
-      );
-      expect(status.data, LiveText.listening);
-      expect(status.style?.color, dark.text);
+        final status = tester.widget<Text>(
+          find.byKey(const ValueKey('live-status')),
+        );
+        expect(status.data, LiveText.listening);
+        expect(status.style?.color, dark.text);
 
-      // Light status-bar icons on the dark call.
-      final region = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
-        find
-            .descendant(
-              of: find.byType(HmLiveScreen),
-              matching: find.byType(AnnotatedRegion<SystemUiOverlayStyle>),
-            )
-            .first,
-      );
-      expect(region.value.statusBarIconBrightness, Brightness.light);
-    });
+        // Light status-bar icons on the dark call.
+        final region = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+          find
+              .descendant(
+                of: find.byType(HmLiveScreen),
+                matching: find.byType(AnnotatedRegion<SystemUiOverlayStyle>),
+              )
+              .first,
+        );
+        expect(region.value.statusBarIconBrightness, Brightness.light);
+      },
+    );
   }
 
   testWidgets('pill, transcript and buttons use the dark scheme', (
@@ -160,7 +164,7 @@ void main() {
     final micBox = tester.getRect(find.bySemanticsLabel(LiveText.mute));
     final endBox = tester.getRect(find.bySemanticsLabel(LiveText.end));
     expect(endBox.left - micBox.right, lessThanOrEqualTo(24));
-    expect((micBox.left + endBox.right) / 2, closeTo(width / 2, 1));
+    expect(micBox.center.dx, closeTo(width / 2, 1));
 
     // Closing still works.
     await tester.tap(find.bySemanticsLabel(LiveText.end));

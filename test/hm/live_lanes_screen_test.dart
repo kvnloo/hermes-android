@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hermes_android/hm/avatar/hm_avatar.dart';
 import 'package:hermes_android/hm/avatar/hm_avatar_state.dart';
-import 'package:hermes_android/hm/features/live/hm_live.dart';
 import 'package:hermes_android/hm/features/live/live_lanes.dart';
 import 'package:hermes_android/hm/features/live/live_strings.dart';
 import 'package:hermes_android/hm/hm_bots.dart';
@@ -33,7 +32,7 @@ Future<void> _open(WidgetTester tester, LiveRig rig) async {
   await tester.pumpWidget(
     MaterialApp(
       theme: nextGenTheme(Brightness.dark, NextGenLook.instance),
-      home: HmLiveScreen(bot: _bot, create: rig.build),
+      home: LiveTestScreen(bot: _bot, create: rig.build),
     ),
   );
   await _frames(tester);

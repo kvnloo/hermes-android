@@ -457,12 +457,13 @@ void main() {
       expect(live.phase, LivePhase.listening);
     });
 
-    test('background pauses: mic off, paused notice', () {
+    test('background pauses: mic off, paused notice', () async {
       live.pause();
       expect(peer.micEnabled, isFalse);
       expect(live.phase, LivePhase.muted);
       expect(live.notice, LiveText.paused);
-      live.toggleMute();
+      live.resume();
+      await _settle();
       expect(peer.micEnabled, isTrue);
       expect(live.notice, isNull);
     });

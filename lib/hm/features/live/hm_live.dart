@@ -21,6 +21,8 @@ import '../../../nextgen/data/chat_controller.dart';
 import '../../../nextgen/nextgen_preferences.dart';
 import '../../../nextgen/theme/nextgen_theme.dart';
 import '../../../nextgen/ui/tool_rows.dart';
+import '../../../nextgen/ui/chat_view.dart' show NgInputPanel;
+import 'live_approval.dart';
 import '../../../shared_ui/glide_theme.dart';
 import '../../avatar/hm_avatar.dart';
 import '../../avatar/hm_avatar_state.dart';
@@ -29,6 +31,8 @@ import '../../hm_ui.dart';
 import 'live_controller.dart';
 import 'live_lanes.dart';
 import 'live_strings.dart';
+import 'live_session_host.dart';
+import '../../../core/services/background_work_prefs.dart';
 import 'live_transport.dart';
 import 'live_webrtc.dart';
 
@@ -37,72 +41,496 @@ Future<void> openHmLive(
   required HmBot bot,
   required HmBotsModel bots,
   required NgChatController chat,
-}) {
-  final host = DashboardLiveHost(bots.gateway.dashboard, profile: bot.scope);
-  return Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      fullscreenDialog: true,
-      builder: (_) => HmLiveScreen(
-        bot: bot,
-        create: () => LiveController(
-          host: host,
-          ear: DeviceLiveEar(createVoiceComposerAdapter()),
-          brain: ChatLiveBrain(chat),
-          voice: HostLiveVoice(host),
-          call: () => LiveCall(host: host, peer: FlutterWebRtcPeer.new),
-          // No gateway RPC drives lanes yet: only fixture builds offer them.
-          lanes: kLiveLanesFixture ? FixtureLiveLanes() : null,
+  required VoidCallback openChat,
+}) async {
+  final host = HmLiveScope.of(context);
+  final transport = DashboardLiveHost(
+    bots.gateway.dashboard,
+    profile: bot.scope,
+  );
+  await presentHmLive(
+    context,
+    host: host,
+    bot: bot,
+    create: () {
+      final live = LiveController(
+        host: transport,
+        ear: DeviceLiveEar(createVoiceComposerAdapter()),
+        brain: ChatLiveBrain(chat),
+        voice: HostLiveVoice(transport),
+        call: () => LiveCall(host: transport, peer: FlutterWebRtcPeer.new),
+        lanes: kLiveLanesFixture ? FixtureLiveLanes() : null,
+      );
+      host.bindChat(chat, openChat);
+      live.approval = host.approval;
+      live.onRequestAction = host.act;
+      return live;
+    },
+  );
+}
+
+Future<void> presentHmLive(
+  BuildContext context, {
+  required LiveSessionHost host,
+  required HmBot bot,
+  required LiveController Function() create,
+}) async {
+  if (host.choosingBot) return;
+  if (host.active && host.bot?.profile == bot.profile) {
+    host.onReturn?.call();
+    return;
+  }
+  final navigator = Navigator.of(context);
+  host.choosingBot = true;
+  try {
+    if (host.active) {
+      final change = await showDialog<bool>(
+        context: context,
+        useRootNavigator: false,
+        builder: (context) => AlertDialog(
+          title: Text('Switch Live to ${bot.displayName}?'),
+          content: Text('This ends the call with ${host.bot?.displayName}.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Keep call'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Switch'),
+            ),
+          ],
         ),
-      ),
+      );
+      if (change != true) return;
+    }
+    if (!context.mounted) return;
+    await host.begin(bot, create);
+    final live = host.live;
+    if (!navigator.mounted || live == null) return;
+    host.onOpenRequest = () {
+      if (!navigator.mounted) return;
+      final context = navigator.overlay?.context;
+      if (context != null) _openLiveRequest(context, host);
+    };
+    host.onRetry = () async {
+      final overlay = navigator.overlay;
+      if (!navigator.mounted || overlay == null) return;
+      final release = host.approval?.chat.retain();
+      try {
+        await presentHmLive(
+          overlay.context,
+          host: host,
+          bot: bot,
+          create: create,
+        );
+      } finally {
+        release?.call();
+      }
+    };
+    host.onReturn = () => _showCall(navigator, host, bot, live);
+    host.onReturn!();
+  } finally {
+    host.choosingBot = false;
+  }
+}
+
+void _showCall(
+  NavigatorState navigator,
+  LiveSessionHost host,
+  HmBot bot,
+  LiveController live,
+) {
+  if (!navigator.mounted || host.live != live) return;
+  final existing = host.fullRoute;
+  if (existing != null && existing.isActive) {
+    // Do not discard other app routes just to re-open the call. Remove only
+    // the covered copy of the Live view (it owns no session state).
+    if (existing.isCurrent) return;
+    navigator.removeRoute(existing);
+  }
+  final route = _LiveRoute(host, bot, live);
+  host.fullRoute = route;
+  unawaited(navigator.push(route));
+  route._sync();
+}
+
+class _LiveRoute extends MaterialPageRoute<void> {
+  _LiveRoute(this.host, HmBot bot, LiveController live)
+    : super(
+        builder: (_) => HmLiveScreen(bot: bot, host: host, live: live),
+      );
+
+  final LiveSessionHost host;
+
+  void _sync() => WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (identical(host.fullRoute, this)) host.setFullScreen(isCurrent);
+  });
+
+  @override
+  void didChangeNext(Route<dynamic>? nextRoute) {
+    super.didChangeNext(nextRoute);
+    _sync();
+  }
+
+  @override
+  bool didPop(void result) {
+    final popped = super.didPop(result);
+    _sync();
+    if (popped && identical(host.fullRoute, this)) {
+      final open = host.takeApprovedDestination();
+      if (open != null) {
+        final release = host.approval?.chat.retain();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          try {
+            open();
+          } finally {
+            release?.call();
+          }
+        });
+      }
+    }
+    return popped;
+  }
+
+  @override
+  void dispose() {
+    _sync();
+    super.dispose();
+  }
+}
+
+/// Owns the session and a safe-area band above the hm navigator. The pill
+/// takes layout space instead of floating over each screen's header/composer.
+class HmLiveScope extends StatefulWidget {
+  const HmLiveScope({
+    super.key,
+    required this.child,
+    this.background,
+    this.policy,
+  });
+
+  final Widget child;
+  final LiveBackground? background;
+  final ValueNotifier<bool>? policy;
+
+  static LiveSessionHost? maybeOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<_LiveScope>()?.host;
+
+  static LiveSessionHost of(BuildContext context) => maybeOf(context)!;
+
+  @override
+  State<HmLiveScope> createState() => _HmLiveScopeState();
+}
+
+class _HmLiveScopeState extends State<HmLiveScope> {
+  late final host = LiveSessionHost(
+    background: widget.background ?? AndroidLiveBackground(),
+    backgroundAllowed: widget.policy ?? backgroundWorkEnabled,
+  );
+
+  @override
+  void dispose() {
+    host.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _LiveScope(
+    host: host,
+    child: ListenableBuilder(
+      listenable: host,
+      child: widget.child,
+      builder: (context, child) {
+        final visible = host.showPill && !host.fullScreen;
+        return Column(
+          children: [
+            if (visible) SafeArea(bottom: false, child: _MiniLive(host)),
+            Expanded(
+              key: const ValueKey('hm navigator'),
+              child: MediaQuery(
+                data: visible
+                    ? MediaQuery.of(context).removePadding(removeTop: true)
+                    : MediaQuery.of(context),
+                child: child!,
+              ),
+            ),
+          ],
+        );
+      },
     ),
   );
 }
 
+class _LiveScope extends InheritedWidget {
+  const _LiveScope({required this.host, required super.child});
+  final LiveSessionHost host;
+
+  @override
+  bool updateShouldNotify(_LiveScope oldWidget) => host != oldWidget.host;
+}
+
+String _liveStatus(LiveController live) => live.paused
+    ? LiveText.paused
+    : switch (live.phase) {
+        LivePhase.connecting => LiveText.connecting,
+        LivePhase.listening => LiveText.listening,
+        LivePhase.thinking => LiveText.working,
+        LivePhase.speaking =>
+          live.webRtc ? LiveText.talkOver : LiveText.speaking,
+        LivePhase.muted => LiveText.muted,
+        LivePhase.ended => LiveText.stopped,
+        LivePhase.failed => live.failure ?? LiveText.stopped,
+      };
+
+/// The pill sits above the navigator and its Overlay. Use accessibility
+/// labels rather than Tooltip, which requires an ancestor presentation layer.
+class _LiveIcon extends StatelessWidget {
+  const _LiveIcon({
+    required this.label,
+    required this.onPressed,
+    required this.icon,
+  });
+  final String label;
+  final VoidCallback? onPressed;
+  final Icon icon;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    label: label,
+    button: true,
+    child: IconButton(onPressed: onPressed, icon: icon),
+  );
+}
+
+class _MiniLive extends StatelessWidget {
+  const _MiniLive(this.host);
+  final LiveSessionHost host;
+
+  @override
+  Widget build(BuildContext context) {
+    final bot = host.bot!;
+    final live = host.live!;
+    return Material(
+      color: Theme.of(context).colorScheme.surfaceContainer,
+      borderRadius: BorderRadius.circular(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            key: const ValueKey('live-mini'),
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: host.onReturn,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        IgnorePointer(
+                          child: HmAvatar(spec: bot.character, size: 28),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${bot.displayName} · ${_liveStatus(live)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (host.newCard)
+                          Icon(
+                            Icons.fiber_manual_record,
+                            size: 10,
+                            color: Theme.of(context).colorScheme.primary,
+                            semanticLabel: 'New card',
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if (live.phase == LivePhase.failed)
+                _LiveIcon(
+                  label: 'Retry Live',
+                  onPressed: host.onRetry,
+                  icon: const Icon(Icons.refresh),
+                )
+              else
+                _LiveIcon(
+                  label: live.muted ? LiveText.unmute : LiveText.mute,
+                  onPressed: live.paused ? null : live.toggleMute,
+                  icon: Icon(
+                    live.muted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                  ),
+                ),
+              _LiveIcon(
+                label: LiveText.end,
+                onPressed: () {
+                  host.takeApprovedDestination()?.call();
+                  unawaited(host.end());
+                },
+                icon: const Icon(Icons.call_end_rounded),
+              ),
+            ],
+          ),
+          LiveRequestStrip(host: host),
+        ],
+      ),
+    );
+  }
+}
+
+void _openLiveRequest(BuildContext context, LiveSessionHost host) {
+  final approval = host.approval;
+  if (approval?.pending == null || host.requestDialogOpen) return;
+  host.requestDialogOpen = true;
+  // Speech can open this while Android is backgrounded; the protected
+  // navigator presents it when the user returns. No credential is spoken.
+  unawaited(
+    showDialog<void>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => Dialog(
+        child: ListenableBuilder(
+          listenable: host,
+          builder: (context, _) {
+            final current = identical(approval, host.approval)
+                ? approval!.pending
+                : null;
+            if (current == null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (context.mounted &&
+                    ModalRoute.of(context)?.isCurrent == true) {
+                  Navigator.of(context).pop();
+                }
+              });
+              return const SizedBox.shrink();
+            }
+            return NgInputPanel(
+              chat: approval!.chat,
+              request: current,
+              onApproved: () => approval.returnToChat = true,
+            );
+          },
+        ),
+      ),
+    ).whenComplete(() => host.requestDialogOpen = false),
+  );
+}
+
+class LiveRequestStrip extends StatelessWidget {
+  const LiveRequestStrip({
+    super.key,
+    required this.host,
+    this.expanded = false,
+  });
+  final LiveSessionHost host;
+  final bool expanded;
+
+  @override
+  Widget build(BuildContext context) {
+    final request = host.active ? host.approval?.pending : null;
+    if (request == null) return const SizedBox.shrink();
+    final detail = [
+      request.command,
+      request.questions.firstOrNull?.question,
+      request.body,
+    ].whereType<String>().where((text) => text.isNotEmpty).firstOrNull;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (expanded)
+            Text(request.title, style: Theme.of(context).textTheme.titleSmall),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  expanded
+                      ? (detail ?? request.title)
+                      : '${request.title} · ${detail ?? ""}',
+                  maxLines: expanded ? 3 : 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (request.kind == NgRequestKind.approval)
+                _LiveIcon(
+                  label: 'Allow once',
+                  icon: const Icon(Icons.check),
+                  onPressed: () => host.act(request, LiveRequestAction.allow),
+                ),
+              _LiveIcon(
+                label: 'Deny',
+                icon: const Icon(Icons.close),
+                onPressed: () => host.act(request, LiveRequestAction.deny),
+              ),
+              _LiveIcon(
+                label: 'Open request',
+                icon: const Icon(Icons.open_in_new),
+                onPressed: () => host.act(request, LiveRequestAction.open),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class HmLiveScreen extends StatefulWidget {
-  const HmLiveScreen({super.key, required this.bot, required this.create});
+  const HmLiveScreen({
+    super.key,
+    required this.bot,
+    required this.host,
+    required this.live,
+  });
 
   final HmBot bot;
-
-  /// Builds the call's controller; the screen owns and disposes it.
-  final LiveController Function() create;
+  final LiveSessionHost host;
+  final LiveController live;
 
   @override
   State<HmLiveScreen> createState() => _HmLiveScreenState();
 }
 
-class _HmLiveScreenState extends State<HmLiveScreen>
-    with WidgetsBindingObserver {
-  late final LiveController live = widget.create();
-  bool _closing = false;
+class _HmLiveScreenState extends State<HmLiveScreen> {
+  LiveController get live => widget.live;
+
+  void _minimize() {
+    if (ModalRoute.of(context)?.isCurrent == true) Navigator.of(context).pop();
+  }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    unawaited(live.start());
+    widget.host.addListener(_onHostChanged);
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden) {
-      live.pause();
-    }
-  }
-
-  Future<void> _close() async {
-    if (_closing) return;
-    _closing = true;
-    await live.end();
-    if (mounted) Navigator.of(context).pop();
+  void _onHostChanged() {
+    if (identical(widget.host.live, live)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final route = ModalRoute.of(context);
+      if (route?.isActive == true) Navigator.of(context).removeRoute(route!);
+    });
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    unawaited(live.end());
-    live.dispose();
+    widget.host.removeListener(_onHostChanged);
     super.dispose();
+  }
+
+  void _end() {
+    _minimize();
+    if (identical(widget.host.live, live)) unawaited(widget.host.end());
   }
 
   HmAvatarState get _avatar => switch (live.phase) {
@@ -114,15 +542,7 @@ class _HmLiveScreenState extends State<HmLiveScreen>
     LivePhase.failed => HmAvatarState.error,
   };
 
-  String get _status => switch (live.phase) {
-    LivePhase.connecting => LiveText.connecting,
-    LivePhase.listening => LiveText.listening,
-    LivePhase.thinking => LiveText.working,
-    LivePhase.speaking => live.webRtc ? LiveText.talkOver : LiveText.speaking,
-    LivePhase.muted => LiveText.muted,
-    LivePhase.ended => LiveText.stopped,
-    LivePhase.failed => live.failure ?? LiveText.stopped,
-  };
+  String get _status => _liveStatus(live);
 
   @override
   Widget build(BuildContext context) {
@@ -189,120 +609,127 @@ class _HmLiveScreenState extends State<HmLiveScreen>
   Widget _call(BuildContext context, NgColors c, double orb) {
     final lanes = live.lanes;
     final gap = lanes == null ? orb * 0.45 : 8.0;
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(_close());
-      },
-      child: Scaffold(
-        backgroundColor: c.background,
-        body: ListenableBuilder(
-          listenable: live,
-          builder: (context, _) => SafeArea(
-            child: Column(
-              children: [
-                const SizedBox(height: HmMetrics.headerTop + 20),
-                _BotPill(bot: widget.bot),
-                SizedBox(height: gap),
-                if (lanes == null)
-                  _orb(orb)
-                else
-                  _LaneOrbit(
-                    live: live,
-                    lanes: _attached,
-                    size: orb,
-                    center: _orb(orb),
+    return Scaffold(
+      backgroundColor: c.background,
+      body: ListenableBuilder(
+        listenable: Listenable.merge([live, widget.host]),
+        builder: (context, _) => SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: HmMetrics.headerTop + 20),
+              _BotPill(bot: widget.bot),
+              SizedBox(height: gap),
+              if (lanes == null)
+                _orb(orb)
+              else
+                _LaneOrbit(
+                  live: live,
+                  lanes: _attached,
+                  size: orb,
+                  center: _orb(orb),
+                ),
+              SizedBox(height: gap),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  _status,
+                  key: const ValueKey('live-status'),
+                  textAlign: TextAlign.center,
+                  style: HmType.display.copyWith(
+                    color: live.phase == LivePhase.failed ? c.danger : c.text,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0,
+                    fontSize: live.phase == LivePhase.failed ? 17 : 24,
                   ),
-                SizedBox(height: gap),
+                ),
+              ),
+              if (live.notice != null && !live.isOver)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
                   child: Text(
-                    _status,
-                    key: const ValueKey('live-status'),
+                    live.notice!,
                     textAlign: TextAlign.center,
-                    style: HmType.display.copyWith(
-                      color: live.phase == LivePhase.failed ? c.danger : c.text,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: 0,
-                      fontSize: live.phase == LivePhase.failed ? 17 : 24,
-                    ),
+                    style: HmType.caption.copyWith(color: c.textMuted),
                   ),
                 ),
-                if (live.notice != null && !live.isOver)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                    child: Text(
-                      live.notice!,
-                      textAlign: TextAlign.center,
-                      style: HmType.caption.copyWith(color: c.textMuted),
-                    ),
-                  ),
-                if (live.target != null)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                    child: Text(
-                      LiveText.toLane(live.laneName(live.target!)),
-                      key: const ValueKey('live-route'),
-                      textAlign: TextAlign.center,
-                      style: HmType.caption.copyWith(
-                        color: c.accentText,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                if (_attached.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 4, 24, 0),
-                    child: Text(
-                      liveLaneSummary(_attached),
-                      key: const ValueKey('live-lanes-summary'),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: HmType.caption.copyWith(color: c.textMuted),
-                    ),
-                  ),
-                const SizedBox(height: 4),
-                Expanded(
-                  child: _Transcript(live: live, bot: widget.bot),
-                ),
+              if (live.target != null)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (lanes != null) ...[
-                        HmRoundButton(
-                          key: const ValueKey('live-lanes-button'),
-                          icon: Icons.hub_rounded,
-                          label: LiveText.lanes,
-                          size: 56,
-                          onPressed: live.isOver
-                              ? null
-                              : () => unawaited(_openLanes(context)),
-                        ),
-                        const SizedBox(width: 16),
-                      ],
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                  child: Text(
+                    LiveText.toLane(live.laneName(live.target!)),
+                    key: const ValueKey('live-route'),
+                    textAlign: TextAlign.center,
+                    style: HmType.caption.copyWith(
+                      color: c.accentText,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              if (_attached.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 4, 24, 0),
+                  child: Text(
+                    liveLaneSummary(_attached),
+                    key: const ValueKey('live-lanes-summary'),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: HmType.caption.copyWith(color: c.textMuted),
+                  ),
+                ),
+              const SizedBox(height: 4),
+              Expanded(
+                child: _Transcript(
+                  live: live,
+                  bot: widget.bot,
+                  host: widget.host,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (lanes != null) ...[
                       HmRoundButton(
-                        icon: live.muted
-                            ? Icons.mic_off_rounded
-                            : Icons.mic_rounded,
-                        label: live.muted ? LiveText.unmute : LiveText.mute,
+                        key: const ValueKey('live-lanes-button'),
+                        icon: Icons.hub_rounded,
+                        label: LiveText.lanes,
                         size: 56,
-                        onPressed: live.isOver ? null : live.toggleMute,
+                        onPressed: live.isOver
+                            ? null
+                            : () => unawaited(_openLanes(context)),
                       ),
                       const SizedBox(width: 16),
-                      HmRoundButton(
-                        icon: Icons.close_rounded,
-                        label: LiveText.end,
-                        size: 56,
-                        onPressed: _close,
-                      ),
                     ],
-                  ),
+                    HmRoundButton(
+                      icon: Icons.expand_more_rounded,
+                      label: 'Minimize',
+                      size: 56,
+                      onPressed: _minimize,
+                    ),
+                    const SizedBox(width: 16),
+                    HmRoundButton(
+                      icon: live.muted
+                          ? Icons.mic_off_rounded
+                          : Icons.mic_rounded,
+                      label: live.muted ? LiveText.unmute : LiveText.mute,
+                      size: 56,
+                      onPressed: live.isOver || live.paused
+                          ? null
+                          : live.toggleMute,
+                    ),
+                    const SizedBox(width: 16),
+                    HmRoundButton(
+                      icon: Icons.close_rounded,
+                      label: LiveText.end,
+                      size: 56,
+                      onPressed: _end,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -378,7 +805,12 @@ class _GlowOrb extends StatelessWidget {
 }
 
 class _Transcript extends StatelessWidget {
-  const _Transcript({required this.live, required this.bot});
+  const _Transcript({
+    required this.live,
+    required this.bot,
+    required this.host,
+  });
+  final LiveSessionHost host;
   final LiveController live;
   final HmBot bot;
 
@@ -428,7 +860,11 @@ class _Transcript extends StatelessWidget {
         // Newest at the bottom, pinned there as lines arrive.
         reverse: true,
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-        children: rows.reversed.toList(),
+        children: [
+          if (host.active && host.approval?.pending != null)
+            LiveRequestStrip(host: host, expanded: true),
+          ...rows.reversed,
+        ],
       ),
     );
   }

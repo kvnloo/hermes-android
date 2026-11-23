@@ -35,6 +35,8 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/ephemeral/ephemeral_fence.dart';
 
+import '../../../nextgen/data/chat_controller.dart' show NgInputRequest;
+import 'live_approval.dart';
 import 'live_lanes.dart';
 import 'live_strings.dart';
 import 'live_transport.dart';
@@ -119,7 +121,21 @@ class LiveController extends ChangeNotifier {
   LiveVoiceStatus? hostStatus;
 
   bool _muted = false;
-  bool get muted => _muted;
+  bool get muted => _muted || _paused;
+  bool get paused => _paused;
+  bool microphoneReady = false;
+  LiveApproval? approval;
+  bool Function(NgInputRequest, LiveRequestAction)? onRequestAction;
+  final _announcedRequests = <String>{};
+  NgInputRequest? _listeningFor;
+  NgInputRequest? _rtcSpokenRequest;
+  bool _rtcInputStarted = false;
+  String _rtcInputWords = '';
+  bool _suppressRequestDelegation = false;
+  bool _requestSpeaking = false;
+  int _requestGeneration = 0;
+  int _pauseGeneration = 0;
+  Future<void> _pausedShutdown = Future.value();
 
   bool _paused = false;
   bool _disposed = false;
@@ -292,7 +308,100 @@ class LiveController extends ChangeNotifier {
   }
 
   void _changed() {
-    if (!_disposed) notifyListeners();
+    if (_disposed) return;
+    final pending = approval?.pending;
+    if (!isOver &&
+        !muted &&
+        microphoneReady &&
+        pending != null &&
+        _announcedRequests.add(pending.request.id)) {
+      scheduleMicrotask(() => _speakRequest(pending));
+    } else if (!webRtc && pending == null && _listeningFor != null) {
+      _listeningFor = null;
+      final generation = ++_requestGeneration;
+      scheduleMicrotask(() async {
+        if (generation != _requestGeneration || isOver || _disposed) return;
+        await ear.stop();
+        if (generation != _requestGeneration || isOver || muted) return;
+        // A running turn owns the mic until it finishes.
+        if (_phase == LivePhase.listening) _listen();
+      });
+    }
+    notifyListeners();
+  }
+
+  bool _pendingIs(NgInputRequest input) =>
+      !_disposed && !isOver && !muted && identical(approval?.pending, input);
+
+  Future<void> _speakRequest(NgInputRequest input, {bool again = false}) async {
+    if (!_pendingIs(input)) {
+      if (!again && identical(approval?.pending, input)) {
+        _announcedRequests.remove(input.request.id);
+      }
+      return;
+    }
+    final generation = ++_requestGeneration;
+    _requestSpeaking = true;
+    _listeningFor = null;
+    _rtcSpokenRequest = null;
+    // Prevent our own prompt being recognized as approval speech.
+    _call?.setMuted(true);
+    try {
+      if (!webRtc) await ear.stop();
+      if (_pendingIs(input) && generation == _requestGeneration) {
+        await voice.speak(approval!.prompt(input, again: again));
+      }
+    } catch (_) {
+      // The controls remain available if local speech fails.
+    } finally {
+      if (generation == _requestGeneration && !_disposed && !isOver) {
+        _requestSpeaking = false;
+        _call?.setMuted(muted);
+        if (!webRtc && !muted) {
+          final current = approval?.pending;
+          if (current != null) {
+            _listenForRequest(current);
+          } else if (_phase == LivePhase.listening) {
+            _listen();
+          }
+        }
+      }
+    }
+  }
+
+  void _listenForRequest(NgInputRequest input) {
+    if (!_pendingIs(input) || _requestSpeaking) return;
+    final generation = ++_requestGeneration;
+    _listeningFor = input;
+    unawaited(
+      ear.listen(
+        onPartial: (_) {},
+        onFinal: (text) {
+          if (generation != _requestGeneration || !_pendingIs(input)) return;
+          _listeningFor = null;
+          _handleSpokenRequest(input, text);
+          if (_pendingIs(input) && !_requestSpeaking) {
+            _listenForRequest(input);
+          } else if (approval?.pending == null &&
+              _phase == LivePhase.listening) {
+            _listen();
+          }
+        },
+        onError: (_) {
+          // The request stays visible for tap; a speech recognizer may be
+          // unavailable in the background or while another app has the mic.
+          if (generation == _requestGeneration) _listeningFor = null;
+        },
+      ),
+    );
+  }
+
+  void _handleSpokenRequest(NgInputRequest input, String text) {
+    if (!_pendingIs(input) || _requestSpeaking || text.trim().isEmpty) return;
+    final action = matchLiveRequest(text);
+    if (action == null || onRequestAction?.call(input, action) != true) {
+      unawaited(_speakRequest(input, again: true));
+    }
   }
 
   void _fail(String message) {
@@ -342,17 +451,29 @@ class LiveController extends ChangeNotifier {
       case LiveMicAccess.unavailable:
         _fail(LiveText.micCouldNotOpen);
       case LiveMicAccess.granted:
+        microphoneReady = true;
+        _limitTimer = Timer(callLimit, () => unawaited(end()));
         _listen();
     }
   }
 
   void _listen() {
     if (isOver) return;
-    if (_muted) {
+    if (muted) {
       partial = '';
       _set(LivePhase.muted);
       return;
     }
+    final pending = approval?.pending;
+    if (pending != null) {
+      if (!_requestSpeaking &&
+          _listeningFor == null &&
+          _announcedRequests.contains(pending.request.id)) {
+        _listenForRequest(pending);
+      }
+      return;
+    }
+    _requestGeneration++;
     final epoch = ++_epoch;
     partial = '';
     _set(LivePhase.listening);
@@ -380,6 +501,9 @@ class LiveController extends ChangeNotifier {
 
   Future<void> _heard(String text) async {
     final said = text.trim();
+    // A regular recognition turn was armed before the request arrived.
+    // Do not use it to authorize any action.
+    if (approval?.pending != null) return;
     if (said.isEmpty) {
       _listen();
       return;
@@ -449,7 +573,7 @@ class LiveController extends ChangeNotifier {
     }
     _callUp = true;
     _limitTimer = Timer(callLimit, () => unawaited(end()));
-    if (_muted) c.setMuted(true);
+    c.setMuted(muted || _requestSpeaking);
     _refreshCall();
     return true;
   }
@@ -475,6 +599,8 @@ class LiveController extends ChangeNotifier {
   Future<void> _reconnect(LiveCall lost) async {
     if (_reconnecting) return;
     _reconnecting = true;
+    _rtcInputStarted = false;
+    _rtcSpokenRequest = null;
     _callUp = false;
     _botSpeaking = false;
     _working = false;
@@ -515,7 +641,7 @@ class LiveController extends ChangeNotifier {
       }
       _reconnecting = false;
       _callUp = true;
-      if (_muted) c.setMuted(true);
+      c.setMuted(muted || _requestSpeaking);
       if (notice == LiveText.gptLiveReconnecting) notice = null;
       _flushUndelivered(c);
       _refreshCall();
@@ -550,10 +676,24 @@ class LiveController extends ChangeNotifier {
     if (!identical(_call, c) || _disposed) return;
     switch (event) {
       case LiveCallStarted():
+        microphoneReady = true;
         final started = _callStarted;
         if (started != null && !started.isCompleted) started.complete();
       case LiveCallTranscript(:final fromUser, :final delta):
         if (isOver) return;
+        if (fromUser) {
+          if (!_rtcInputStarted) {
+            _rtcInputStarted = true;
+            _rtcInputWords = '';
+            _suppressRequestDelegation = false;
+            _rtcSpokenRequest = muted || _requestSpeaking
+                ? null
+                : approval?.pending;
+          }
+          if (_rtcSpokenRequest != null && _rtcInputWords.length <= 256) {
+            _rtcInputWords += delta;
+          }
+        }
         _addTranscript(fromUser, delta);
         _speakingTimer?.cancel();
         if (fromUser) {
@@ -568,8 +708,31 @@ class LiveController extends ChangeNotifier {
           });
         }
         _refreshCall();
+      case LiveCallInputComplete(:final transcript):
+        final input = _rtcSpokenRequest;
+        _rtcInputStarted = false;
+        _rtcSpokenRequest = null;
+        if (input != null) {
+          _suppressRequestDelegation = true;
+          // The provider's settled text can differ from the streamed
+          // recognition. Don't grant on a cleaned-up paraphrase.
+          final action = matchLiveRequest(transcript);
+          if (action == null || action != matchLiveRequest(_rtcInputWords)) {
+            _handleSpokenRequest(input, 'unrecognized response');
+          } else {
+            _handleSpokenRequest(input, transcript);
+          }
+        }
+        _rtcInputWords = '';
       case LiveCallDelegation():
         if (isOver) return;
+        // A new provider delegation while the agent waits for user input
+        // must not replace the blocked turn or forward approval words.
+        if (approval?.pending != null || _suppressRequestDelegation) {
+          _suppressRequestDelegation = false;
+          c.think(event.id, 'Use the on-screen request controls if needed.');
+          return;
+        }
         _delegate(c, event);
       case LiveCallWorking():
         _working = true;
@@ -754,7 +917,7 @@ class LiveController extends ChangeNotifier {
           ? LivePhase.speaking
           : (_activeDelegation != null || _working)
           ? LivePhase.thinking
-          : _muted
+          : muted
           ? LivePhase.muted
           : LivePhase.listening,
     );
@@ -785,35 +948,32 @@ class LiveController extends ChangeNotifier {
   /// The mic button. While thinking or speaking it only takes effect when
   /// the call would next listen.
   void toggleMute() {
-    if (isOver) return;
-    if (webRtc) {
-      _muted = !_muted;
-      if (!_muted) {
-        _paused = false;
-        if (notice == LiveText.paused) notice = null;
-      }
-      _call!.setMuted(_muted);
-      _refreshCall();
-      return;
-    }
+    if (isOver || _paused) return;
     _muted = !_muted;
-    if (_muted) {
-      if (_phase == LivePhase.listening) {
-        _epoch++;
-        partial = '';
-        unawaited(ear.stop());
-        _set(LivePhase.muted);
-      } else {
-        _changed();
+    if (webRtc) {
+      _rtcSpokenRequest = null;
+      _call!.setMuted(muted || _requestSpeaking);
+      _refreshCall();
+    } else if (_muted && _listeningFor != null) {
+      _listeningFor = null;
+      _requestGeneration++;
+      unawaited(ear.stop());
+      _changed();
+    } else if (!_muted && approval?.pending != null) {
+      final input = approval!.pending!;
+      if (_announcedRequests.contains(input.request.id) && !_requestSpeaking) {
+        _listenForRequest(input);
       }
+      _changed();
+    } else if (_muted && _phase == LivePhase.listening) {
+      _epoch++;
+      partial = '';
+      unawaited(ear.stop());
+      _set(LivePhase.muted);
+    } else if (!_muted && _phase == LivePhase.muted) {
+      _listen();
     } else {
-      _paused = false;
-      if (notice == LiveText.paused) notice = null;
-      if (_phase == LivePhase.muted) {
-        _listen();
-      } else {
-        _changed();
-      }
+      _changed();
     }
   }
 
@@ -828,24 +988,64 @@ class LiveController extends ChangeNotifier {
 
   /// The app went to the background: release the mic and the voice.
   void pause() {
+    _pauseGeneration++;
     if (isOver || _paused) return;
     _paused = true;
-    _muted = true;
     notice = LiveText.paused;
+    _rtcSpokenRequest = null;
+    final requestWasSpeaking = _requestSpeaking;
+    _requestSpeaking = false;
+    _listeningFor = null;
+    _requestGeneration++;
     if (webRtc) {
       _call!.setMuted(true);
+      _pausedShutdown = voice.stop().catchError((Object _) {});
       _refreshCall();
       return;
     }
-    if (_phase == LivePhase.listening || _phase == LivePhase.speaking) {
-      _epoch++;
+    if (_phase == LivePhase.listening ||
+        _phase == LivePhase.speaking ||
+        requestWasSpeaking ||
+        approval?.pending != null) {
+      if (_phase != LivePhase.thinking) _epoch++;
       partial = '';
-      unawaited(ear.stop());
-      unawaited(voice.stop());
-      _set(LivePhase.muted);
-    } else {
-      _changed();
+      _pausedShutdown = Future.wait([
+        ear.stop().catchError((Object _) {}),
+        voice.stop().catchError((Object _) {}),
+      ]).then((_) {});
+      if (_phase != LivePhase.thinking) {
+        _set(LivePhase.muted);
+        return;
+      }
     }
+    _changed();
+  }
+
+  void resume() {
+    if (!_paused || isOver) return;
+    final generation = _pauseGeneration;
+    unawaited(
+      _pausedShutdown.then((_) {
+        if (generation != _pauseGeneration || !_paused || isOver || _disposed)
+          return;
+        _paused = false;
+        if (notice == LiveText.paused) notice = null;
+        if (webRtc) {
+          _call!.setMuted(muted || _requestSpeaking);
+          _refreshCall();
+        } else if (!_muted && approval?.pending != null) {
+          final request = approval!.pending!;
+          if (_announcedRequests.contains(request.request.id)) {
+            _listenForRequest(request);
+          }
+          _changed();
+        } else if (_phase == LivePhase.muted && !_muted) {
+          _listen();
+        } else {
+          _changed();
+        }
+      }),
+    );
   }
 
   /// Close: stop the mic and the voice; a running turn finishes in the chat.

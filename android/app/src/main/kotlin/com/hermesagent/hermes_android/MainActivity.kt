@@ -60,8 +60,13 @@ class MainActivity : FlutterFragmentActivity() {
         runCatching { MobilePushBridge.captureTap(this, intent) }
     }
 
+    private var liveChannel: MethodChannel? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        liveChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "hermes/live_session").also {
+            LiveMicrophoneService.attach(this, it)
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
             "com.hermesagent.hermes_android/system_assistant").setMethodCallHandler { call, result ->
             val destination = when (call.method) {
@@ -179,6 +184,8 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        liveChannel?.let { LiveMicrophoneService.detach(this, it) }
+        liveChannel = null
         handsFreeVoice?.setForeground(false)
         handsFreeVoice = null
         documentScanner?.close()
@@ -234,6 +241,7 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (LiveMicrophoneService.handleReturn(intent)) return
         setIntent(intent)
         WindowViewport.refresh(window.decorView)
         runCatching { MobilePushBridge.captureTap(this, intent) }

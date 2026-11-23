@@ -345,18 +345,26 @@ class DeviceLiveEar implements LiveEar {
 
 /// [LiveBrain] over the bot's open chat: every turn lands in that chat.
 class ChatLiveBrain extends ChangeNotifier implements LiveBrain {
-  ChatLiveBrain(this.chat) : _from = chat.items.length {
+  ChatLiveBrain(this.chat)
+    : _from = chat.items.length,
+      _release = chat.retain() {
     chat.addListener(notifyListeners);
   }
 
   final NgChatController chat;
+  final VoidCallback _release;
 
   /// Only this call's turns show in the call's transcript.
   final int _from;
+  final _waiters = <Completer<void>>{};
+  bool _disposed = false;
 
   @override
   List<LiveLine> get lines => [
-    for (final item in chat.items.skip(_from))
+    for (final item
+        in chat.items
+            .skip(_from)
+            .where((item) => item is! NgMessageItem || !item.fromHistory))
       if (item is NgUserItem && item.text.trim().isNotEmpty)
         LiveLine(key: item.key, fromUser: true, text: item.text.trim())
       else if (item is NgAssistantItem &&
@@ -389,6 +397,7 @@ class ChatLiveBrain extends ChangeNotifier implements LiveBrain {
   Future<String> ask(String text) async {
     final before = chat.items.length;
     final sent = await chat.send(text);
+    if (_disposed) return '';
     if (!sent) {
       final failed = chat.items
           .skip(before)
@@ -399,6 +408,7 @@ class ChatLiveBrain extends ChangeNotifier implements LiveBrain {
     }
     if (chat.running) {
       final done = Completer<void>();
+      _waiters.add(done);
       void check() {
         if (!chat.running && !done.isCompleted) done.complete();
       }
@@ -408,8 +418,10 @@ class ChatLiveBrain extends ChangeNotifier implements LiveBrain {
         await done.future;
       } finally {
         chat.removeListener(check);
+        _waiters.remove(done);
       }
     }
+    if (_disposed) return '';
     final error = chat.error;
     final reply = chat.items
         .skip(before)
@@ -425,7 +437,12 @@ class ChatLiveBrain extends ChangeNotifier implements LiveBrain {
 
   @override
   void dispose() {
+    _disposed = true;
+    for (final waiter in _waiters) {
+      if (!waiter.isCompleted) waiter.complete();
+    }
     chat.removeListener(notifyListeners);
+    _release();
     super.dispose();
   }
 }

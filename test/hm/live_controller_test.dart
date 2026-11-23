@@ -197,7 +197,8 @@ void main() {
       expect(live.phase, LivePhase.muted);
       expect(live.notice, LiveText.paused);
       expect(rig.ear.stops, 1);
-      live.toggleMute();
+      live.resume();
+      await _settle();
       expect(live.phase, LivePhase.listening);
       expect(live.notice, isNull);
     });

@@ -97,6 +97,12 @@ class LiveCallTranscript extends LiveCallEvent {
   final String delta;
 }
 
+/// Only complete recognition results can authorize a pending request.
+class LiveCallInputComplete extends LiveCallEvent {
+  const LiveCallInputComplete(this.transcript);
+  final String transcript;
+}
+
 /// `session.delegation.created`: run [prompt] as a turn in the chat.
 class LiveCallDelegation extends LiveCallEvent {
   const LiveCallDelegation({required this.id, required this.prompt});
@@ -171,7 +177,10 @@ abstract interface class LivePeer {
 const liveAppendCharLimit = 1400;
 
 /// Splits a reply into append-sized chunks on sentence boundaries.
-List<String> chunkForCommentary(String text, {int limit = liveAppendCharLimit}) {
+List<String> chunkForCommentary(
+  String text, {
+  int limit = liveAppendCharLimit,
+}) {
   final clean = text.replaceAll(RegExp(r'\s+'), ' ').trim();
   if (clean.isEmpty) return const [];
   if (clean.length <= limit) return [clean];
@@ -312,6 +321,11 @@ class LiveCall {
           if (_turns.length > 200) _turns.removeRange(0, 100);
         }
         _emit(LiveCallTranscript(fromUser: fromUser, delta: delta));
+      case 'session.input_transcript.done':
+        final text = event['transcript'];
+        if (text is String && event['replaces_event_id'] == null) {
+          _emit(LiveCallInputComplete(text));
+        }
       case 'session.delegation.created':
         final delegation = event['delegation'];
         final id = delegation is Map ? delegation['id']?.toString() : null;
@@ -556,7 +570,9 @@ class FlutterWebRtcPeer implements LivePeer {
       }
       rethrow;
     }
-    final pc = _pc = await createPeerConnection({'sdpSemantics': 'unified-plan'});
+    final pc = _pc = await createPeerConnection({
+      'sdpSemantics': 'unified-plan',
+    });
     pc.onConnectionState = (state) {
       if (_closed) return;
       switch (state) {

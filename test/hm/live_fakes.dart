@@ -2,7 +2,10 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:hermes_android/hm/features/live/hm_live.dart';
+import 'package:hermes_android/hm/features/live/live_session_host.dart';
+import 'package:hermes_android/hm/hm_bots.dart';
 import 'package:hermes_android/core/ephemeral/ephemeral_fence.dart';
 import 'package:hermes_android/hm/features/live/live_controller.dart';
 import 'package:hermes_android/hm/features/live/live_lanes.dart';
@@ -174,6 +177,7 @@ class FakeBrain extends ChangeNotifier implements LiveBrain {
 
   @override
   String? activeTool;
+  void refresh() => notifyListeners();
 
   /// The running turn moves to [tool] (null: between tools).
   void useTool(String? tool) {
@@ -307,4 +311,65 @@ class LiveRig {
           Duration(seconds: 16),
         ],
   );
+}
+
+class FakeLiveBackground implements LiveBackground {
+  FakeLiveBackground({this.available = false});
+  final bool available;
+  final starts = <int>[];
+  final stops = <int>[];
+  void Function(String, int)? callback;
+  @override
+  Future<bool> start(int session) async {
+    starts.add(session);
+    return available;
+  }
+
+  @override
+  Future<void> stop(int session) async => stops.add(session);
+  @override
+  void listen(void Function(String, int)? listener) => callback = listener;
+  void action(String name) => callback?.call(name, starts.last);
+}
+
+/// Fixture for tests that exercise call contents without navigation.
+class LiveTestScreen extends StatefulWidget {
+  const LiveTestScreen({super.key, required this.bot, required this.create});
+  final HmBot bot;
+  final LiveController Function() create;
+
+  @override
+  State<LiveTestScreen> createState() => _LiveTestScreenState();
+}
+
+class _LiveTestScreenState extends State<LiveTestScreen> {
+  final policy = ValueNotifier(false);
+  late final host = LiveSessionHost(
+    background: FakeLiveBackground(),
+    backgroundAllowed: policy,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(
+      host.begin(widget.bot, widget.create).then((_) {
+        if (mounted) setState(() {});
+      }),
+    );
+  }
+
+  @override
+  void dispose() {
+    host.dispose();
+    policy.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final live = host.live;
+    if (live == null) return const SizedBox.shrink();
+    return HmLiveScreen(bot: widget.bot, host: host, live: live);
+  }
 }

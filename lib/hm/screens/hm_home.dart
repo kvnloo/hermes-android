@@ -49,6 +49,16 @@ Future<void> hmOpenChat(
   bool live = false,
   AndroidSharePayload? sharedDraft,
 }) async {
+  final call = HmLiveScope.maybeOf(context);
+  final callChat = call?.approval?.chat;
+  if (!live &&
+      sessionId != null &&
+      call?.active == true &&
+      call?.bot?.profile == bot.profile &&
+      callChat?.storedId == sessionId) {
+    await _pushHmChat(context, bot, bots, callChat!, sharedDraft: sharedDraft);
+    return;
+  }
   final chat = NgChatController(
     bots.gateway,
     sessionId: sessionId,
@@ -58,8 +68,39 @@ Future<void> hmOpenChat(
   );
   if (sessionId != null) unawaited(chat.open());
   if (live) {
-    await openHmLive(context, bot: bot, bots: bots, chat: chat);
-  } else {
+    try {
+      await openHmLive(
+        context,
+        bot: bot,
+        bots: bots,
+        chat: chat,
+        openChat: () {
+          if (context.mounted) unawaited(_pushHmChat(context, bot, bots, chat));
+        },
+      );
+    } finally {
+      chat.dispose();
+      unawaited(bots.refresh());
+    }
+    return;
+  }
+  try {
+    await _pushHmChat(context, bot, bots, chat, sharedDraft: sharedDraft);
+  } finally {
+    chat.dispose();
+    unawaited(bots.refresh());
+  }
+}
+
+Future<void> _pushHmChat(
+  BuildContext context,
+  HmBot bot,
+  HmBotsModel bots,
+  NgChatController chat, {
+  AndroidSharePayload? sharedDraft,
+}) async {
+  final release = chat.retain();
+  try {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (route) => HmChatScreen(
@@ -78,9 +119,9 @@ Future<void> hmOpenChat(
         ),
       ),
     );
+  } finally {
+    release();
   }
-  chat.dispose();
-  unawaited(bots.refresh());
 }
 
 /// Agent settings for [bot].
@@ -137,7 +178,22 @@ Future<void> hmChatAction(
       await bots.apiFor(bot).deleteSession(id).catchError((_) {});
       if (context.mounted) Navigator.of(context).pop();
     case HmChatAction.liveMode:
-      await openHmLive(context, bot: bot, bots: bots, chat: chat);
+      final navigator = Navigator.of(context);
+      final route = ModalRoute.of(context);
+      await openHmLive(
+        context,
+        bot: bot,
+        bots: bots,
+        chat: chat,
+        openChat: () {
+          if (!navigator.mounted) return;
+          if (route?.isActive == true) {
+            navigator.popUntil((candidate) => identical(candidate, route));
+          } else {
+            unawaited(_pushHmChat(navigator.overlay!.context, bot, bots, chat));
+          }
+        },
+      );
     case HmChatAction.terminal:
       await openHmTerminal(context, bot: bot, bots: bots, chat: chat);
     case HmChatAction.execution:

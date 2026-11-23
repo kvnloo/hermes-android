@@ -632,7 +632,7 @@ class _NgChatViewState extends State<NgChatView> {
               if (chat.error != null) _errorBar(c),
               if (chat.queued.isNotEmpty) _queue(c),
               if (chat.request != null)
-                _InputPanel(chat: chat, request: chat.request!)
+                NgInputPanel(chat: chat, request: chat.request!)
               else
                 _composer(c, state),
             ],
@@ -2070,16 +2070,22 @@ class _ActionIcon extends StatelessWidget {
 }
 
 /// What the agent is waiting on: approval, a question or a secret.
-class _InputPanel extends StatefulWidget {
-  const _InputPanel({required this.chat, required this.request});
+class NgInputPanel extends StatefulWidget {
+  const NgInputPanel({
+    super.key,
+    required this.chat,
+    required this.request,
+    this.onApproved,
+  });
   final NgChatController chat;
+  final VoidCallback? onApproved;
   final NgInputRequest request;
 
   @override
-  State<_InputPanel> createState() => _InputPanelState();
+  State<NgInputPanel> createState() => _NgInputPanelState();
 }
 
-class _InputPanelState extends State<_InputPanel> {
+class _NgInputPanelState extends State<NgInputPanel> {
   final _text = TextEditingController();
   final _user = TextEditingController();
   late List<Set<String>> _picked;
@@ -2092,7 +2098,7 @@ class _InputPanelState extends State<_InputPanel> {
   }
 
   @override
-  void didUpdateWidget(covariant _InputPanel oldWidget) {
+  void didUpdateWidget(covariant NgInputPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.request != widget.request) {
       for (final a in _answers) {
@@ -2121,10 +2127,17 @@ class _InputPanelState extends State<_InputPanel> {
     super.dispose();
   }
 
-  void _done(bool ok) {
-    if (!ok && mounted) {
+  void _answer(bool Function() answer) {
+    if (!identical(widget.chat.request, widget.request)) return;
+    if (!answer() && mounted) {
       ngToast(context, ngL.ng_the_gateway_connection_dropped_try_again);
     }
+  }
+
+  bool _approve(String choice) {
+    final ok = widget.chat.answerApproval(choice);
+    if (ok && choice != 'deny') widget.onApproved?.call();
+    return ok;
   }
 
   static String _choiceLabel(String choice) => switch (choice) {
@@ -2212,8 +2225,7 @@ class _InputPanelState extends State<_InputPanel> {
                           foregroundColor: c.danger,
                           shape: const StadiumBorder(),
                         ),
-                        onPressed: () =>
-                            _done(widget.chat.answerApproval(choice)),
+                        onPressed: () => _answer(() => _approve(choice)),
                         child: Text(_choiceLabel(choice)),
                       )
                     : FilledButton(
@@ -2226,8 +2238,7 @@ class _InputPanelState extends State<_InputPanel> {
                               : c.text,
                           shape: const StadiumBorder(),
                         ),
-                        onPressed: () =>
-                            _done(widget.chat.answerApproval(choice)),
+                        onPressed: () => _answer(() => _approve(choice)),
                         child: Text(_choiceLabel(choice)),
                       ),
             ],
@@ -2272,7 +2283,7 @@ class _InputPanelState extends State<_InputPanel> {
           Row(
             children: [
               TextButton(
-                onPressed: () => _done(widget.chat.cancelClarify()),
+                onPressed: () => _answer(widget.chat.cancelClarify),
                 child: Text(ngL.ng_skip),
               ),
               const Spacer(),
@@ -2282,8 +2293,8 @@ class _InputPanelState extends State<_InputPanel> {
                   foregroundColor: c.onAccent,
                   shape: const StadiumBorder(),
                 ),
-                onPressed: () => _done(
-                  widget.chat.answerClarify([
+                onPressed: () => _answer(
+                  () => widget.chat.answerClarify([
                     for (var i = 0; i < r.questions.length; i++)
                       _answers[i].text.trim().isNotEmpty
                           ? [_answers[i].text.trim()]
@@ -2302,7 +2313,7 @@ class _InputPanelState extends State<_InputPanel> {
           Row(
             children: [
               TextButton(
-                onPressed: () => _done(widget.chat.answerValue('')),
+                onPressed: () => _answer(() => widget.chat.answerValue('')),
                 child: Text(ngL.ng_cancel),
               ),
               const Spacer(),
@@ -2312,7 +2323,8 @@ class _InputPanelState extends State<_InputPanel> {
                   foregroundColor: c.onAccent,
                   shape: const StadiumBorder(),
                 ),
-                onPressed: () => _done(widget.chat.answerValue(_text.text)),
+                onPressed: () =>
+                    _answer(() => widget.chat.answerValue(_text.text)),
                 child: Text(ngL.ng_send),
               ),
             ],
@@ -2327,7 +2339,8 @@ class _InputPanelState extends State<_InputPanel> {
           Row(
             children: [
               TextButton(
-                onPressed: () => _done(widget.chat.answerSaveLogin('', '')),
+                onPressed: () =>
+                    _answer(() => widget.chat.answerSaveLogin('', '')),
                 child: Text(ngL.ng_not_now),
               ),
               const Spacer(),
@@ -2337,8 +2350,11 @@ class _InputPanelState extends State<_InputPanel> {
                   foregroundColor: c.onAccent,
                   shape: const StadiumBorder(),
                 ),
-                onPressed: () => _done(
-                  widget.chat.answerSaveLogin(_user.text.trim(), _text.text),
+                onPressed: () => _answer(
+                  () => widget.chat.answerSaveLogin(
+                    _user.text.trim(),
+                    _text.text,
+                  ),
                 ),
                 child: Text(ngL.ng_save),
               ),

@@ -14,6 +14,7 @@ import 'nextgen_preferences.dart';
 import 'theme/nextgen_theme.dart';
 import 'ui/connect_screen.dart';
 import '../hm/screens/hm_home.dart';
+import '../hm/features/live/hm_live.dart';
 import 'ui/nextgen_scope.dart';
 import 'nextgen_l10n.dart';
 
@@ -219,18 +220,21 @@ class _NextGenHomeState extends State<NextGenHome> {
       signOut: _signOut,
       reload: _reload,
       signInAgain: () => _connectFlow(existing: gateway.connection),
-      child: NavigatorPopHandler(
-        onPopWithResult: (_) => _navigator.currentState?.maybePop(),
-        child: Navigator(
-          key: _navigator,
-          onGenerateInitialRoutes: (_, _) => [
-            MaterialPageRoute<void>(
-              builder: (_) => HmHome(
-                launchIntents: widget.launchIntents,
-                shareIntents: widget.shareIntents,
+      child: HmLiveScope(
+        key: ObjectKey(gateway),
+        child: NavigatorPopHandler(
+          onPopWithResult: (_) => _navigator.currentState?.maybePop(),
+          child: Navigator(
+            key: _navigator,
+            onGenerateInitialRoutes: (_, _) => [
+              MaterialPageRoute<void>(
+                builder: (_) => HmHome(
+                  launchIntents: widget.launchIntents,
+                  shareIntents: widget.shareIntents,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -30,7 +30,7 @@ Future<void> _open(WidgetTester tester, LiveRig rig) async {
   await tester.pumpWidget(
     MaterialApp(
       theme: nextGenTheme(Brightness.dark, NextGenLook.instance),
-      home: HmLiveScreen(bot: _bot, create: rig.build),
+      home: LiveTestScreen(bot: _bot, create: rig.build),
     ),
   );
   await _frames(tester);

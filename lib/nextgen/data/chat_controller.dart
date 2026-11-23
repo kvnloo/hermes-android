@@ -2734,8 +2734,23 @@ class NgChatController extends ChangeNotifier {
     _changed();
   }
 
+  int _leases = 1;
+
+  /// Keep this chat (and its gateway subscriptions) after its route closes.
+  VoidCallback retain() {
+    assert(!_disposed);
+    _leases++;
+    var released = false;
+    return () {
+      if (released) return;
+      released = true;
+      dispose();
+    };
+  }
+
   @override
   void dispose() {
+    if (--_leases != 0) return;
     _disposed = true;
     for (final sub in _subs) {
       unawaited(sub.cancel());
