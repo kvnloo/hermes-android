@@ -168,8 +168,62 @@ void main() {
     await _openLicenses(tester);
     expect(find.text('3.0.0-rc.1+3000'), findsOneWidget);
 
+    // App notices supplement, rather than replace, existing dependency entries.
+    tester
+        .state<ScrollableState>(find.byType(Scrollable).last)
+        .position
+        .jumpTo(0);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('test_dependency'),
+      300,
+      maxScrolls: 100,
+    );
+    expect(find.text('test_dependency'), findsOneWidget);
+    await _back(tester);
+    await tester.scrollUntilVisible(
+      find.text('Check for updates on launch'),
+      200,
+      scrollable: _settingsScroll,
+    );
+    expect(find.text('Check for updates'), findsOneWidget);
+    await tester.tap(find.text('Check for updates on launch'));
+    await tester.pumpAndSettle();
+    expect(prefs.getBool('app_update_check_on_launch_v1'), isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('About renders the Ares credit and all local licence notices', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(480, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await _openOfflineSettings(tester);
+    await _openLicenses(tester);
+
     const packages = <String, List<String>>{
-      'z0 Agent, based on Ares by Sam Russell (MIT)': ['LICENSE'],
+      'z0 Agent, based on Ares by Sam Russell (MIT)': ['LICENSE', 'NOTICE.md'],
+      'AI Elements Persona': [
+        'third_party/ai-elements-persona/LICENSE.ai-elements',
+        'third_party/ai-elements-persona/LICENSE-2.0.txt',
+      ],
+      'thinking-orbs': ['third_party/thinking-orbs/LICENSE'],
+      'Syn face (Moodie and bloub)': ['third_party/syn-face/LICENSES.md'],
+      'Nunito': ['assets/fonts/nunito/OFL.txt'],
+      'Geist and Geist Mono': ['assets/fonts/geist/OFL.txt'],
+      'Kyllene (NextGen design and connection model, source material)': [
+        'third_party/licenses/kyllene-MIT.txt',
+      ],
+      'flutter_tts (Android patch)': [
+        'third_party/flutter_tts_android/LICENSE',
+      ],
+      'sherpa-onnx and wake model': [
+        'third_party/voice/NOTICE.md',
+        'third_party/voice/licenses/sherpa-onnx-Apache-2.0.txt',
+      ],
+      'ONNX Runtime': ['third_party/voice/licenses/onnxruntime-MIT.txt'],
       'Cinzel': ['assets/fonts/OFL.txt'],
       'embedded-fcm-distributor (3.1.0)': [
         'third_party/embedded-push-notice.md',
@@ -215,28 +269,6 @@ void main() {
       await _back(tester);
     }
 
-    // App notices supplement, rather than replace, existing dependency entries.
-    tester
-        .state<ScrollableState>(find.byType(Scrollable).last)
-        .position
-        .jumpTo(0);
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('test_dependency'),
-      300,
-      maxScrolls: 100,
-    );
-    expect(find.text('test_dependency'), findsOneWidget);
-    await _back(tester);
-    await tester.scrollUntilVisible(
-      find.text('Check for updates on launch'),
-      200,
-      scrollable: _settingsScroll,
-    );
-    expect(find.text('Check for updates'), findsOneWidget);
-    await tester.tap(find.text('Check for updates on launch'));
-    await tester.pumpAndSettle();
-    expect(prefs.getBool('app_update_check_on_launch_v1'), isFalse);
     expect(tester.takeException(), isNull);
   });
 

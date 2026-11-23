@@ -336,6 +336,8 @@ class _AboutCardState extends State<_AboutCard> {
   String _version = '';
   bool _checking = false;
   bool _checkOnLaunch = true;
+  // A Play-installed sideload build: Play owns its updates.
+  bool _playManagesUpdates = false;
   String? _updateStatus;
 
   @override
@@ -358,9 +360,14 @@ class _AboutCardState extends State<_AboutCard> {
   }
 
   Future<void> _loadUpdatePreference() async {
-    final enabled = await AppUpdateService().checkOnLaunchEnabled();
+    final service = AppUpdateService();
+    final enabled = await service.checkOnLaunchEnabled();
+    final playManaged = await service.playManagesUpdates();
     if (!mounted) return;
-    setState(() => _checkOnLaunch = enabled);
+    setState(() {
+      _checkOnLaunch = enabled;
+      _playManagesUpdates = playManaged;
+    });
   }
 
   Future<void> _setCheckOnLaunch(bool enabled) async {
@@ -479,27 +486,28 @@ class _AboutCardState extends State<_AboutCard> {
                 ),
               ),
             ),
-            if (!AppUpdateService.isPlayBuild) ...[
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(context.l10n.check_for_updates),
-                subtitle: _updateStatus == null ? null : Text(_updateStatus!),
-                trailing: _checking
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.refresh),
-                onTap: _checking ? null : _checkForUpdates,
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(context.l10n.check_for_updates_on_launch),
-                value: _checkOnLaunch,
-                onChanged: _setCheckOnLaunch,
-              ),
-            ],
+            if (!AppUpdateService.isPlayBuild)
+              if (!_playManagesUpdates) ...[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(context.l10n.check_for_updates),
+                  subtitle: _updateStatus == null ? null : Text(_updateStatus!),
+                  trailing: _checking
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh),
+                  onTap: _checking ? null : _checkForUpdates,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(context.l10n.check_for_updates_on_launch),
+                  value: _checkOnLaunch,
+                  onChanged: _setCheckOnLaunch,
+                ),
+              ],
           ],
         ),
       ),

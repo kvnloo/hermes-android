@@ -10,8 +10,7 @@ String releaseJson({
   String tag = 'v2.1.20',
   String name = 'Hermes Android 2.1.20',
   String body = 'Fixes the chat stream teardown.',
-  String url =
-      'https://github.com/rusty4444/hermes-android/releases/tag/v2.1.20',
+  String url = 'https://github.com/kvnloo/hermes-android/releases/tag/v2.1.20',
   bool draft = false,
   String? publishedAt = '2026-10-15T09:30:00Z',
 }) {
@@ -80,7 +79,7 @@ void main() {
       final client = MockClient((request) async {
         expect(
           request.url.path,
-          '/repos/rusty4444/hermes-android/releases/latest',
+          '/repos/kvnloo/hermes-android/releases/latest',
         );
         expect(request.headers['Accept'], 'application/vnd.github+json');
         return http.Response(releaseJson(), 200, headers: {'etag': 'W/"abc"'});
@@ -97,7 +96,7 @@ void main() {
       expect(release.notes, contains('chat stream'));
       expect(
         release.releaseUrl,
-        'https://github.com/rusty4444/hermes-android/releases/tag/v2.1.20',
+        'https://github.com/kvnloo/hermes-android/releases/tag/v2.1.20',
       );
       expect(release.publishedAt, DateTime.utc(2026, 10, 15, 9, 30));
     });

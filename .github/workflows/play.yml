@@ -19,6 +19,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          # Release branches are not the default branch.
+          cache-read-only: false
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.9'
@@ -37,7 +41,7 @@ jobs:
       - name: Build AAB
         env:
           ARES_PLAY_BUILD: 'true'
-        run: flutter build appbundle --release --dart-define=ARES_PLAY_BUILD=true --split-debug-info=symbols-play
+        run: bash scripts/retry_gradle_build.sh flutter build appbundle --release --dart-define=ARES_PLAY_BUILD=true --split-debug-info=symbols-play
       - name: Check signer and package
         run: |
           aab=build/app/outputs/bundle/release/app-release.aab
@@ -57,7 +61,7 @@ jobs:
         run: |
           base=$(sed -nE 's/^version: *[^+]+\+([0-9]+).*/\1/p' pubspec.yaml)
           echo "BUILD_NUMBER=$((base + SIDELOAD_OFFSET + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
-          flutter build apk --release --no-pub --split-per-abi --target-platform android-arm64 \
+          bash scripts/retry_gradle_build.sh flutter build apk --release --no-pub --split-per-abi --target-platform android-arm64 \
             --build-number=$((base + SIDELOAD_OFFSET + GITHUB_RUN_NUMBER)) \
             --dart-define=ARES_PLAY_BUILD=true --split-debug-info=symbols-apk
       - name: Check APK signer, package and versionCode

@@ -8,7 +8,7 @@ AppReleaseApk _apk({int size = 100}) => AppReleaseApk(
   abi: 'arm64-v8a',
   name: 'app-arm64-v8a-release.apk',
   url: Uri.parse(
-    'https://github.com/rusty4444/hermes-android/releases/download/v3.2.6/app-arm64-v8a-release.apk',
+    'https://github.com/kvnloo/hermes-android/releases/download/v3.2.6/app-arm64-v8a-release.apk',
   ),
   sha256: 'a' * 64,
   size: size,

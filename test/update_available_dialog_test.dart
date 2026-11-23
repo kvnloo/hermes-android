@@ -11,8 +11,7 @@ const _release = AppReleaseInfo(
   tagName: 'v2.1.20',
   name: 'Hermes Android 2.1.20',
   notes: 'Fixes the chat stream teardown.',
-  releaseUrl:
-      'https://github.com/rusty4444/hermes-android/releases/tag/v2.1.20',
+  releaseUrl: 'https://github.com/kvnloo/hermes-android/releases/tag/v2.1.20',
 );
 
 /// Pumps a button that opens the prompt and records the action it resolved to.
@@ -99,7 +98,7 @@ void main() {
       release: const AppReleaseInfo(
         version: '2.1.20',
         tagName: 'v2.1.20',
-        releaseUrl: 'https://github.com/rusty4444/hermes-android/releases',
+        releaseUrl: 'https://github.com/kvnloo/hermes-android/releases',
         notes: '![Preview](https://tracker.example/pixel.png)',
       ),
     );

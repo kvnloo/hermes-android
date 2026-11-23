@@ -35,6 +35,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          # Release branches are not the default branch.
+          cache-read-only: false
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.9'
@@ -83,7 +87,7 @@ jobs:
           if [ "$TEST_LIVE_LANES_FIXTURE" = true ]; then
             set -- "$@" --dart-define=HERMES_LIVE_LANES_FIXTURE=true
           fi
-          flutter build apk "$@" \
+          bash scripts/retry_gradle_build.sh flutter build apk "$@" \
             --dart-define=ARES_PLAY_BUILD=true --split-debug-info=symbols-apk \
             --dart-define=HERMES_BUILD_SHA="$GITHUB_SHA" \
             --dart-define=HERMES_BUILD_TIME="$(date -u +%s)"

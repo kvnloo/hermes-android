@@ -169,7 +169,7 @@ class ApkTestInputsTest(unittest.TestCase):
                 "TEST_LIVE_LANES_FIXTURE": live_lanes_fixture,
             }
             result = subprocess.run(
-                ["bash", "-e", "-c", script], env=env, cwd=temp,
+                ["bash", "-e", "-c", script], env=env, cwd=ROOT,
                 capture_output=True, text=True, check=False,
             )
             args = argv.read_text().splitlines() if argv.exists() else None
