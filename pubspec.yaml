@@ -117,6 +117,7 @@ flutter:
     - assets/elemental/geo.slate.layered.v1/
     - third_party/elemental-ui/LICENSE
     - LICENSE
+    - NOTICE.md
     - assets/fonts/OFL.txt
     - assets/fonts/geist/OFL.txt
     - assets/fonts/nunito/OFL.txt
@@ -135,3 +136,7 @@ flutter:
     - third_party/licenses/flutter-BSD-3-Clause.txt
     - third_party/licenses/Apache-2.0.txt
     - third_party/licenses/gradle-NOTICE.txt
+    - third_party/flutter_tts_android/LICENSE
+    - third_party/voice/NOTICE.md
+    - third_party/voice/licenses/sherpa-onnx-Apache-2.0.txt
+    - third_party/voice/licenses/onnxruntime-MIT.txt
