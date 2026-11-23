@@ -3,8 +3,8 @@
 # Needs key.properties at the repo root (upload key; vault: Z0AGENT_UPLOAD_KEYSTORE_*).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-export PATH=/mnt/zer0models/tools/flutter-3.44.0/bin:$PATH
-export FLUTTER_ROOT=/mnt/zer0models/tools/flutter-3.44.0
+export PATH=/mnt/zer0models/tools/flutter-3.47.9/bin:$PATH
+export FLUTTER_ROOT=/mnt/zer0models/tools/flutter-3.47.9
 export PUB_CACHE=/mnt/zer0models/cache/pub GRADLE_USER_HOME=/mnt/zer0models/cache/gradle
 export ANDROID_HOME=$HOME/Android/Sdk FLUTTER_SUPPRESS_ANALYTICS=true
 export TMPDIR=/mnt/zer0models/cache/tmp ARES_PLAY_BUILD=true
