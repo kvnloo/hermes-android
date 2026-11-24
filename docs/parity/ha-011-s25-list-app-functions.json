@@ -1,0 +1,149 @@
+{
+  "io.github.kvnloo.z0agent": [
+    {
+      "AppFunctionStaticMetadata-io.github.kvnloo.z0agent": {
+        "serviceName": [
+          "com.hermesagent.hermes_android.HermesAppFunctionService"
+        ],
+        "description": [
+          "Open the routines list for the current Hermes host. The user selects\nthe routine and taps Run now in the app; this function executes nothing."
+        ],
+        "response": [
+          {
+            "description": [
+              "A one-time action to open the routines list."
+            ],
+            "valueType": [
+              {
+                "objectQualifiedName": [
+                  "android.app.PendingIntent"
+                ],
+                "type": [
+                  13
+                ],
+                "isNullable": [
+                  false
+                ]
+              }
+            ]
+          }
+        ],
+        "enabledByDefault": [
+          true
+        ],
+        "functionId": [
+          "com.hermesagent.hermes_android.HermesAppFunctions#runHermesRoutine"
+        ],
+        "packageNameHash": [
+          344065933
+        ],
+        "scope": [
+          "global"
+        ],
+        "mobileApplicationQualifiedId": [
+          "android$apps-db\/apps#io.github.kvnloo.z0agent"
+        ],
+        "packageName": [
+          "io.github.kvnloo.z0agent"
+        ]
+      },
+      "AppFunctionRuntimeMetadata-io.github.kvnloo.z0agent": {
+        "AppFunctionRuntimeMetadata-io.github.kvnloo.z0agent": {
+          "appFunctionStaticMetadataQualifiedId": [
+            "android$apps-db\/app_functions#io.github.kvnloo.z0agent\/com.hermesagent.hermes_android.HermesAppFunctions\\#runHermesRoutine"
+          ],
+          "functionId": [
+            "com.hermesagent.hermes_android.HermesAppFunctions#runHermesRoutine"
+          ],
+          "packageName": [
+            "io.github.kvnloo.z0agent"
+          ]
+        }
+      }
+    },
+    {
+      "AppFunctionStaticMetadata-io.github.kvnloo.z0agent": {
+        "serviceName": [
+          "com.hermesagent.hermes_android.HermesAppFunctionService"
+        ],
+        "description": [
+          "Prepare a Hermes chat draft for the user to review, edit and send.\nNo bot is contacted until the user taps Send in the app."
+        ],
+        "response": [
+          {
+            "description": [
+              "A one-time action to open the draft in Hermes."
+            ],
+            "valueType": [
+              {
+                "objectQualifiedName": [
+                  "android.app.PendingIntent"
+                ],
+                "type": [
+                  13
+                ],
+                "isNullable": [
+                  false
+                ]
+              }
+            ]
+          }
+        ],
+        "enabledByDefault": [
+          true
+        ],
+        "functionId": [
+          "com.hermesagent.hermes_android.HermesAppFunctions#askHermes"
+        ],
+        "packageNameHash": [
+          344065933
+        ],
+        "scope": [
+          "global"
+        ],
+        "parameters": [
+          {
+            "description": [
+              "The user's question, 1–4000 characters."
+            ],
+            "isRequired": [
+              true
+            ],
+            "name": [
+              "prompt"
+            ],
+            "dataTypeMetadata": [
+              {
+                "type": [
+                  8
+                ],
+                "isNullable": [
+                  false
+                ]
+              }
+            ]
+          }
+        ],
+        "mobileApplicationQualifiedId": [
+          "android$apps-db\/apps#io.github.kvnloo.z0agent"
+        ],
+        "packageName": [
+          "io.github.kvnloo.z0agent"
+        ]
+      },
+      "AppFunctionRuntimeMetadata-io.github.kvnloo.z0agent": {
+        "AppFunctionRuntimeMetadata-io.github.kvnloo.z0agent": {
+          "appFunctionStaticMetadataQualifiedId": [
+            "android$apps-db\/app_functions#io.github.kvnloo.z0agent\/com.hermesagent.hermes_android.HermesAppFunctions\\#askHermes"
+          ],
+          "functionId": [
+            "com.hermesagent.hermes_android.HermesAppFunctions#askHermes"
+          ],
+          "packageName": [
+            "io.github.kvnloo.z0agent"
+          ]
+        }
+      }
+    }
+  ]
+}

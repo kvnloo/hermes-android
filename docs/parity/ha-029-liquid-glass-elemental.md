@@ -49,3 +49,14 @@ Gateway primit corect."); it is fixture data, not app copy.
 The stone packs and the lighting model are elemental-ui's, GPL-3.0-only
 (© Kevin Rajan); see `third_party/NOTICE.md` and
 `third_party/elemental-ui/PROVENANCE.md`. `liquid_glass_renderer` is MIT.
+
+## S25 recording (device pass 7, 2026-11-23)
+
+[`ha-029/s25-glass-water-p7.mp4`](ha-029/s25-glass-water-p7.mp4) is a 54.5 s
+clip from Kevin's Galaxy S25 running the staging test build (apk.yml run
+45298218026 at 48aae5f1, versionCode 41052): Glass surface, then the Water,
+Basalt, Slate, Limestone and Quartz materials, then the Liquid Glass composer.
+It was captured on a focus-safe virtual display, where `screenrecord` is not
+available, so it is a screencap frame sequence (about 2.8 fps) encoded to mp4.
+
+![S25 materials](ha-029/s25-p7-materials.png)
