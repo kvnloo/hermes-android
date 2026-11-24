@@ -2777,12 +2777,20 @@ class DashboardClient {
     if (session == null) return null;
     final stale = _staleBearer;
     if (stale != null && stale == session.accessToken) {
-      _staleBearer = null;
-      session = await vault.refresh(
-        _baseUrl,
-        client: _http,
-        expiredAccessToken: stale,
-      );
+      // The token stays marked stale until its renewal settles, so a request
+      // rejected alongside the one that started it (Home's first loads and
+      // the socket's ticket right after a gateway switch) joins the same
+      // renewal instead of re-sending the rejected token and reading the
+      // second 401 as an expired sign-in.
+      try {
+        session = await vault.refresh(
+          _baseUrl,
+          client: _http,
+          expiredAccessToken: stale,
+        );
+      } finally {
+        if (_staleBearer == stale) _staleBearer = null;
+      }
       // The gateway turned the refresh down: the user must sign in again.
       if (session == null) throw const DashboardHttpException(401);
     }
