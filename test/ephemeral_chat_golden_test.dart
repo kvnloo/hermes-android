@@ -54,12 +54,11 @@ void main() {
       for (final w in ['Regular', 'Medium', 'Bold']) '$sdkFonts/Roboto-$w.ttf',
     ]);
     await _font('MaterialIcons', ['$sdkFonts/MaterialIcons-Regular.otf']);
-    List<String> files(String prefix) =>
-        Directory('assets/fonts/geist')
-            .listSync()
-            .map((f) => f.path)
-            .where((p) => p.split('/').last.startsWith('$prefix-'))
-            .toList();
+    List<String> files(String prefix) => Directory('assets/fonts/geist')
+        .listSync()
+        .map((f) => f.path)
+        .where((p) => p.split('/').last.startsWith('$prefix-'))
+        .toList();
     await _font('Geist', files('Geist'));
     await _font('GeistMono', files('GeistMono'));
     await _font('monospace', files('GeistMono'));
@@ -71,17 +70,23 @@ void main() {
   setUp(() => EphemeralCatalog.debugUse(catalog));
   tearDown(() => EphemeralCatalog.debugUse(null));
 
-  test('a chat golden exists for exactly the catalog kinds', () {
+  test('both golden directories match the catalog', () {
     final kinds = {for (final k in catalog.kinds) '${k.kind}.png'};
-    final dir = Directory(_goldenDir);
-    final files = dir.existsSync()
-        ? {
-            for (final f in dir.listSync().whereType<File>())
-              f.path.split('/').last,
-          }
-        : <String>{};
-    expect(kinds.difference(files), isEmpty, reason: 'run --update-goldens');
-    expect(files.difference(kinds), isEmpty);
+    for (final path in [_goldenDir, 'test/goldens/ephemeral_service']) {
+      final dir = Directory(path);
+      final files = dir.existsSync()
+          ? {
+              for (final f in dir.listSync().whereType<File>())
+                f.path.split('/').last,
+            }
+          : <String>{};
+      expect(
+        kinds.difference(files),
+        isEmpty,
+        reason: '$path: run --update-goldens',
+      );
+      expect(files.difference(kinds), isEmpty);
+    }
   }, skip: autoUpdateGoldenFiles ? 'writing goldens' : false);
 
   for (final style in EphemeralCardStyle.values) {
@@ -133,7 +138,16 @@ void main() {
         );
         await tester.pump();
         expect(tester.takeException(), isNull);
-        expect(find.byType(EphemeralCardView), findsOneWidget);
+        final card = find.byType(EphemeralCardView);
+        expect(card, findsOneWidget);
+        expect(
+          tester.widget<EphemeralCardView>(card).data.props,
+          fixture.props,
+        );
+        expect(find.byKey(const Key('ephemeral-fence-notice')), findsNothing);
+        if (fixture.state != EphemeralFixtureState.unavailable) {
+          expect(find.byKey(const Key('ephemeral-unavailable')), findsNothing);
+        }
         expect(find.byKey(const Key('ephemeral-fence-problem')), findsNothing);
         expect(find.byKey(const Key('ephemeral-unsupported')), findsNothing);
         expect(
@@ -151,6 +165,18 @@ void main() {
       });
     }
   }
+
+  test('card style defaults to the app and survives reload', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    EphemeralCardPreferences.load(prefs);
+    expect(ephemeralCardStyle.value, EphemeralCardStyle.appTheme);
+    await EphemeralCardPreferences.set(prefs, EphemeralCardStyle.serviceNative);
+    ephemeralCardStyle.value = EphemeralCardStyle.appTheme;
+    EphemeralCardPreferences.load(prefs);
+    expect(ephemeralCardStyle.value, EphemeralCardStyle.serviceNative);
+    await EphemeralCardPreferences.set(prefs, EphemeralCardStyle.appTheme);
+  });
 
   testWidgets('NextGen chat draws cards from a reply', (tester) async {
     tester.view.physicalSize = const Size(1080, 2340);
@@ -224,6 +250,14 @@ void main() {
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/chat_cards/nextgen_chat.png'),
+    );
+
+    ephemeralCardStyle.value = EphemeralCardStyle.serviceNative;
+    await tester.pump();
+    expect(find.byType(EphemeralCardView), findsNWidgets(2));
+    expect(
+      find.byKey(const ValueKey('ephemeral-style-serviceNative')),
+      findsNWidgets(2),
     );
   });
 }

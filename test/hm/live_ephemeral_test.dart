@@ -153,10 +153,19 @@ void main() {
       expect(ephemeralUiFences('```json\n{}\n```'), isEmpty);
     });
 
+    test('live understands tilde fences but ignores a nested code example', () {
+      const reply = 'Top\r\n~~~ephemeral-ui\r\n$_card\r\n~~~~\r\nBottom';
+      expect(ephemeralUiFences(reply).single.trim(), _card);
+      expect(withoutEphemeralUi(reply), 'Top\r\nBottom');
+      const sample = '````md\n```ephemeral-ui\n$_card\n```\n````';
+      expect(ephemeralUiFences(sample), isEmpty);
+      expect(withoutEphemeralUi(sample), sample);
+    });
+
     test('both chat renderers hand the fence to the card renderer', () {
-      final classic = splitMarkdownCodeBlocks(_reply)
-          .whereType<MarkdownCodeBlock>()
-          .single;
+      final classic = splitMarkdownCodeBlocks(
+        _reply,
+      ).whereType<MarkdownCodeBlock>().single;
       expect(classic.language, ephemeralFenceLanguage);
       final fence = ngSplitCodeFences(_reply).where((r) => r.$2).single.$1;
       expect(ngCodeFenceParts(fence).language, ephemeralFenceLanguage);
@@ -220,10 +229,10 @@ void main() {
       ephemeralCardStyle.value = EphemeralCardStyle.serviceNative;
       addTearDown(() => ephemeralCardStyle.value = EphemeralCardStyle.appTheme);
       final gateway = NextGenGateway(
-        const SavedConnection(
+        SavedConnection(
           id: 'test',
           label: 'Test',
-          host: '',
+          host: 'example.invalid',
           port: 9119,
           apiKey: '',
         ),
@@ -249,9 +258,16 @@ void main() {
       rig.brain.reply(_reply);
       await _frames(tester);
       final orb = find.byKey(const ValueKey('live-orb'));
+      final approval = find.byKey(const ValueKey('live-approval'));
       expect(tester.getSize(orb).width, 48);
+      expect(approval, findsNothing);
       final card = find.byType(EphemeralCardView);
       expect(card, findsOneWidget);
+      final expected = resolveEphemeralCard(
+        _catalog,
+        EphemeralFence.parse(_card).cards.single,
+      ).data!;
+      expect(tester.widget<EphemeralCardView>(card).data.props, expected.props);
       expect(
         find.descendant(
           of: card,
@@ -266,7 +282,6 @@ void main() {
         tester.getTopLeft(card).dy,
         greaterThan(tester.getBottomLeft(orb).dy),
       );
-      final approval = find.byKey(const ValueKey('live-approval'));
       expect(approval, findsOneWidget);
       expect(
         tester.getTopLeft(approval).dy,
@@ -282,6 +297,28 @@ void main() {
       await _frames(tester);
       expect(tester.getSize(orb).width, 48);
       expect(card, findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'GPT-Live: a fenced card in streamed voice output mounts inline',
+    (tester) async {
+      final rig = LiveRig(
+        host: FakeHost(mode: 'gpt-live', available: true),
+        peer: FakePeer(),
+      );
+      await _open(tester, rig);
+      rig.peer!
+        ..event(_delta(false, 'Here is the PR.\n\n```ephemeral-ui\n'))
+        ..event(_delta(false, '$_card\n```\n'));
+      await _frames(tester);
+      expect(find.text('Here is the PR.'), findsOneWidget);
+      expect(find.byType(EphemeralCardView), findsOneWidget);
+      expect(find.text('Merge #42'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('ephemeral-style-appTheme')),
+        findsOneWidget,
+      );
     },
   );
 
@@ -331,12 +368,11 @@ void main() {
           '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts';
       await _font('Roboto', ['$sdkFonts/Roboto-Regular.ttf']);
       await _font('MaterialIcons', ['$sdkFonts/MaterialIcons-Regular.otf']);
-      List<String> files(String prefix) =>
-          Directory('assets/fonts/geist')
-              .listSync()
-              .map((f) => f.path)
-              .where((p) => p.split('/').last.startsWith('$prefix-'))
-              .toList();
+      List<String> files(String prefix) => Directory('assets/fonts/geist')
+          .listSync()
+          .map((f) => f.path)
+          .where((p) => p.split('/').last.startsWith('$prefix-'))
+          .toList();
       await _font('Geist', files('Geist'));
       await _font('GeistMono', files('GeistMono'));
       await _font('Nunito', [

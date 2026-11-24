@@ -597,10 +597,12 @@ class LiveController extends ChangeNotifier {
   void _addTranscript(bool fromUser, String delta) {
     final last = _callLines.lastOrNull;
     if (last != null && !last.work && last.fromUser == fromUser) {
+      final text = '${last.text}$delta'.trimLeft();
       _callLines[_callLines.length - 1] = LiveLine(
         key: last.key,
         fromUser: fromUser,
-        text: '${last.text}$delta'.trimLeft(),
+        text: text,
+        cards: fromUser ? const [] : ephemeralUiFences(text),
       );
     } else {
       final text = delta.trimLeft();
@@ -610,6 +612,7 @@ class LiveController extends ChangeNotifier {
           key: 'live-${_callLines.length}',
           fromUser: fromUser,
           text: text,
+          cards: fromUser ? const [] : ephemeralUiFences(text),
         ),
       );
     }

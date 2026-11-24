@@ -37,6 +37,10 @@ Future<void> _open(WidgetTester tester, LiveRig rig) async {
     ),
   );
   await _frames(tester);
+  if (rig.lanes != null) {
+    await tester.tap(find.byTooltip('Enter focus mode'));
+    await _frames(tester);
+  }
 }
 
 /// The avatars animate forever, so step frames instead of settling.

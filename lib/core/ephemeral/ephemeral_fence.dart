@@ -18,19 +18,57 @@ import 'ephemeral_catalog.dart';
 /// The fence language that carries cards.
 const ephemeralFenceLanguage = 'ephemeral-ui';
 
-final _fence = RegExp(
-  r'^[ ]{0,3}```ephemeral-ui[ \t]*\r?\n([\s\S]*?)^[ ]{0,3}```[ \t]*$\n?',
-  multiLine: true,
-);
+final _fenceMarker = RegExp(r'[ ]{0,3}(`{3,}|~{3,})([^\r\n]*)');
+
+/// Scan enclosing Markdown fences as well, so a code example that happens to
+/// contain an ephemeral-ui fence cannot be mistaken for an emitted card.
+Iterable<({int start, int end, String source})> _cardFences(String text) sync* {
+  String? open;
+  var start = 0;
+  var body = 0;
+  var offset = 0;
+  var isCard = false;
+  while (offset < text.length) {
+    final newline = text.indexOf('\n', offset);
+    final end = newline == -1 ? text.length : newline + 1;
+    final marker = _fenceMarker.matchAsPrefix(text, offset);
+    if (marker != null) {
+      final ticks = marker.group(1)!;
+      final info = marker.group(2)!.trim();
+      if (open == null) {
+        open = ticks;
+        isCard = info.split(RegExp(r'\s+')).first == ephemeralFenceLanguage;
+        start = offset;
+        body = end;
+      } else if (ticks[0] == open[0] &&
+          ticks.length >= open.length &&
+          info.isEmpty) {
+        if (isCard) {
+          yield (start: start, end: end, source: text.substring(body, offset));
+        }
+        open = null;
+      }
+    }
+    offset = end;
+  }
+}
 
 /// The sources of every closed ephemeral-ui fence in [text], in order.
 List<String> ephemeralUiFences(String text) => [
-  for (final m in _fence.allMatches(text)) m.group(1)!,
+  for (final fence in _cardFences(text)) fence.source,
 ];
 
 /// [text] with its ephemeral-ui fences removed: what is worth saying aloud.
-String withoutEphemeralUi(String text) =>
-    text.replaceAll(_fence, '').replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
+String withoutEphemeralUi(String text) {
+  final words = StringBuffer();
+  var offset = 0;
+  for (final fence in _cardFences(text)) {
+    words.write(text.substring(offset, fence.start));
+    offset = fence.end;
+  }
+  words.write(text.substring(offset));
+  return words.toString().replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
+}
 
 /// Cards drawn from one fence at most.
 const ephemeralFenceMaxCards = 8;
@@ -131,17 +169,9 @@ EphemeralResolution resolveEphemeralCard(
   final takesInput = kind.input == 'data' || kind.input == 'appInput';
   final hasInput = input is Map || input is List;
   if (takesInput && hasInput) {
-    EphemeralFixture? base;
-    for (final fixture in kind.fixtures) {
-      if (fixture.state == EphemeralFixtureState.example ||
-          fixture.state == EphemeralFixtureState.input) {
-        base = fixture;
-        break;
-      }
-    }
+    // A new payload is not a fixture. In particular, never attach actions,
+    // tabs or provenance from a different synthetic example.
     final props = <String, Object?>{
-      for (final entry in (base?.props ?? const {}).entries)
-        if (entry.key != 'unavailable') entry.key: entry.value,
       'app': appId,
       'input': input,
       'kind': kind.kind,

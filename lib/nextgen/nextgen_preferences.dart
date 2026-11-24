@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/ephemeral/ephemeral_card_style.dart';
 import '../hm/avatar/hm_avatar_state.dart';
 import 'theme/glass_window_service.dart';
 import 'theme/ng_elemental.dart';
@@ -139,6 +140,7 @@ abstract final class NextGenPreferences {
   /// Reads every NextGen preference into memory. Synchronous: the shared
   /// [SharedPreferences] instance is already loaded at startup.
   static void load(SharedPreferences prefs) {
+    EphemeralCardPreferences.load(prefs);
     // This build ships NextGen as the interface; Classic stays one switch away.
     nextGenEnabled.value = prefs.getBool(enabledKey) ?? true;
     final look = NextGenLook.instance;
