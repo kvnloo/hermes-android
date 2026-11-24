@@ -246,6 +246,12 @@ class _HmLiveScreenState extends State<HmLiveScreen>
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Flexible(child: _BotPill(bot: widget.bot)),
+                          if (!live.webRtc && live.phase == LivePhase.speaking)
+                            IconButton(
+                              icon: const Icon(Icons.stop_rounded),
+                              tooltip: 'Interrupt speech',
+                              onPressed: () => unawaited(live.interrupt()),
+                            ),
                           Tooltip(
                             message: 'Enter focus mode',
                             child: Semantics(
@@ -357,17 +363,6 @@ class _HmLiveScreenState extends State<HmLiveScreen>
                           size: 56,
                           onPressed: live.isOver ? null : live.toggleMute,
                         ),
-                        if (!_focus &&
-                            !live.webRtc &&
-                            live.phase == LivePhase.speaking) ...[
-                          const SizedBox(width: 16),
-                          HmRoundButton(
-                            icon: Icons.stop_rounded,
-                            label: 'Interrupt speech',
-                            size: 56,
-                            onPressed: () => unawaited(live.interrupt()),
-                          ),
-                        ],
                         const SizedBox(width: 16),
                         HmRoundButton(
                           icon: Icons.close_rounded,

@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../theme/ephemeral_service_theme.dart';
 import '../theme/hermes_theme.dart';
 import 'ephemeral_catalog.dart';
 import 'ephemeral_card_style.dart';
