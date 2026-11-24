@@ -113,6 +113,16 @@ class EphemeralCardView extends StatelessWidget {
       body.add(_Unavailable(reason: unavailable));
     } else if (layout == null) {
       body.add(_Unsupported(kind: data.kind));
+    } else if (palette != null &&
+        (data.appId == 'github' || data.appId == 'github-actions') &&
+        data.kind == 'merge' &&
+        (data.props['input'] == null || data.props['input'] is Map)) {
+      final input = data.props['input'];
+      body.add(
+        _PullRequest(
+          values: input is Map ? input.cast<String, Object?>() : data.props,
+        ),
+      );
     } else {
       final inbox =
           palette != null &&
@@ -572,6 +582,117 @@ class _Route extends StatelessWidget {
           child: Icon(Icons.arrow_forward, size: 18, color: tokens.accent),
         ),
         Flexible(child: Text(ephemeralScalar(to), style: style)),
+      ],
+    );
+  }
+}
+
+/// Service-native pull request preview. The merge action, if any, belongs
+/// to a separate host approval, not to this model-supplied card.
+class _PullRequest extends StatelessWidget {
+  const _PullRequest({required this.values});
+
+  final Map<String, Object?> values;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = HermesTokens.of(context);
+    final title = values['title'];
+    final number = values['number'] ?? values['pr'];
+    final state = values['state'];
+    final checks = values['checks'];
+    final conflicts = values['conflicts'];
+    final commits = values['commits'];
+    final rest = <String, Object?>{
+      for (final entry in values.entries)
+        if (!_headerKeys.contains(entry.key) &&
+            !const {
+              'title',
+              'number',
+              'pr',
+              'state',
+              'head',
+              'base',
+              'checks',
+              'conflicts',
+              'commits',
+            }.contains(entry.key))
+          entry.key: entry.value,
+    };
+    final body = tokens.typography.body.copyWith(color: tokens.onSurface);
+    final label = tokens.typography.label.copyWith(color: tokens.muted);
+    return Column(
+      key: const Key('ephemeral-pull-request'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (title is String && title.isNotEmpty)
+          Text(title, style: body.copyWith(fontWeight: FontWeight.w700)),
+        if (number != null ||
+            state != null ||
+            (conflicts is num && conflicts > 0))
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (number != null) _Chip(text: '#${ephemeralScalar(number)}'),
+                if (state is String && state.isNotEmpty)
+                  _Chip(text: state, strong: true),
+                if (conflicts is num && conflicts > 0)
+                  _Chip(text: '${ephemeralScalar(conflicts)} conflicts'),
+              ],
+            ),
+          ),
+        if (values['head'] != null && values['base'] != null)
+          _Route(from: values['head'], to: values['base']),
+        if (checks is num)
+          Text('${ephemeralScalar(checks)} checks', style: label),
+        if (checks is List && checks.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text('Checks', style: label),
+          for (final check in checks.take(6))
+            if (check is Map)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      switch (check['status']) {
+                        'pass' => Icons.check_circle_outline,
+                        'fail' => Icons.error_outline,
+                        'running' => Icons.timelapse,
+                        _ => Icons.remove_circle_outline,
+                      },
+                      color: switch (check['status']) {
+                        'pass' => tokens.success,
+                        'fail' => tokens.danger,
+                        'running' => tokens.warning,
+                        _ => tokens.muted,
+                      },
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(ephemeralScalar(check['name']), style: body),
+                    ),
+                    if (check['detail'] case final String detail)
+                      Flexible(
+                        child: Text(
+                          detail,
+                          style: label,
+                          textAlign: TextAlign.end,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          if (checks.length > 6)
+            Text('+${checks.length - 6} more checks', style: label),
+        ],
+        if (commits is List && commits.isNotEmpty)
+          Text('${commits.length} commits', style: label),
+        if (rest.isNotEmpty) _Fields(values: rest, depth: 0),
       ],
     );
   }
