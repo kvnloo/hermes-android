@@ -1060,6 +1060,18 @@ class NgChatController extends ChangeNotifier {
         ).hasMatch(notice);
   }
 
+  /// Whether a `review.summary` frame reports a memory write. A current host
+  /// sends `kinds`, locale-independent strings drawn from memory, user and
+  /// skill; a MEMORY.md (`memory`) or USER.md (`user`) write draws the row,
+  /// whatever language `text` is in. A skill-only or empty `kinds` draws
+  /// nothing. Only an older host that sends no `kinds` falls back to the
+  /// English label match on `text`.
+  static bool _reviewWroteMemory(Object? kinds, String? text) {
+    if (kinds == null) return text != null && _isMemoryUpdate(text);
+    if (kinds is! List) return false;
+    return kinds.any((kind) => kind == 'memory' || kind == 'user');
+  }
+
   /// A runtime notice: a centred line when short, else a collapsed card.
   void _addNotice(String text, {DateTime? time, List<NgItem>? into}) {
     final items = into ?? this.items;
@@ -1738,8 +1750,9 @@ class NgChatController extends ChangeNotifier {
           }
         }
       case 'review.summary':
-        final text = s('text');
-        if (text != null && _isMemoryUpdate(text)) _addNotice(text);
+        if (_reviewWroteMemory(p['kinds'], s('text'))) {
+          items.add(NgMemoryUpdatedItem(_key('memory')));
+        }
       case 'error':
         error = s('message') ?? ngL.ng_the_turn_failed;
         _finishTurn(failed: true);

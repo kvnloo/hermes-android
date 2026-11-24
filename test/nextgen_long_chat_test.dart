@@ -395,6 +395,127 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  // A current host adds `kinds` (locale-independent, ordered memory, user,
+  // skill) next to its localized `text`. The row follows `kinds`; the English
+  // label match is only for older hosts that send no `kinds` at all.
+  testWidgets('review summaries are classified by kinds, not display text', (
+    tester,
+  ) async {
+    final gateway = NextGenGateway(_conn());
+    final chat = NgChatController(gateway, sessionId: 'stored');
+    addTearDown(gateway.dispose);
+    addTearDown(chat.dispose);
+    chat.runtimeId = '511e3787';
+    chat.debugApplyHistory([
+      {'role': 'assistant', 'content': 'Done'},
+    ]);
+    await _pumpChat(tester, chat);
+
+    var rows = 0;
+    Future<void> emit(Map<String, dynamic> data, {required bool row}) async {
+      gateway.debugEmit(
+        StreamEvent(type: 'review.summary', data: data, sessionId: '511e3787'),
+      );
+      await tester.pump();
+      await tester.pump();
+      if (row) rows++;
+      expect(
+        chat.items.whereType<NgMemoryUpdatedItem>(),
+        hasLength(rows),
+        reason: '$data',
+      );
+      expect(
+        find.text('Memory updated'),
+        rows == 0 ? findsNothing : findsNWidgets(rows),
+        reason: '$data',
+      );
+    }
+
+    // Hungarian host text (locales/hu.yaml display.review.*) with memory or
+    // user kinds: the English matcher would miss these.
+    await emit(const {
+      'text': '💾 Önfejlesztési áttekintés: Memória frissítve',
+      'kinds': ['memory'],
+    }, row: true);
+    await emit(const {
+      'text': '💾 Önfejlesztési áttekintés: Felhasználói profil frissítve',
+      'kinds': ['user'],
+    }, row: true);
+    // Mixed kinds: any memory or user write draws one row.
+    await emit(const {
+      'text':
+          '💾 Önfejlesztési áttekintés: Memória frissítve · '
+          'Felhasználói profil frissítve · '
+          "A(z) 'x' skill létrehozva",
+      'kinds': ['memory', 'user', 'skill'],
+    }, row: true);
+    await emit(const {
+      'text':
+          "💾 Önfejlesztési áttekintés: A(z) 'x' skill létrehozva · "
+          'Felhasználói profil frissítve',
+      'kinds': ['user', 'skill'],
+    }, row: true);
+
+    // Skill-only and explicitly empty kinds never draw a memory row, even
+    // when the text reads like an English memory update: present kinds are
+    // authoritative and never fall back to the text.
+    await emit(const {
+      'text': "💾 Önfejlesztési áttekintés: A(z) 'x' skill létrehozva",
+      'kinds': ['skill'],
+    }, row: false);
+    await emit(const {
+      'text': '💾 Self-improvement review: Memory updated',
+      'kinds': ['skill'],
+    }, row: false);
+    await emit(const {
+      'text': '💾 Self-improvement review: User profile updated',
+      'kinds': <String>[],
+    }, row: false);
+    await emit(const {
+      'text': '💾 Önfejlesztési áttekintés: Memória frissítve',
+      'kinds': <String>[],
+    }, row: false);
+    // An unreadable kinds value is present, so it does not fall back either.
+    await emit(const {
+      'text': '💾 Self-improvement review: Memory updated',
+      'kinds': 'memory',
+    }, row: false);
+
+    // Older hosts send no kinds: the English label match still applies, and
+    // localized text without kinds stays unrecognised as before.
+    await emit(const {
+      'text': '💾 Self-improvement review: User profile updated',
+    }, row: true);
+    await emit(const {
+      'text': '💾 Self-improvement review: Memory updated',
+      'kinds': null,
+    }, row: true);
+    await emit(const {
+      'text': "💾 Self-improvement review: Skill 'x' created",
+    }, row: false);
+    await emit(const {
+      'text': '💾 Önfejlesztési áttekintés: Memória frissítve',
+    }, row: false);
+
+    // Routing is unchanged: a kinds summary for another chat never lands here.
+    gateway.debugEmit(
+      StreamEvent(
+        type: 'review.summary',
+        data: const {
+          'text': '💾 Önfejlesztési áttekintés: Memória frissítve',
+          'kinds': ['memory'],
+        },
+        sessionId: 'other',
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Memory updated'), findsNWidgets(rows));
+    expect(find.byIcon(Icons.save_outlined), findsNWidgets(rows));
+    // The localized host text itself is never drawn as a notice.
+    expect(find.textContaining('Önfejlesztési'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('completed turns show elapsed time when known', (tester) async {
     final gateway = NextGenGateway(_conn());
     final chat = NgChatController(gateway, sessionId: 'stored');
