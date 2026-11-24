@@ -2127,6 +2127,17 @@ class _NgInputPanelState extends State<NgInputPanel> {
     }
   }
 
+  void _answerApproval(String choice) {
+    // A replacement request may have arrived before this frame rebuilt.
+    // Never apply a choice from the card the user saw to the new request.
+    final request = widget.request;
+    if (!identical(widget.chat.request, request) ||
+        !request.choices.contains(choice)) {
+      return;
+    }
+    _done(widget.chat.answerApproval(choice));
+  }
+
   static String _choiceLabel(String choice) => switch (choice) {
     'once' => ngL.ng_allow_once,
     'session' => ngL.ng_allow_for_this_chat,
@@ -2212,8 +2223,7 @@ class _NgInputPanelState extends State<NgInputPanel> {
                           foregroundColor: c.danger,
                           shape: const StadiumBorder(),
                         ),
-                        onPressed: () =>
-                            _done(widget.chat.answerApproval(choice)),
+                        onPressed: () => _answerApproval(choice),
                         child: Text(_choiceLabel(choice)),
                       )
                     : FilledButton(
@@ -2226,8 +2236,7 @@ class _NgInputPanelState extends State<NgInputPanel> {
                               : c.text,
                           shape: const StadiumBorder(),
                         ),
-                        onPressed: () =>
-                            _done(widget.chat.answerApproval(choice)),
+                        onPressed: () => _answerApproval(choice),
                         child: Text(_choiceLabel(choice)),
                       ),
             ],
