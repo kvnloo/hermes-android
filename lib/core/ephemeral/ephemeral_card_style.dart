@@ -43,7 +43,7 @@ typedef ServiceCardPalette = ({
 
 ServiceCardPalette serviceCardPalette(String? app, Brightness brightness) {
   final dark = brightness == Brightness.dark;
-  final palette = switch ((app, dark)) {
+  final ServiceCardPalette palette = switch ((app, dark)) {
     ('gmail', true) => (
       surface: 0xff1f1f1f,
       raised: 0xff2d2f31,

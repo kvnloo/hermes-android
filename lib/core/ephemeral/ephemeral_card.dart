@@ -358,7 +358,7 @@ class _Header extends StatelessWidget {
         ),
         if (palette == null)
           _Chip(text: data.kind, mono: true)
-        else if (palette.icon == null)
+        else if (palette?.icon == null)
           Flexible(child: _Chip(text: data.kind, mono: true)),
       ],
     );
