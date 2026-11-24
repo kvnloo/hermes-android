@@ -278,11 +278,9 @@ void main() {
       await tester.tap(find.byTooltip('Enter focus mode'));
       await _frames(tester);
       expect(tester.getSize(orb).width, greaterThan(48));
-      expect(
-        tester.getTopLeft(card).dy,
-        greaterThan(tester.getBottomLeft(orb).dy),
-      );
       expect(approval, findsOneWidget);
+      await tester.ensureVisible(approval);
+      await _frames(tester);
       expect(
         tester.getTopLeft(approval).dy,
         greaterThan(tester.getBottomLeft(orb).dy),
@@ -293,6 +291,14 @@ void main() {
       await _frames(tester);
       expect(choice, 'deny');
       expect(approval, findsNothing);
+      // After settling the newest approval the inline card remains
+      // available in the same focus transcript, below the large orb.
+      await tester.ensureVisible(card);
+      await _frames(tester);
+      expect(
+        tester.getTopLeft(card).dy,
+        greaterThan(tester.getBottomLeft(orb).dy),
+      );
       await tester.tap(find.byTooltip('Exit focus mode'));
       await _frames(tester);
       expect(tester.getSize(orb).width, 48);
