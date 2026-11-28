@@ -1,6 +1,5 @@
-// Live Mode: a full-screen voice call with the bot (official S-LV1,
-// shots/official-s25/live-01.png): an immersive dark surface in every app
-// theme, a translucent bot pill at the top, a glowing orb, one status line,
+// Live Mode: a compact voice bubble or an immersive focus view, with a
+// translucent bot pill at the top, a glowing orb, one status line,
 // the call's transcript (You in muted italics, the bot in full text) and two
 // dark round mic + close buttons at the bottom. The call runs over GPT-Live
 // (WebRTC) when the host offers it, else the chained loop.
@@ -15,11 +14,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import '../../../core/services/android_voice_composer_adapter.dart';
+import '../../../core/services/connection_mutation_barrier.dart';
 import '../../../core/ephemeral/ephemeral_fence.dart';
 import '../../../core/widgets/markdown_code_block.dart';
 import '../../../nextgen/data/chat_controller.dart';
 import '../../../nextgen/nextgen_preferences.dart';
 import '../../../nextgen/theme/nextgen_theme.dart';
+import '../../../nextgen/ui/chat_view.dart' show NgInputPanel;
 import '../../../nextgen/ui/tool_rows.dart';
 import '../../../shared_ui/glide_theme.dart';
 import '../../avatar/hm_avatar.dart';
@@ -39,32 +40,231 @@ Future<void> openHmLive(
   required NgChatController chat,
 }) {
   final host = DashboardLiveHost(bots.gateway.dashboard, profile: bot.scope);
-  return Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      fullscreenDialog: true,
-      builder: (_) => HmLiveScreen(
-        bot: bot,
-        create: () => LiveController(
-          host: host,
-          ear: DeviceLiveEar(createVoiceComposerAdapter()),
-          brain: ChatLiveBrain(chat),
-          voice: HostLiveVoice(host),
-          call: () => LiveCall(host: host, peer: FlutterWebRtcPeer.new),
-          // No gateway RPC drives lanes yet: only fixture builds offer them.
-          lanes: kLiveLanesFixture ? FixtureLiveLanes() : null,
-        ),
-      ),
-    ),
+  LiveController create() => LiveController(
+    host: host,
+    ear: DeviceLiveEar(createVoiceComposerAdapter()),
+    brain: ChatLiveBrain(chat),
+    voice: HostLiveVoice(host),
+    call: () => LiveCall(host: host, peer: FlutterWebRtcPeer.new),
+    // No gateway RPC drives lanes yet: only fixture builds offer them.
+    lanes: kLiveLanesFixture ? FixtureLiveLanes() : null,
   );
+  final navigator = Navigator.of(context);
+  final owner = context.findAncestorStateOfType<_HmLiveHostState>();
+  return owner?.open(navigator, bot, chat, create) ??
+      navigator.push(
+        MaterialPageRoute<void>(
+          fullscreenDialog: true,
+          builder: (_) => HmLiveScreen(bot: bot, chat: chat, create: create),
+        ),
+      );
 }
 
+/// One foreground call per connected NextGen navigator. Routes only present
+/// the call; dismissing one does not release the microphone or chat.
+class HmLiveHost extends StatefulWidget {
+  const HmLiveHost({
+    super.key,
+    required this.connectionId,
+    required this.child,
+  });
+
+  final String connectionId;
+  final Widget child;
+
+  @override
+  State<HmLiveHost> createState() => _HmLiveHostState();
+}
+
+class _HmLiveHostState extends State<HmLiveHost> with WidgetsBindingObserver {
+  _HostedCall? _call;
+  Future<void>? _ending;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    ConnectionMutationBarrier.addListener(_accountChanged);
+  }
+
+  Future<void> open(
+    NavigatorState navigator,
+    HmBot bot,
+    NgChatController chat,
+    LiveController Function() create,
+  ) async {
+    if (_ending != null ||
+        ConnectionMutationBarrier.isPending(widget.connectionId)) {
+      return;
+    }
+    final existing = _call;
+    if (existing != null) {
+      _show(existing);
+      return;
+    }
+    final call = _HostedCall(navigator, bot, chat, create());
+    setState(() => _call = call);
+    unawaited(call.live.start());
+    _show(call);
+  }
+
+  void _show(_HostedCall call) {
+    if (call.route != null || !call.navigator.mounted) return;
+    late final MaterialPageRoute<void> route;
+    void minimize() {
+      if (route.isCurrent) call.navigator.pop();
+    }
+
+    route = MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => HmLiveScreen._hosted(
+        bot: call.bot,
+        chat: call.chat,
+        controller: call.live,
+        minimize: minimize,
+        end: _end,
+      ),
+    );
+    setState(() => call.route = route);
+    unawaited(call.navigator.push(route));
+    unawaited(
+      route.completed.then((_) {
+        if (mounted && identical(_call, call)) {
+          setState(() => call.route = null);
+        }
+      }),
+    );
+  }
+
+  void _accountChanged() {
+    if (ConnectionMutationBarrier.isPending(widget.connectionId)) {
+      unawaited(_end());
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(_end());
+    }
+  }
+
+  Future<void> _end() {
+    final call = _call;
+    if (call == null) return _ending ?? Future<void>.value();
+    setState(() => _call = null);
+    final route = call.route;
+    if (route != null && route.isActive) call.navigator.removeRoute(route);
+    return _ending = call
+        .finish(route?.completed)
+        .whenComplete(() => _ending = null);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    ConnectionMutationBarrier.removeListener(_accountChanged);
+    final call = _call;
+    _call = null;
+    if (call != null) unawaited(call.finish());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final call = _call;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        widget.child,
+        if (call != null && call.route == null)
+          PositionedDirectional(
+            top: MediaQuery.paddingOf(context).top + 72,
+            end: MediaQuery.paddingOf(context).horizontal + 12,
+            child: ListenableBuilder(
+              listenable: Listenable.merge([call.live, call.chat]),
+              builder: (context, _) => Tooltip(
+                message: 'Return to live call',
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => _show(call),
+                    child: Badge(
+                      isLabelVisible: call.chat.request != null,
+                      child: _GlowOrb(
+                        bot: call.bot,
+                        state: _liveAvatar(call.live),
+                        size: 48,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _HostedCall {
+  _HostedCall(this.navigator, this.bot, this.chat, this.live)
+    : _releaseChat = chat.retain();
+
+  final NavigatorState navigator;
+  final HmBot bot;
+  final NgChatController chat;
+  final LiveController live;
+  final VoidCallback _releaseChat;
+  MaterialPageRoute<void>? route;
+
+  Future<void> finish([Future<void>? unmount]) async {
+    try {
+      await live.end();
+      await unmount;
+    } finally {
+      live.dispose();
+      _releaseChat();
+    }
+  }
+}
+
+HmAvatarState _liveAvatar(LiveController live) => switch (live.phase) {
+  LivePhase.connecting || LivePhase.muted => HmAvatarState.idle,
+  LivePhase.listening => HmAvatarState.listening,
+  LivePhase.thinking => HmAvatarState.thinking,
+  LivePhase.speaking => HmAvatarState.speaking,
+  LivePhase.ended => HmAvatarState.asleep,
+  LivePhase.failed => HmAvatarState.error,
+};
+
 class HmLiveScreen extends StatefulWidget {
-  const HmLiveScreen({super.key, required this.bot, required this.create});
+  const HmLiveScreen({
+    super.key,
+    required this.bot,
+    required this.create,
+    this.chat,
+  }) : _controller = null,
+       _minimize = null,
+       _end = null;
+
+  const HmLiveScreen._hosted({
+    required this.bot,
+    required this.chat,
+    required this._controller,
+    required this._minimize,
+    required this._end,
+  }) : create = null;
 
   final HmBot bot;
-
-  /// Builds the call's controller; the screen owns and disposes it.
-  final LiveController Function() create;
+  final NgChatController? chat;
+  final LiveController Function()? create;
+  final LiveController? _controller;
+  final VoidCallback? _minimize;
+  final Future<void> Function()? _end;
 
   @override
   State<HmLiveScreen> createState() => _HmLiveScreenState();
@@ -72,12 +272,14 @@ class HmLiveScreen extends StatefulWidget {
 
 class _HmLiveScreenState extends State<HmLiveScreen>
     with WidgetsBindingObserver {
-  late final LiveController live = widget.create();
+  late final LiveController live = widget._controller ?? widget.create!();
   bool _closing = false;
+  late bool _focus = widget._controller != null;
 
   @override
   void initState() {
     super.initState();
+    if (widget._controller != null) return;
     WidgetsBinding.instance.addObserver(this);
     unawaited(live.start());
   }
@@ -93,26 +295,23 @@ class _HmLiveScreenState extends State<HmLiveScreen>
   Future<void> _close() async {
     if (_closing) return;
     _closing = true;
+    final end = widget._end;
+    if (end != null) return end();
     await live.end();
     if (mounted) Navigator.of(context).pop();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    unawaited(live.end());
-    live.dispose();
+    if (widget._controller == null) {
+      WidgetsBinding.instance.removeObserver(this);
+      unawaited(live.end());
+      live.dispose();
+    }
     super.dispose();
   }
 
-  HmAvatarState get _avatar => switch (live.phase) {
-    LivePhase.connecting || LivePhase.muted => HmAvatarState.idle,
-    LivePhase.listening => HmAvatarState.listening,
-    LivePhase.thinking => HmAvatarState.thinking,
-    LivePhase.speaking => HmAvatarState.speaking,
-    LivePhase.ended => HmAvatarState.asleep,
-    LivePhase.failed => HmAvatarState.error,
-  };
+  HmAvatarState get _avatar => _liveAvatar(live);
 
   String get _status => switch (live.phase) {
     LivePhase.connecting => LiveText.connecting,
@@ -144,7 +343,7 @@ class _HmLiveScreenState extends State<HmLiveScreen>
     final c = NgColors.of(context);
     final width = MediaQuery.sizeOf(context).width;
     // About a quarter of the screen across, glow included.
-    final orb = (width * 0.2).clamp(72.0, 112.0);
+    final orb = _focus ? (width * 0.24).clamp(84.0, 112.0) : 48.0;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: c.background.withValues(alpha: 0),
@@ -172,138 +371,213 @@ class _HmLiveScreenState extends State<HmLiveScreen>
     builder: (_) => _LanesSheet(lanes: live.lanes!),
   );
 
-  Widget _orb(double orb) => Semantics(
+  Widget _orb(double orb, {bool interactive = true}) => Semantics(
     key: const ValueKey('live-orb'),
     button:
-        (live.phase == LivePhase.speaking && !live.webRtc) ||
-        live.target != null,
+        interactive &&
+        ((live.phase == LivePhase.speaking && !live.webRtc) ||
+            live.target != null),
     selected: live.lanes != null && live.target == null,
     label: widget.bot.displayName,
     child: GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: _tapOrb,
+      onTap: interactive ? _tapOrb : null,
       child: _GlowOrb(bot: widget.bot, state: _avatar, size: orb),
     ),
   );
 
   Widget _call(BuildContext context, NgColors c, double orb) {
     final lanes = live.lanes;
-    final gap = lanes == null ? orb * 0.45 : 8.0;
+    final gap = _focus && lanes == null ? orb * 0.35 : 8.0;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(_close());
+        if (didPop) return;
+        final minimize = widget._minimize;
+        if (minimize != null) {
+          minimize();
+        } else {
+          unawaited(_close());
+        }
       },
       child: Scaffold(
         backgroundColor: c.background,
         body: ListenableBuilder(
-          listenable: live,
-          builder: (context, _) => SafeArea(
-            child: Column(
-              children: [
-                const SizedBox(height: HmMetrics.headerTop + 20),
-                _BotPill(bot: widget.bot),
-                SizedBox(height: gap),
-                if (lanes == null)
-                  _orb(orb)
-                else
-                  _LaneOrbit(
-                    live: live,
-                    lanes: _attached,
-                    size: orb,
-                    center: _orb(orb),
-                  ),
-                SizedBox(height: gap),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(
-                    _status,
-                    key: const ValueKey('live-status'),
-                    textAlign: TextAlign.center,
-                    style: HmType.display.copyWith(
-                      color: live.phase == LivePhase.failed ? c.danger : c.text,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: 0,
-                      fontSize: live.phase == LivePhase.failed ? 17 : 24,
+          listenable: Listenable.merge([live, widget.chat]),
+          builder: (context, _) {
+            final chat = widget.chat;
+            final request = chat?.request;
+            return SafeArea(
+              child: Column(
+                children: [
+                  const SizedBox(height: HmMetrics.headerTop + 20),
+                  if (_focus) ...[
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        _BotPill(bot: widget.bot),
+                        Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: IconButton(
+                            tooltip: widget._minimize == null
+                                ? 'Exit focus mode'
+                                : 'Minimize call',
+                            onPressed:
+                                widget._minimize ??
+                                () => setState(() => _focus = false),
+                            icon: const Icon(Icons.fullscreen_exit),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-                if (live.notice != null && !live.isOver)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                    child: Text(
-                      live.notice!,
-                      textAlign: TextAlign.center,
-                      style: HmType.caption.copyWith(color: c.textMuted),
+                    SizedBox(height: gap),
+                    if (lanes == null)
+                      _orb(orb)
+                    else
+                      _LaneOrbit(
+                        live: live,
+                        lanes: _attached,
+                        size: orb,
+                        center: _orb(orb),
+                      ),
+                  ] else
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(child: _BotPill(bot: widget.bot)),
+                          if (!live.webRtc && live.phase == LivePhase.speaking)
+                            IconButton(
+                              icon: const Icon(Icons.stop_rounded),
+                              tooltip: 'Interrupt speech',
+                              onPressed: () => unawaited(live.interrupt()),
+                            ),
+                          Tooltip(
+                            message: 'Enter focus mode',
+                            child: Semantics(
+                              button: true,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () => setState(() => _focus = true),
+                                child: Badge(
+                                  isLabelVisible: request != null,
+                                  child: _orb(orb, interactive: false),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                if (live.target != null)
+                  SizedBox(height: gap),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Text(
-                      LiveText.toLane(live.laneName(live.target!)),
-                      key: const ValueKey('live-route'),
+                      _status,
+                      key: const ValueKey('live-status'),
                       textAlign: TextAlign.center,
-                      style: HmType.caption.copyWith(
-                        color: c.accentText,
-                        fontWeight: FontWeight.w600,
+                      style: HmType.display.copyWith(
+                        color: live.phase == LivePhase.failed
+                            ? c.danger
+                            : c.text,
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 0,
+                        fontSize: live.phase == LivePhase.failed ? 17 : 24,
                       ),
                     ),
                   ),
-                if (_attached.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 4, 24, 0),
-                    child: Text(
-                      liveLaneSummary(_attached),
-                      key: const ValueKey('live-lanes-summary'),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: HmType.caption.copyWith(color: c.textMuted),
+                  if (live.notice != null && !live.isOver)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                      child: Text(
+                        live.notice!,
+                        textAlign: TextAlign.center,
+                        style: HmType.caption.copyWith(color: c.textMuted),
+                      ),
+                    ),
+                  if (live.target != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                      child: Text(
+                        LiveText.toLane(live.laneName(live.target!)),
+                        key: const ValueKey('live-route'),
+                        textAlign: TextAlign.center,
+                        style: HmType.caption.copyWith(
+                          color: c.accentText,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  if (_attached.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 4, 24, 0),
+                      child: Text(
+                        liveLaneSummary(_attached),
+                        key: const ValueKey('live-lanes-summary'),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: HmType.caption.copyWith(color: c.textMuted),
+                      ),
+                    ),
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: _Transcript(
+                      live: live,
+                      bot: widget.bot,
+                      request: _focus && request != null && chat != null
+                          ? NgInputPanel(
+                              key: ValueKey(
+                                request.kind == NgRequestKind.approval
+                                    ? 'live-approval'
+                                    : 'live-input-request',
+                              ),
+                              chat: chat,
+                              request: request,
+                            )
+                          : null,
                     ),
                   ),
-                const SizedBox(height: 4),
-                Expanded(
-                  child: _Transcript(live: live, bot: widget.bot),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (lanes != null) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (lanes != null) ...[
+                          HmRoundButton(
+                            key: const ValueKey('live-lanes-button'),
+                            icon: Icons.hub_rounded,
+                            label: LiveText.lanes,
+                            size: 56,
+                            onPressed: live.isOver
+                                ? null
+                                : () => unawaited(_openLanes(context)),
+                          ),
+                          const SizedBox(width: 16),
+                        ],
                         HmRoundButton(
-                          key: const ValueKey('live-lanes-button'),
-                          icon: Icons.hub_rounded,
-                          label: LiveText.lanes,
+                          icon: live.muted
+                              ? Icons.mic_off_rounded
+                              : Icons.mic_rounded,
+                          label: live.muted ? LiveText.unmute : LiveText.mute,
                           size: 56,
-                          onPressed: live.isOver
-                              ? null
-                              : () => unawaited(_openLanes(context)),
+                          onPressed: live.isOver ? null : live.toggleMute,
                         ),
                         const SizedBox(width: 16),
+                        HmRoundButton(
+                          icon: Icons.close_rounded,
+                          label: LiveText.end,
+                          size: 56,
+                          onPressed: _close,
+                        ),
                       ],
-                      HmRoundButton(
-                        icon: live.muted
-                            ? Icons.mic_off_rounded
-                            : Icons.mic_rounded,
-                        label: live.muted ? LiveText.unmute : LiveText.mute,
-                        size: 56,
-                        onPressed: live.isOver ? null : live.toggleMute,
-                      ),
-                      const SizedBox(width: 16),
-                      HmRoundButton(
-                        icon: Icons.close_rounded,
-                        label: LiveText.end,
-                        size: 56,
-                        onPressed: _close,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -330,12 +604,16 @@ class _BotPill extends StatelessWidget {
         children: [
           HmAvatar(spec: bot.character, size: 28),
           const SizedBox(width: 12),
-          Text(
-            bot.displayName,
-            style: HmType.row.copyWith(
-              color: c.text,
-              fontSize: 17,
-              fontWeight: FontWeight.w500,
+          Flexible(
+            child: Text(
+              bot.displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HmType.row.copyWith(
+                color: c.text,
+                fontSize: 17,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -378,9 +656,10 @@ class _GlowOrb extends StatelessWidget {
 }
 
 class _Transcript extends StatelessWidget {
-  const _Transcript({required this.live, required this.bot});
+  const _Transcript({required this.live, required this.bot, this.request});
   final LiveController live;
   final HmBot bot;
+  final Widget? request;
 
   @override
   Widget build(BuildContext context) {
@@ -415,6 +694,7 @@ class _Transcript extends StatelessWidget {
           text: live.partial.trim(),
           fromUser: true,
         ),
+      ?request,
     ];
     return ShaderMask(
       shaderCallback: (rect) => LinearGradient(

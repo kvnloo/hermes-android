@@ -119,14 +119,14 @@ void main() {
   testWidgets('tapping the orb while it speaks interrupts', (tester) async {
     final rig = LiveRig();
     await _open(tester, rig);
+    await tester.tap(find.byTooltip('Enter focus mode'));
+    await _frames(tester);
     rig.ear.hear('read me the news');
     rig.brain.reply('Here are the headlines…');
     await _frames(tester);
     expect(rig.voice.playing, isTrue);
 
-    await tester.tap(
-      find.byKey(const ValueKey('live-orb')),
-    );
+    await tester.tap(find.byKey(const ValueKey('live-orb')));
     await _frames(tester);
     expect(rig.voice.stops, 1);
     expect(_status(tester), LiveText.listening);

@@ -10,7 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hermes_android/core/services/android_share_intent_service.dart';
 import 'package:hermes_android/core/services/connection_manager.dart';
+import 'package:hermes_android/core/services/connection_mutation_barrier.dart';
 import 'package:hermes_android/core/services/ws_client.dart';
+import 'package:hermes_android/hm/features/live/hm_live.dart';
 import 'package:hermes_android/hm/features/work/hm_projects.dart';
 import 'package:hermes_android/hm/hm_bots.dart';
 import 'package:hermes_android/hm/screens/hm_agent_screen.dart';
@@ -136,26 +138,39 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
-Widget _scoped(SharedPreferences prefs, NextGenGateway gateway, Widget home) =>
-    MaterialApp(
-      locale: const Locale('en'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      theme: nextGenTheme(Brightness.light, NextGenLook.instance),
-      // Above the navigator, as in the app, so pushed routes see it.
-      builder: (context, child) => NgScope(
-        connManager: ConnectionManager(prefs),
-        gateway: gateway,
-        connections: [gateway.connection],
-        switchTo: (_) async {},
-        addGateway: () async {},
-        signOut: (_) async {},
-        reload: () async {},
-        signInAgain: () async {},
-        child: child!,
-      ),
-      home: home,
-    );
+Widget _scoped(
+  SharedPreferences prefs,
+  NextGenGateway gateway,
+  Widget home, {
+  bool hostLive = false,
+}) => MaterialApp(
+  locale: const Locale('en'),
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+  theme: nextGenTheme(Brightness.light, NextGenLook.instance),
+  // Above the navigator, as in the app, so pushed routes see it.
+  builder: (context, child) => NgScope(
+    connManager: ConnectionManager(prefs),
+    gateway: gateway,
+    connections: [gateway.connection],
+    switchTo: (_) async {},
+    addGateway: () async {},
+    signOut: (_) async {},
+    reload: () async {},
+    signInAgain: () async {},
+    child: child!,
+  ),
+  home: hostLive
+      ? HmLiveHost(
+          connectionId: gateway.connection.id,
+          child: Navigator(
+            onGenerateInitialRoutes: (_, _) => [
+              MaterialPageRoute<void>(builder: (_) => home),
+            ],
+          ),
+        )
+      : home,
+);
 
 class _SharePaths extends PathProviderPlatform {
   _SharePaths(this.path);
@@ -168,94 +183,221 @@ class _SharePaths extends PathProviderPlatform {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets(
-    'Android SEND drafts text and SEND_MULTIPLE drafts an image',
-    (tester) async {
-      const channel = MethodChannel(AndroidShareIntentService.channelName);
-      final messenger =
-          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-      final share = AndroidShareIntentService();
-      messenger.setMockMethodCallHandler(
-        channel,
-        (_) async => {'text': 'Text from Android'},
-      );
-      addTearDown(() {
-        share.dispose();
-        messenger.setMockMethodCallHandler(channel, null);
-      });
-      await share.initialize();
+  testWidgets('Android SEND drafts text and SEND_MULTIPLE drafts an image', (
+    tester,
+  ) async {
+    const channel = MethodChannel(AndroidShareIntentService.channelName);
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    final share = AndroidShareIntentService();
+    messenger.setMockMethodCallHandler(
+      channel,
+      (_) async => {'text': 'Text from Android'},
+    );
+    addTearDown(() {
+      share.dispose();
+      messenger.setMockMethodCallHandler(channel, null);
+    });
+    await share.initialize();
 
-      final root = Directory.systemTemp.createTempSync(
-        'nextgen-android-share-',
-      );
-      final previousPaths = PathProviderPlatform.instance;
-      PathProviderPlatform.instance = _SharePaths(root.path);
-      addTearDown(() {
-        PathProviderPlatform.instance = previousPaths;
-        root.deleteSync(recursive: true);
-      });
-      final image = File('${root.path}/shared-photo.png')
-        ..writeAsBytesSync(
-          image_lib.encodePng(image_lib.Image(width: 2, height: 2)),
-        );
-
-      final prefs = await SharedPreferences.getInstance();
-      final gateway = _Gateway(_host([]));
-      addTearDown(gateway.dispose);
-      await tester.pumpWidget(
-        _scoped(prefs, gateway, HmHome(shareIntents: share)),
-      );
-      await _settle(tester);
-
-      expect(find.byType(HmChatScreen), findsOneWidget);
-      expect(
-        tester.widget<EditableText>(find.byType(EditableText)).controller.text,
-        'Text from Android',
-      );
-      expect(
-        tester.widget<HmChatScreen>(find.byType(HmChatScreen)).chat.storedId,
-        isNull,
+    final root = Directory.systemTemp.createTempSync('nextgen-android-share-');
+    final previousPaths = PathProviderPlatform.instance;
+    PathProviderPlatform.instance = _SharePaths(root.path);
+    addTearDown(() {
+      PathProviderPlatform.instance = previousPaths;
+      root.deleteSync(recursive: true);
+    });
+    final image = File('${root.path}/shared-photo.png')
+      ..writeAsBytesSync(
+        image_lib.encodePng(image_lib.Image(width: 2, height: 2)),
       );
 
-      await messenger.handlePlatformMessage(
-        channel.name,
-        channel.codec.encodeMethodCall(
-          MethodCall('sharePayload', {
-            'files': [
-              {
-                'path': image.path,
-                'name': 'shared-photo.png',
-                'mediaType': 'image/png',
-                'byteLength': image.lengthSync(),
-              },
-            ],
-          }),
-        ),
-        (_) {},
+    final prefs = await SharedPreferences.getInstance();
+    final gateway = _Gateway(_host([]));
+    addTearDown(gateway.dispose);
+    await tester.pumpWidget(
+      _scoped(prefs, gateway, HmHome(shareIntents: share)),
+    );
+    await _settle(tester);
+
+    expect(find.byType(HmChatScreen), findsOneWidget);
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText)).controller.text,
+      'Text from Android',
+    );
+    expect(
+      tester.widget<HmChatScreen>(find.byType(HmChatScreen)).chat.storedId,
+      isNull,
+    );
+
+    await messenger.handlePlatformMessage(
+      channel.name,
+      channel.codec.encodeMethodCall(
+        MethodCall('sharePayload', {
+          'files': [
+            {
+              'path': image.path,
+              'name': 'shared-photo.png',
+              'mediaType': 'image/png',
+              'byteLength': image.lengthSync(),
+            },
+          ],
+        }),
+      ),
+      (_) {},
+    );
+    for (var attempt = 0; attempt < 100; attempt++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      if (find.text('shared-photo.png').evaluate().isNotEmpty) break;
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
       );
-      for (var attempt = 0; attempt < 100; attempt++) {
-        await tester.pump(const Duration(milliseconds: 16));
-        if (find.text('shared-photo.png').evaluate().isNotEmpty) break;
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)),
-        );
+    }
+    await _settle(tester);
+
+    expect(find.byType(HmChatScreen), findsOneWidget);
+    expect(find.text('shared-photo.png'), findsOneWidget);
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText)).controller.text,
+      isEmpty,
+    );
+    expect(
+      tester.widget<HmChatScreen>(find.byType(HmChatScreen)).chat.storedId,
+      isNull,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  testWidgets('a minimized Live call follows navigation and reopens in focus', (
+    tester,
+  ) async {
+    const voice = MethodChannel('com.hermesagent.hermes_android/voice');
+    const events = MethodChannel('com.hermesagent.hermes_android/voice/events');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    var starts = 0;
+    final stoppedOwners = <Object?>{};
+    const playback = [
+      MethodChannel('xyz.luan/audioplayers'),
+      MethodChannel('xyz.luan/audioplayers.global'),
+      MethodChannel('xyz.luan/audioplayers.global/events'),
+      MethodChannel('flutter_tts'),
+    ];
+    for (final channel in playback) {
+      messenger.setMockMethodCallHandler(channel, (_) async => null);
+    }
+    messenger.setMockMethodCallHandler(events, (_) async => null);
+    messenger.setMockMethodCallHandler(voice, (call) async {
+      if (call.method == 'capabilities') {
+        return {
+          'androidApi': 35,
+          'recordPermissionGranted': true,
+          'sttAvailable': true,
+          'onDeviceSttAvailable': true,
+          'wakeAssetsPresent': false,
+          'wakeSupportedAbi': true,
+        };
       }
-      await _settle(tester);
+      if (call.method == 'recognizeOnce') starts++;
+      if (call.method == 'stop') stoppedOwners.add(call.arguments['ownerId']);
+      return null;
+    });
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(voice, null);
+      messenger.setMockMethodCallHandler(events, null);
+      for (final channel in playback) {
+        messenger.setMockMethodCallHandler(channel, null);
+      }
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final gateway = _Gateway(_host([]));
+    final bots = HmBotsModel(gateway);
+    addTearDown(gateway.dispose);
+    addTearDown(bots.dispose);
+    final bot = HmBot.fromJson({'name': 'coder', 'display_name': 'Coder'});
+    await tester.pumpWidget(
+      _scoped(
+        prefs,
+        gateway,
+        Builder(
+          builder: (context) => Scaffold(
+            body: Column(
+              children: [
+                TextButton(
+                  onPressed: () =>
+                      hmOpenChat(context, bot: bot, bots: bots, live: true),
+                  child: const Text('Start Live'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const Scaffold(body: Text('Other page')),
+                    ),
+                  ),
+                  child: const Text('Navigate'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        hostLive: true,
+      ),
+    );
+    await tester.tap(find.text('Start Live'));
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('live-status')), findsOneWidget);
+    expect(starts, 1);
+    final minimize = find.byTooltip('Minimize call');
+    expect(minimize, findsOneWidget);
+    await tester.tap(minimize);
+    await _settle(tester);
+    await tester.tap(find.text('Navigate'));
+    await _settle(tester);
+    expect(find.text('Other page'), findsOneWidget);
+    final bubble = find.byTooltip('Return to live call');
+    expect(tester.getSize(bubble), const Size(48, 48));
+    await tester.tap(bubble);
+    await _settle(tester);
+    expect(bubble, findsNothing);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('live-orb'))).width,
+      greaterThan(48),
+    );
+    expect(starts, 1);
+    expect(stoppedOwners, isEmpty);
+    await tester.tap(find.byTooltip('End live mode'));
+    await _settle(tester);
+    expect(bubble, findsNothing);
+    expect(find.text('Other page'), findsOneWidget);
+    expect(stoppedOwners, hasLength(1));
 
-      expect(find.byType(HmChatScreen), findsOneWidget);
-      expect(find.text('shared-photo.png'), findsOneWidget);
-      expect(
-        tester.widget<EditableText>(find.byType(EditableText)).controller.text,
-        isEmpty,
-      );
-      expect(
-        tester.widget<HmChatScreen>(find.byType(HmChatScreen)).chat.storedId,
-        isNull,
-      );
-      await tester.pumpWidget(const SizedBox.shrink());
-    },
-    timeout: const Timeout(Duration(seconds: 20)),
-  );
+    final page = tester.element(find.text('Other page'));
+    Navigator.of(page).pop();
+    await _settle(tester);
+    await tester.tap(find.text('Start Live'));
+    await _settle(tester);
+    await tester.tap(minimize);
+    await _settle(tester);
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump();
+    expect(bubble, findsOneWidget);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    await _settle(tester);
+    expect(bubble, findsNothing);
+    expect(stoppedOwners, hasLength(2));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+
+    await tester.tap(find.text('Start Live'));
+    await _settle(tester);
+    final mutation = ConnectionMutationBarrier.begin([gateway.connection.id]);
+    addTearDown(mutation.release);
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('live-status')), findsNothing);
+    expect(bubble, findsNothing);
+    expect(stoppedOwners, hasLength(3));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _settle(tester);
+  });
 
   testWidgets('hmOpenChat opens a stored chat with its transcript', (
     tester,

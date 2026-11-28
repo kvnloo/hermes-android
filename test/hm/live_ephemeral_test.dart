@@ -14,6 +14,9 @@ import 'package:hermes_android/core/widgets/markdown_code_block.dart';
 import 'package:hermes_android/hm/features/live/hm_live.dart';
 import 'package:hermes_android/hm/features/live/live_transport.dart';
 import 'package:hermes_android/hm/hm_bots.dart';
+import 'package:hermes_android/core/services/connection_manager.dart';
+import 'package:hermes_android/core/services/ws_client.dart';
+import 'package:hermes_android/nextgen/data/nextgen_gateway.dart';
 import 'package:hermes_android/l10n/app_localizations.dart';
 import 'package:hermes_android/nextgen/data/chat_controller.dart';
 import 'package:hermes_android/nextgen/nextgen_preferences.dart';
@@ -48,7 +51,11 @@ Future<void> _font(String family, List<String> files) async {
   await loader.load();
 }
 
-Future<void> _open(WidgetTester tester, LiveRig rig) async {
+Future<void> _open(
+  WidgetTester tester,
+  LiveRig rig, {
+  NgChatController? chat,
+}) async {
   tester.view.physicalSize = const Size(1080, 2340);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
@@ -59,7 +66,9 @@ Future<void> _open(WidgetTester tester, LiveRig rig) async {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: nextGenTheme(Brightness.dark, NextGenLook.instance),
-        home: HmLiveScreen(bot: _bot, create: rig.build),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: HmLiveScreen(bot: _bot, create: rig.build, chat: chat),
       ),
     ),
   );
@@ -79,12 +88,15 @@ Map<String, Object?> _delta(bool user, String text) => {
   'delta': text,
 };
 
-Future<LiveRig> _delegated(WidgetTester tester) async {
+Future<LiveRig> _delegated(
+  WidgetTester tester, {
+  NgChatController? chat,
+}) async {
   final rig = LiveRig(
     host: FakeHost(mode: 'gpt-live', available: true),
     peer: FakePeer(),
   );
-  await _open(tester, rig);
+  await _open(tester, rig, chat: chat);
   rig.peer!
     ..event(_delta(true, 'Show me the PR for the live fix.'))
     ..event({
@@ -139,6 +151,15 @@ void main() {
         'Here is the pull request.\n\nWant me to merge it?',
       );
       expect(ephemeralUiFences('```json\n{}\n```'), isEmpty);
+    });
+
+    test('live understands tilde fences but ignores a nested code example', () {
+      const reply = 'Top\r\n~~~ephemeral-ui\r\n$_card\r\n~~~~\r\nBottom';
+      expect(ephemeralUiFences(reply).single.trim(), _card);
+      expect(withoutEphemeralUi(reply), 'Top\r\nBottom');
+      const sample = '````md\n```ephemeral-ui\n$_card\n```\n````';
+      expect(ephemeralUiFences(sample), isEmpty);
+      expect(withoutEphemeralUi(sample), sample);
     });
 
     test('both chat renderers hand the fence to the card renderer', () {
@@ -199,6 +220,111 @@ void main() {
           .where((f) => f['type'] == 'session.commentary.append')
           .single;
       expect(said['content'], 'Here is the pull request. Want me to merge it?');
+    },
+  );
+
+  testWidgets(
+    'compact bubble expands above a pending approval and the inline live card',
+    (tester) async {
+      ephemeralCardStyle.value = EphemeralCardStyle.serviceNative;
+      addTearDown(() => ephemeralCardStyle.value = EphemeralCardStyle.appTheme);
+      final gateway = NextGenGateway(
+        SavedConnection(
+          id: 'test',
+          label: 'Test',
+          host: 'example.invalid',
+          port: 9119,
+          apiKey: '',
+        ),
+      );
+      addTearDown(gateway.dispose);
+      final chat = NgChatController(gateway);
+      addTearDown(chat.dispose);
+      String? choice;
+      chat.request = NgInputRequest.parse(
+        NgServerRequest(
+          GatewayServerRequest.forTesting(
+            id: 'approval',
+            method: 'approval',
+            params: {'description': 'Read a report', 'allow_session': false},
+            respond: (result) {
+              choice = result['choice'] as String;
+              return true;
+            },
+          ),
+        ),
+      );
+      final rig = await _delegated(tester, chat: chat);
+      rig.brain.reply(_reply);
+      await _frames(tester);
+      final orb = find.byKey(const ValueKey('live-orb'));
+      final approval = find.byKey(const ValueKey('live-approval'));
+      expect(tester.getSize(orb).width, 48);
+      expect(approval, findsNothing);
+      final card = find.byType(EphemeralCardView);
+      expect(card, findsOneWidget);
+      final expected = resolveEphemeralCard(
+        _catalog,
+        EphemeralFence.parse(_card).cards.single,
+      ).data!;
+      expect(tester.widget<EphemeralCardView>(card).data.props, expected.props);
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.byKey(const ValueKey('ephemeral-style-serviceNative')),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.byTooltip('Enter focus mode'));
+      await _frames(tester);
+      expect(tester.getSize(orb).width, greaterThan(48));
+      expect(approval, findsOneWidget);
+      await tester.ensureVisible(approval);
+      await _frames(tester);
+      expect(
+        tester.getTopLeft(approval).dy,
+        greaterThan(tester.getBottomLeft(orb).dy),
+      );
+      await tester.tap(
+        find.descendant(of: approval, matching: find.text('Deny')),
+      );
+      await _frames(tester);
+      expect(choice, 'deny');
+      expect(approval, findsNothing);
+      // After settling the newest approval the inline card remains
+      // available in the same focus transcript, below the large orb.
+      await tester.ensureVisible(card);
+      await _frames(tester);
+      expect(
+        tester.getTopLeft(card).dy,
+        greaterThan(tester.getBottomLeft(orb).dy),
+      );
+      await tester.tap(find.byTooltip('Exit focus mode'));
+      await _frames(tester);
+      expect(tester.getSize(orb).width, 48);
+      expect(card, findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'GPT-Live: a fenced card in streamed voice output mounts inline',
+    (tester) async {
+      final rig = LiveRig(
+        host: FakeHost(mode: 'gpt-live', available: true),
+        peer: FakePeer(),
+      );
+      await _open(tester, rig);
+      rig.peer!
+        ..event(_delta(false, 'Here is the PR.\n\n```ephemeral-ui\n'))
+        ..event(_delta(false, '$_card\n```\n'));
+      await _frames(tester);
+      expect(find.text('Here is the PR.'), findsOneWidget);
+      expect(find.byType(EphemeralCardView), findsOneWidget);
+      expect(find.text('Merge #42'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('ephemeral-style-appTheme')),
+        findsOneWidget,
+      );
     },
   );
 

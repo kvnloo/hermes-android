@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/widgets/turbo_motion_controls.dart';
 import '../../core/ephemeral/ephemeral_gallery_screen.dart';
+import '../../core/ephemeral/ephemeral_card_style.dart';
 import '../../core/models/connection.dart';
 import '../../core/screens/model_management_screen.dart';
 import '../../core/screens/settings_screen.dart';
@@ -526,6 +527,24 @@ class _NgSettingsPageState extends State<NgSettingsPage> {
                     value: look.glow,
                     onChanged: (v) =>
                         NextGenPreferences.setGlow(scope.prefs, v),
+                  ),
+                  ValueListenableBuilder(
+                    valueListenable: ephemeralCardStyle,
+                    builder: (context, style, _) => SwitchListTile(
+                      key: const ValueKey('ng-card-style'),
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Service-native cards'),
+                      subtitle: const Text(
+                        'Use original-service styling instead of the app theme in chat, voice and the card gallery.',
+                      ),
+                      value: style == EphemeralCardStyle.serviceNative,
+                      onChanged: (enabled) => EphemeralCardPreferences.set(
+                        scope.prefs,
+                        enabled
+                            ? EphemeralCardStyle.serviceNative
+                            : EphemeralCardStyle.appTheme,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Text(

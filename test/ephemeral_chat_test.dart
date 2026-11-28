@@ -187,6 +187,16 @@ void main() {
       expect(r.data!.footnote, "From the card's data");
     });
 
+    test('new data never borrows content or actions from fixture examples', () {
+      final input = {'hosts': <Object?>[]};
+      final card = resolveEphemeralCard(_catalog, {
+        'kind': 'fleet-hosts',
+        'app': 'k3s',
+        'input': input,
+      }).data!;
+      expect(card.props, {'kind': 'fleet-hosts', 'app': 'k3s', 'input': input});
+    });
+
     test('appInput kinds draw the given input', () {
       final input = {'number': 7, 'title': 'Fix', 'head': 'a', 'base': 'b'};
       final r = resolveEphemeralCard(_catalog, {

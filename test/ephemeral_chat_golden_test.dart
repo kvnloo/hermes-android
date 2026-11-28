@@ -40,6 +40,8 @@ EphemeralFixture _chatFixture(EphemeralKind kind) => kind.fixtures.firstWhere(
 );
 
 void main() {
+  setUp(() => ephemeralCardStyle.value = EphemeralCardStyle.appTheme);
+  tearDown(() => ephemeralCardStyle.value = EphemeralCardStyle.appTheme);
   final catalog = EphemeralCatalog.parse(
     File(EphemeralCatalogAssets.catalog).readAsStringSync(),
   );
@@ -68,77 +70,113 @@ void main() {
   setUp(() => EphemeralCatalog.debugUse(catalog));
   tearDown(() => EphemeralCatalog.debugUse(null));
 
-  test(
-    'a chat golden exists for exactly the catalog kinds',
-    () {
-      final kinds = {for (final k in catalog.kinds) '${k.kind}.png'};
-      final dir = Directory(_goldenDir);
+  test('both golden directories match the catalog', () {
+    final kinds = {for (final k in catalog.kinds) '${k.kind}.png'};
+    for (final path in [_goldenDir, 'test/goldens/ephemeral_service']) {
+      final dir = Directory(path);
       final files = dir.existsSync()
           ? {
               for (final f in dir.listSync().whereType<File>())
                 f.path.split('/').last,
             }
           : <String>{};
-      expect(kinds.difference(files), isEmpty, reason: 'run --update-goldens');
+      expect(
+        kinds.difference(files),
+        isEmpty,
+        reason: '$path: run --update-goldens',
+      );
       expect(files.difference(kinds), isEmpty);
-    },
-    skip: autoUpdateGoldenFiles ? 'writing goldens' : false,
-  );
+    }
+  }, skip: autoUpdateGoldenFiles ? 'writing goldens' : false);
 
-  for (final kind in catalog.kinds) {
-    testWidgets('chat golden ${kind.kind}', (tester) async {
-      tester.view.physicalSize = const Size(720, 8000);
-      tester.view.devicePixelRatio = 2;
-      addTearDown(tester.view.reset);
-      final fixture = _chatFixture(kind);
-      final reply =
-          'Here is the ${kind.label} card.\n\n'
-          '```ephemeral-ui\n${jsonEncode(fixture.card)}\n```\n';
-      final tokens = HermesTokens.forBrightness(Brightness.dark);
-      await tester.pumpWidget(
-        MaterialApp(
-          debugShowCheckedModeBanner: false,
-          theme: hermesTheme(Brightness.dark),
-          home: Scaffold(
-            body: Align(
-              alignment: Alignment.topCenter,
-              child: RepaintBoundary(
-                key: const Key('golden'),
-                child: Container(
-                  width: 360,
-                  color: tokens.raised,
-                  padding: const EdgeInsets.all(12),
-                  child: DefaultTextStyle.merge(
-                    style: const TextStyle(fontFamily: 'Roboto'),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (final block in splitMarkdownCodeBlocks(reply))
-                          if (block is String)
-                            Text(
-                              block.trim(),
-                              style: TextStyle(color: tokens.onSurface),
-                            )
-                          else
-                            block as Widget,
-                      ],
+  for (final style in EphemeralCardStyle.values) {
+    for (final kind in catalog.kinds) {
+      testWidgets('chat golden ${style.name} ${kind.kind}', (tester) async {
+        ephemeralCardStyle.value = style;
+        tester.view.physicalSize = const Size(720, 8000);
+        tester.view.devicePixelRatio = 2;
+        addTearDown(tester.view.reset);
+        final fixture = _chatFixture(kind);
+        final reply =
+            'Here is the ${kind.label} card.\n\n'
+            '```ephemeral-ui\n${jsonEncode(fixture.card)}\n```\n';
+        final tokens = HermesTokens.forBrightness(Brightness.dark);
+        await tester.pumpWidget(
+          MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: hermesTheme(Brightness.dark),
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topCenter,
+                child: RepaintBoundary(
+                  key: const Key('golden'),
+                  child: Container(
+                    width: 360,
+                    color: tokens.raised,
+                    padding: const EdgeInsets.all(12),
+                    child: DefaultTextStyle.merge(
+                      style: const TextStyle(fontFamily: 'Roboto'),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final block in splitMarkdownCodeBlocks(reply))
+                            if (block is String)
+                              Text(
+                                block.trim(),
+                                style: TextStyle(color: tokens.onSurface),
+                              )
+                            else
+                              block as Widget,
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pump();
-      expect(tester.takeException(), isNull);
-      expect(find.byType(EphemeralCardView), findsOneWidget);
-      await expectLater(
-        find.byKey(const Key('golden')),
-        matchesGoldenFile('goldens/ephemeral_chat/${kind.kind}.png'),
-      );
-    });
+        );
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+        final card = find.byType(EphemeralCardView);
+        expect(card, findsOneWidget);
+        expect(
+          tester.widget<EphemeralCardView>(card).data.props,
+          fixture.props,
+        );
+        expect(find.byKey(const Key('ephemeral-fence-notice')), findsNothing);
+        if (fixture.state != EphemeralFixtureState.unavailable) {
+          expect(find.byKey(const Key('ephemeral-unavailable')), findsNothing);
+        }
+        expect(find.byKey(const Key('ephemeral-fence-problem')), findsNothing);
+        expect(find.byKey(const Key('ephemeral-unsupported')), findsNothing);
+        expect(
+          find.byKey(ValueKey('ephemeral-style-${style.name}')),
+          findsOneWidget,
+        );
+        await expectLater(
+          find.byKey(const Key('golden')),
+          matchesGoldenFile(
+            style == EphemeralCardStyle.appTheme
+                ? 'goldens/ephemeral_chat/${kind.kind}.png'
+                : 'goldens/ephemeral_service/${kind.kind}.png',
+          ),
+        );
+      });
+    }
   }
+
+  test('card style defaults to the app and survives reload', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    EphemeralCardPreferences.load(prefs);
+    expect(ephemeralCardStyle.value, EphemeralCardStyle.appTheme);
+    await EphemeralCardPreferences.set(prefs, EphemeralCardStyle.serviceNative);
+    ephemeralCardStyle.value = EphemeralCardStyle.appTheme;
+    EphemeralCardPreferences.load(prefs);
+    expect(ephemeralCardStyle.value, EphemeralCardStyle.serviceNative);
+    await EphemeralCardPreferences.set(prefs, EphemeralCardStyle.appTheme);
+  });
 
   testWidgets('NextGen chat draws cards from a reply', (tester) async {
     tester.view.physicalSize = const Size(1080, 2340);
@@ -212,6 +250,14 @@ void main() {
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/chat_cards/nextgen_chat.png'),
+    );
+
+    ephemeralCardStyle.value = EphemeralCardStyle.serviceNative;
+    await tester.pump();
+    expect(find.byType(EphemeralCardView), findsNWidgets(2));
+    expect(
+      find.byKey(const ValueKey('ephemeral-style-serviceNative')),
+      findsNWidgets(2),
     );
   });
 }

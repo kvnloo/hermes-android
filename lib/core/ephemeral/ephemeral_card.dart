@@ -8,11 +8,15 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../theme/ephemeral_service_theme.dart';
 import '../theme/hermes_theme.dart';
 import 'ephemeral_catalog.dart';
+import 'ephemeral_card_style.dart';
 import 'ephemeral_layouts.dart';
 
 export 'ephemeral_layouts.dart';
+export 'ephemeral_card_style.dart'
+    show EphemeralCardStyle, EphemeralCardPreferences, ephemeralCardStyle;
 
 /// What a renderer needs to draw one card.
 final class EphemeralCardData {
@@ -77,7 +81,31 @@ class EphemeralCardView extends StatelessWidget {
   Map<String, Object?> get props => data.props;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder(
+    valueListenable: ephemeralCardStyle,
+    builder: (context, style, _) {
+      final theme = Theme.of(context);
+      final palette = style == EphemeralCardStyle.serviceNative
+          ? serviceCardPalette(data.appId, theme.brightness)
+          : null;
+      final card = Builder(
+        key: ValueKey('ephemeral-style-${style.name}'),
+        builder: (context) => _buildCard(context, palette),
+      );
+      if (palette == null) return card;
+      return Theme(
+        data: theme.copyWith(
+          extensions: [
+            ...theme.extensions.values.where((e) => e is! HermesTokens),
+            serviceCardTokens(palette),
+          ],
+        ),
+        child: card,
+      );
+    },
+  );
+
+  Widget _buildCard(BuildContext context, ServiceCardPalette? palette) {
     final tokens = HermesTokens.of(context);
     final layout = ephemeralKindLayouts[data.kind];
     final unavailable = data.unavailable;
@@ -86,13 +114,34 @@ class EphemeralCardView extends StatelessWidget {
       body.add(_Unavailable(reason: unavailable));
     } else if (layout == null) {
       body.add(_Unsupported(kind: data.kind));
+    } else if (palette != null &&
+        (data.appId == 'github' || data.appId == 'github-actions') &&
+        data.kind == 'merge' &&
+        (data.props['input'] == null || data.props['input'] is Map)) {
+      final input = data.props['input'];
+      body.add(
+        _PullRequest(
+          values: input is Map ? input.cast<String, Object?>() : data.props,
+        ),
+      );
     } else {
-      final hero = _hero(context, layout);
+      final inbox =
+          palette != null &&
+          data.appId == 'gmail' &&
+          data.kind == 'inbox' &&
+          data.props['results'] is List;
+      final hero = inbox
+          ? _Inbox(
+              query: data.props['query'],
+              results: data.props['results'] as List,
+            )
+          : _hero(layout);
       if (hero != null) body.add(hero);
       final rest = <String, Object?>{
         for (final entry in data.props.entries)
           if (!_headerKeys.contains(entry.key) &&
-              !layout.heroKeys.contains(entry.key))
+              !layout.heroKeys.contains(entry.key) &&
+              !(inbox && (entry.key == 'query' || entry.key == 'results')))
             entry.key: entry.value,
       };
       if (rest.isNotEmpty) body.add(_Fields(values: rest, depth: 0));
@@ -103,14 +152,16 @@ class EphemeralCardView extends StatelessWidget {
       padding: const EdgeInsets.all(HermesSpacing.md),
       decoration: BoxDecoration(
         color: tokens.surface,
-        borderRadius: HermesRadius.card,
+        borderRadius: palette == null
+            ? HermesRadius.card
+            : BorderRadius.circular(palette.radius),
         border: Border.all(color: tokens.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _Header(data: data),
+          _Header(data: data, palette: palette),
           for (final widget in body) ...[
             const SizedBox(height: HermesSpacing.sm),
             widget,
@@ -128,7 +179,7 @@ class EphemeralCardView extends StatelessWidget {
     );
   }
 
-  Widget? _hero(BuildContext context, EphemeralLayout layout) {
+  Widget? _hero(EphemeralLayout layout) {
     // Data and appInput fixtures carry the document under `input`; the hero
     // reads a key from there when the spec has no top-level value.
     final input = data.props['input'];
@@ -236,7 +287,9 @@ const _nameKeys = [
 // Pieces
 
 class _Header extends StatelessWidget {
-  const _Header({required this.data});
+  const _Header({required this.data, required this.palette});
+
+  final ServiceCardPalette? palette;
 
   final EphemeralCardData data;
 
@@ -257,7 +310,7 @@ class _Header extends StatelessWidget {
     }
     // Monogram tints come from the active tokens, so every theme recolours
     // them; host apps outside the catalog stay neutral.
-    final palette = [
+    final tints = [
       tokens.accent,
       tokens.running,
       tokens.success,
@@ -265,8 +318,10 @@ class _Header extends StatelessWidget {
       tokens.blocked,
       tokens.danger,
     ];
-    final tint = data.appInCatalog
-        ? palette[hash % palette.length]
+    final tint = palette != null
+        ? tokens.accent
+        : data.appInCatalog
+        ? tints[hash % tints.length]
         : tokens.muted;
     return Row(
       children: [
@@ -279,13 +334,15 @@ class _Header extends StatelessWidget {
             borderRadius: BorderRadius.circular(HermesRadius.sm),
             border: Border.all(color: tint.withValues(alpha: 0.5)),
           ),
-          child: Text(
-            letters.isEmpty ? '?' : letters,
-            style: tokens.typography.label.copyWith(
-              color: tint,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          child: palette?.icon != null
+              ? Icon(palette!.icon, color: tint, size: 18)
+              : Text(
+                  letters.isEmpty ? '?' : letters,
+                  style: tokens.typography.label.copyWith(
+                    color: tint,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
         ),
         const SizedBox(width: HermesSpacing.sm),
         Expanded(
@@ -310,7 +367,10 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
-        _Chip(text: data.kind, mono: true),
+        if (palette == null)
+          _Chip(text: data.kind, mono: true)
+        else if (palette?.icon == null)
+          Flexible(child: _Chip(text: data.kind, mono: true)),
       ],
     );
   }
@@ -523,6 +583,180 @@ class _Route extends StatelessWidget {
           child: Icon(Icons.arrow_forward, size: 18, color: tokens.accent),
         ),
         Flexible(child: Text(ephemeralScalar(to), style: style)),
+      ],
+    );
+  }
+}
+
+/// Service-native pull request preview. The merge action, if any, belongs
+/// to a separate host approval, not to this model-supplied card.
+class _PullRequest extends StatelessWidget {
+  const _PullRequest({required this.values});
+
+  final Map<String, Object?> values;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = HermesTokens.of(context);
+    final title = values['title'];
+    final number = values['number'] ?? values['pr'];
+    final state = values['state'];
+    final checks = values['checks'];
+    final conflicts = values['conflicts'];
+    final commits = values['commits'];
+    final rest = <String, Object?>{
+      for (final entry in values.entries)
+        if (!_headerKeys.contains(entry.key) &&
+            !const {
+              'title',
+              'number',
+              'pr',
+              'state',
+              'head',
+              'base',
+              'checks',
+              'conflicts',
+              'commits',
+            }.contains(entry.key))
+          entry.key: entry.value,
+    };
+    final body = tokens.typography.body.copyWith(color: tokens.onSurface);
+    final label = tokens.typography.label.copyWith(color: tokens.muted);
+    return Column(
+      key: const Key('ephemeral-pull-request'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (title is String && title.isNotEmpty)
+          Text(title, style: body.copyWith(fontWeight: FontWeight.w700)),
+        if (number != null ||
+            state != null ||
+            (conflicts is num && conflicts > 0))
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (number != null) _Chip(text: '#${ephemeralScalar(number)}'),
+                if (state is String && state.isNotEmpty)
+                  _Chip(text: state, strong: true),
+                if (conflicts is num && conflicts > 0)
+                  _Chip(text: '${ephemeralScalar(conflicts)} conflicts'),
+              ],
+            ),
+          ),
+        if (values['head'] != null && values['base'] != null)
+          _Route(from: values['head'], to: values['base']),
+        if (checks is num)
+          Text('${ephemeralScalar(checks)} checks', style: label),
+        if (checks is List && checks.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text('Checks', style: label),
+          for (final check in checks.take(6))
+            if (check is Map)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      switch (check['status']) {
+                        'pass' => Icons.check_circle_outline,
+                        'fail' => Icons.error_outline,
+                        'running' => Icons.timelapse,
+                        _ => Icons.remove_circle_outline,
+                      },
+                      color: switch (check['status']) {
+                        'pass' => tokens.success,
+                        'fail' => tokens.danger,
+                        'running' => tokens.warning,
+                        _ => tokens.muted,
+                      },
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(ephemeralScalar(check['name']), style: body),
+                    ),
+                    if (check['detail'] case final String detail)
+                      Flexible(
+                        child: Text(
+                          detail,
+                          style: label,
+                          textAlign: TextAlign.end,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          if (checks.length > 6)
+            Text('+${checks.length - 6} more checks', style: label),
+        ],
+        if (commits is List && commits.isNotEmpty)
+          Text('${commits.length} commits', style: label),
+        if (rest.isNotEmpty) _Fields(values: rest, depth: 0),
+      ],
+    );
+  }
+}
+
+/// A read-only inbox preview. Do not invent senders or dates: some kit
+/// fixtures include only a message id and subject.
+class _Inbox extends StatelessWidget {
+  const _Inbox({required this.query, required this.results});
+
+  final Object? query;
+  final List<Object?> results;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = HermesTokens.of(context);
+    final text = tokens.typography.body.copyWith(color: tokens.onSurface);
+    final muted = tokens.typography.label.copyWith(color: tokens.muted);
+    return Column(
+      key: const Key('ephemeral-inbox'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (query is String && (query as String).isNotEmpty)
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: tokens.raised,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.search, color: tokens.muted, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(query as String, style: text)),
+                ],
+              ),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.only(top: 12, bottom: 2),
+          child: Text(
+            results.isEmpty ? 'No results' : 'Top results',
+            style: muted,
+          ),
+        ),
+        for (final row in results.take(6))
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: tokens.border)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                ephemeralScalar(row is Map ? row['subject'] ?? row['id'] : row),
+                style: text,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        if (results.length > 6)
+          Text('+${results.length - 6} more', style: muted),
       ],
     );
   }

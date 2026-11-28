@@ -632,7 +632,7 @@ class _NgChatViewState extends State<NgChatView> {
               if (chat.error != null) _errorBar(c),
               if (chat.queued.isNotEmpty) _queue(c),
               if (chat.request != null)
-                _InputPanel(chat: chat, request: chat.request!)
+                NgInputPanel(chat: chat, request: chat.request!)
               else
                 _composer(c, state),
             ],
@@ -2070,16 +2070,16 @@ class _ActionIcon extends StatelessWidget {
 }
 
 /// What the agent is waiting on: approval, a question or a secret.
-class _InputPanel extends StatefulWidget {
-  const _InputPanel({required this.chat, required this.request});
+class NgInputPanel extends StatefulWidget {
+  const NgInputPanel({super.key, required this.chat, required this.request});
   final NgChatController chat;
   final NgInputRequest request;
 
   @override
-  State<_InputPanel> createState() => _InputPanelState();
+  State<NgInputPanel> createState() => _NgInputPanelState();
 }
 
-class _InputPanelState extends State<_InputPanel> {
+class _NgInputPanelState extends State<NgInputPanel> {
   final _text = TextEditingController();
   final _user = TextEditingController();
   late List<Set<String>> _picked;
@@ -2092,7 +2092,7 @@ class _InputPanelState extends State<_InputPanel> {
   }
 
   @override
-  void didUpdateWidget(covariant _InputPanel oldWidget) {
+  void didUpdateWidget(covariant NgInputPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.request != widget.request) {
       for (final a in _answers) {
@@ -2125,6 +2125,17 @@ class _InputPanelState extends State<_InputPanel> {
     if (!ok && mounted) {
       ngToast(context, ngL.ng_the_gateway_connection_dropped_try_again);
     }
+  }
+
+  void _answerApproval(String choice) {
+    // A replacement request may have arrived before this frame rebuilt.
+    // Never apply a choice from the card the user saw to the new request.
+    final request = widget.request;
+    if (!identical(widget.chat.request, request) ||
+        !request.choices.contains(choice)) {
+      return;
+    }
+    _done(widget.chat.answerApproval(choice));
   }
 
   static String _choiceLabel(String choice) => switch (choice) {
@@ -2212,8 +2223,7 @@ class _InputPanelState extends State<_InputPanel> {
                           foregroundColor: c.danger,
                           shape: const StadiumBorder(),
                         ),
-                        onPressed: () =>
-                            _done(widget.chat.answerApproval(choice)),
+                        onPressed: () => _answerApproval(choice),
                         child: Text(_choiceLabel(choice)),
                       )
                     : FilledButton(
@@ -2226,8 +2236,7 @@ class _InputPanelState extends State<_InputPanel> {
                               : c.text,
                           shape: const StadiumBorder(),
                         ),
-                        onPressed: () =>
-                            _done(widget.chat.answerApproval(choice)),
+                        onPressed: () => _answerApproval(choice),
                         child: Text(_choiceLabel(choice)),
                       ),
             ],
