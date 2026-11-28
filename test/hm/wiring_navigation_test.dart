@@ -5,6 +5,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -256,6 +257,91 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 20)),
   );
+
+  testWidgets('a minimized Live call follows navigation and reopens in focus', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    const voice = MethodChannel('com.hermesagent.hermes_android/voice');
+    const events = MethodChannel('com.hermesagent.hermes_android/voice/events');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    var starts = 0;
+    messenger.setMockMethodCallHandler(events, (_) async => null);
+    messenger.setMockMethodCallHandler(voice, (call) async {
+      if (call.method == 'capabilities') {
+        return {
+          'androidApi': 35,
+          'recordPermissionGranted': true,
+          'sttAvailable': true,
+          'onDeviceSttAvailable': true,
+          'wakeAssetsPresent': false,
+          'wakeSupportedAbi': true,
+        };
+      }
+      if (call.method == 'recognizeOnce') starts++;
+      return null;
+    });
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(voice, null);
+      messenger.setMockMethodCallHandler(events, null);
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final gateway = _Gateway(_host([]));
+    final bots = HmBotsModel(gateway);
+    addTearDown(gateway.dispose);
+    addTearDown(bots.dispose);
+    final bot = HmBot.fromJson({'name': 'coder', 'display_name': 'Coder'});
+    await tester.pumpWidget(
+      _scoped(
+        prefs,
+        gateway,
+        Builder(
+          builder: (context) => Scaffold(
+            body: Column(
+              children: [
+                TextButton(
+                  onPressed: () => hmOpenChat(
+                    context, bot: bot, bots: bots, live: true,
+                  ),
+                  child: const Text('Start Live'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const Scaffold(body: Text('Other page')),
+                    ),
+                  ),
+                  child: const Text('Navigate'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Start Live'));
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('live-status')), findsOneWidget);
+    expect(starts, 1);
+    final minimize = find.byTooltip('Minimize call');
+    expect(minimize, findsOneWidget);
+    await tester.tap(minimize);
+    await _settle(tester);
+    await tester.tap(find.text('Navigate'));
+    await _settle(tester);
+    expect(find.text('Other page'), findsOneWidget);
+    final bubble = find.byTooltip('Return to live call');
+    expect(tester.getSize(bubble), const Size(48, 48));
+    await tester.tap(bubble);
+    await _settle(tester);
+    expect(bubble, findsNothing);
+    expect(tester.getSize(find.byKey(const ValueKey('live-orb'))).width, greaterThan(48));
+    expect(starts, 1);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _settle(tester);
+  });
 
   testWidgets('hmOpenChat opens a stored chat with its transcript', (
     tester,
