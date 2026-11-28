@@ -11,10 +11,14 @@ Every green `Play AAB (z0 Agent)` run on `staging` reaches Kevin's S25 without a
    `~/.local/bin/s25-z0-update`. It takes the newest successful staging run,
    downloads the artifact, checks the signer, sha and versionCode, and runs
    `adb install -r`. It never uninstalls the app or clears its data.
-3. If the phone is not on adb, the updater scans its tailscale IP for the current
-   wireless-debugging port and reconnects.
+3. The phone is found by identity (serial + model), never by a fixed address.
+   If it is not already on adb, the updater tries the last endpoint that
+   worked, then the adb mDNS service named for its serial, then a port scan of
+   its last LAN IP and its tailscale IP. While a green run waits for the
+   phone, it stays pending; after 20 minutes the wait is reported once.
 4. Receipts go to `~/.local/state/s25-update/receipts.jsonl` on groot, to the
-   Studio film log, and as a comment on the merged pull request.
+   Studio film log (with a small evidence JSON per decision), to the z0live
+   kanban card, and as a comment on the merged pull request.
 
 ## Testing on a phone that has a newer local build
 
